@@ -1,0 +1,243 @@
+{
+  "funds": [
+    {
+      "id": 1,
+      "name": "Aditya Birla Sun Life ELSS Tax Saver Fund",
+      "shortName": "Aditya Birla ELSS",
+      "category": "ELSS",
+      "schemeId": "107745",
+      "lumpsums": [
+        { "amount": 15000, "date": "2022-07-26" }
+      ],
+      "sipAmount": 3000,
+      "sipStartDate": "2022-09-05",
+      "sipStopDate": "2026-04-06",
+      "color": "#c2f7ae"
+    },
+    {
+      "id": 2,
+      "name": "HDFC ELSS Tax Saver",
+      "shortName": "HDFC ELSS",
+      "category": "ELSS",
+      "schemeId": "101979",
+      "lumpsums": [
+        { "amount": 25000, "date": "2022-09-02" },
+        { "amount": 14000, "date": "2022-12-06" }
+      ],
+      "sipAmount": 0,
+      "sipStartDate": null,
+      "sipStopDate": null,
+      "color": "#4ECDC4"
+    },
+    {
+      "id": 3,
+      "name": "ICICI Pru ELSS Tax Saver Fund",
+      "shortName": "ICICI Pru ELSS",
+      "category": "ELSS",
+      "schemeId": "100354",
+      "lumpsums": [
+        { "amount": 15000, "date": "2022-09-11" },
+        { "amount": 14000, "date": "2022-12-06" }
+      ],
+      "sipAmount": 0,
+      "sipStartDate": null,
+      "sipStopDate": null,
+      "color": "#95E1D3"
+    },
+    {
+      "id": 4,
+      "name": "Nippon India ELSS Tax Saver Fund",
+      "shortName": "Nippon ELSS",
+      "category": "ELSS",
+      "schemeId": "103196",
+      "lumpsums": [
+        { "amount": 20000, "date": "2022-08-24" }
+      ],
+      "sipAmount": 4000,
+      "sipStartDate": "2022-09-05",
+      "sipStopDate": "2026-04-06",
+      "color": "#8381f3"
+    },
+    {
+      "id": 5,
+      "name": "Nippon India Small Cap Fund",
+      "shortName": "Nippon Small Cap",
+      "category": "Small Cap",
+      "schemeId": "113177",
+      "lumpsums": [
+        { "amount": 6000, "date": "2024-08-06" }
+      ],
+      "sipAmount": 6000,
+      "sipStartDate": "2024-09-04",
+      "sipStopDate": null,
+      "color": "#AA96DA"
+    },
+    {
+      "id": 6,
+      "name": "ICICI Pru Large & Mid Cap Fund",
+      "shortName": "ICICI L&M Cap",
+      "category": "Large & Mid Cap",
+      "schemeId": "100349",
+      "lumpsums": [
+        { "amount": 5000, "date": "2025-08-11" }
+      ],
+      "sipAmount": 5000,
+      "sipStartDate": "2025-09-05",
+      "sipStopDate": null,
+      "color": "#FCBAD3"
+    },
+    {
+      "id": 7,
+      "name": "Nippon India Growth Mid Cap Fund",
+      "shortName": "Nippon Growth Mid Cap",
+      "category": "Mid Cap",
+      "schemeId": "100377",
+      "lumpsums": [
+        { "amount": 2000, "date": "2023-02-13" },
+        { "amount": 2000, "date": "2023-02-14" }
+      ],
+      "sipAmount": 2000,
+      "sipStartDate": "2023-04-05",
+      "sipStopDate": null,
+      "color": "#FFFFD2"
+    },
+    {
+      "id": 8,
+      "name": "HDFC Mid Cap Fund",
+      "shortName": "HDFC Mid Cap",
+      "category": "Mid Cap",
+      "schemeId": "105758",
+      "lumpsums": [
+        { "amount": 5000, "date": "2025-08-11" }
+      ],
+      "sipAmount": 5000,
+      "sipStartDate": "2026-05-05",
+      "sipStopDate": null,
+      "color": "#A8D8EA"
+    },
+    {
+      "id": 9,
+      "name": "Mirae Large Cap - Regular Plan",
+      "shortName": "Mirae Large Cap",
+      "category": "Large Cap",
+      "schemeId": "107578",
+      "lumpsums": [
+        { "amount": 4000, "date": "2026-04-06" }
+      ],
+      "sipAmount": 4000,
+      "sipStartDate": "2026-05-05",
+      "sipStopDate": null,
+      "color": "#FFB347"
+    },
+    {
+      "id": 10,
+      "name": "Nippon Gold ETF - Growth Plan",
+      "shortName": "Nippon Gold ETF",
+      "category": "Gold Fund",
+      "schemeId": "114616",
+      "lumpsums": [
+        { "amount": 4000, "date": "2026-04-15" }
+      ],
+      "sipAmount": 0,
+      "sipStartDate": null,
+      "sipStopDate": null,
+      "color": "#FFD700"
+    },
+    {
+      "id": 11,
+      "name": "Nippon Silver ETF - Growth Plan",
+      "shortName": "Nippon Silver ETF",
+      "category": "Silver Fund",
+      "schemeId": "149759",
+      "lumpsums": [
+        { "amount": 3000, "date": "2026-04-15" }
+      ],
+      "sipAmount": 0,
+      "sipStartDate": null,
+      "sipStopDate": null,
+      "color": "#C0C0C0"
+    },
+    {
+      "id": 12,
+      "name": "Nippon Large Cap - Growth Plan",
+      "shortName": "Nippon Large Cap",
+      "category": "Large Cap",
+      "schemeId": "106235",
+      "lumpsums": [
+        { "amount": 4500, "date": "2026-04-15" }
+      ],
+      "sipAmount": 0,
+      "sipStartDate": null,
+      "sipStopDate": null,
+      "color": "#B0E0E6"
+    },
+    {
+      "id": 13,
+      "name": "Bandhan Small Cap - Regular Plan - Growth",
+      "shortName": "Bandhan Small Cap",
+      "category": "Small Cap",
+      "schemeId": "147944",
+      "lumpsums": [],
+      "sipAmount": 4000,
+      "sipStartDate": "2026-05-05",
+      "sipStopDate": null,
+      "color": "#87CEEB"
+    },
+    {
+      "id": 14,
+      "name": "ICICI Pru Large Cap Growth Plan",
+      "shortName": "ICICI Pru L Cap",
+      "category": "Large Cap",
+      "schemeId": "108466",
+      "lumpsums": [],
+      "sipAmount": 5000,
+      "sipStartDate": "2026-05-05",
+      "sipStopDate": null,
+      "color": "#7FFFD4"
+    },
+    {
+      "id": 15,
+      "name": "HDFC Large Cap - Regular Plan - Growth",
+      "shortName": "HDFC Large Cap",
+      "category": "Large Cap",
+      "schemeId": "102000",
+      "lumpsums": [],
+      "sipAmount": 3500,
+      "sipStartDate": "2026-05-05",
+      "sipStopDate": null,
+      "color": "#FFA07A"
+    },
+    {
+      "id": 16,
+      "name": "Parag Flexi Cap - Regular Plan - Growth",
+      "shortName": "Parag Flexi Cap",
+      "category": "Flexi Cap",
+      "schemeId": "122640",
+      "lumpsums": [],
+      "sipAmount": 3000,
+      "sipStartDate": "2026-05-05",
+      "sipStopDate": null,
+      "color": "#F0E68C"
+    },
+    {
+      "id": 17,
+      "name": "HDFC Flexi Cap - Regular Plan - Growth",
+      "shortName": "HDFC Flexi Cap",
+      "category": "Flexi Cap",
+      "schemeId": "101762",
+      "lumpsums": [],
+      "sipAmount": 3000,
+      "sipStartDate": "2026-05-05",
+      "sipStopDate": null,
+      "color": "#FFDAB9"
+    }
+  ],
+  "llmConfig": {
+    "enabled": true,
+    "model": "anthropic.claude-3-sonnet-20240229-v1:0",
+    "max_tokens": 4000,
+    "cacheValidityHours": 24,
+    "temperature": 0.3,
+    "apiKeyRequired": true
+  }
+}
