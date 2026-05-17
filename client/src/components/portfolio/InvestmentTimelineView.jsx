@@ -161,10 +161,10 @@ const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) =
       {/* ── Summary Cards ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total Invested', value: `₹${(totalInvested / 1000).toFixed(1)}K`, color: 'text-primary' },
-          { label: 'Via SIP', value: `₹${(totalSIP / 1000).toFixed(1)}K`, color: 'text-emerald-400' },
-          { label: 'Via Lumpsum', value: `₹${(totalLumpsum / 1000).toFixed(1)}K`, color: 'text-blue-400' },
-          { label: 'Monthly SIP Now', value: `₹${currentMonthlyCommitment.toLocaleString('en-IN')}`, color: 'text-amber-400' },
+          { label: 'Total Invested', value: `₹${(totalInvested / 100000).toFixed(2)}L`, color: 'text-primary' },
+          { label: 'Via SIP', value: `₹${(totalSIP / 100000).toFixed(2)}L`, color: 'text-emerald-400' },
+          { label: 'Via Lumpsum', value: `₹${(totalLumpsum / 100000).toFixed(2)}L`, color: 'text-blue-400' },
+          { label: 'Monthly SIP Now', value: `₹${(currentMonthlyCommitment / 1000).toFixed(1).toLocaleString('en-IN')}K`, color: 'text-amber-400' },
         ].map(({ label, value, color }) => (
           <div
             key={label}
