@@ -71,8 +71,8 @@ const PerformanceView = ({ performanceGroups }) => {
 
                   <div className="border-t border-slate-700/50 grid grid-cols-2 gap-4 text-xs text-slate-500 space-y-1">
                     <div className="mt-2">₹{(fund.totalInvested / 1000).toFixed(0)}K invested → ₹{(fund.currentValue / 1000).toFixed(0)}K current</div>
-                    {fund.sipAmount > 0 && (
-                      <div className="mt-2"><strong>SIP:</strong> ₹{fund.sipAmount}/mo × {fund.sipMonths} months</div>
+                    {fund.currentMonthlySIP > 0 && (
+                      <div className="mt-2"><strong>SIP:</strong> ₹{fund.currentMonthlySIP}/mo × {fund.sipMonths} months</div>
                     )}
                   </div>
                 </div>

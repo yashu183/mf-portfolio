@@ -88,20 +88,43 @@ const FundCard = ({ fund, selectedFund, onSelectFund }) => {
           <div className="mt-4 text-xs text-slate-500">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* SIP and Lumpsum Column */}
-              <div className="space-y-2">
-                {fund.sipAmount > 0 && (
-                  <div className="flex justify-between">
-                    <span><strong>SIP:</strong></span>
-                    <span>₹{fund.sipAmount.toLocaleString('en-IN')}/mo × {fund.sipMonths}m = ₹{fund.totalSIPInvested.toLocaleString('en-IN')} (started {formatDate(fund.sipStartDate)})</span>
+              <div className="space-y-3">
+                {/* SIPs Section */}
+                {fund.sips && fund.sips.length > 0 && (
+                  <div className="space-y-1">
+                    <span><strong className="text-slate-400">SIP{fund.sips.length > 1 ? 's' : ''}:</strong></span>
+                    {fund.sips.map((sip, idx) => (
+                      <div key={idx} className="flex justify-between pl-2">
+                        <span>
+                          {formatDate(sip.startDate)}
+                          {sip.stopDate && ` - ${formatDate(sip.stopDate)}`}
+                        </span>
+                        <span>₹{sip.amount.toLocaleString('en-IN')}/mo</span>
+                      </div>
+                    ))}
+                    {fund.totalSIPInvested > 0 && (
+                      <div className="flex justify-between pl-2 pt-1 border-t border-slate-700/30">
+                        <span>Total SIP Invested:</span>
+                        <span className="text-slate-400">₹{fund.totalSIPInvested.toLocaleString('en-IN')} ({fund.sipMonths}m)</span>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {fund.totalLumpsum > 0 && (
-                  <div className="flex justify-between">
-                    <span><strong>Lumpsum:</strong></span>
-                    <span>₹{(fund.totalLumpsum ?? 0).toLocaleString('en-IN')} ({fund.lumpsums
-                      ? fund.lumpsums.map(ls => formatDate(ls.date)).join(', ')
-                      : formatDate(fund.lumpsumDate)})</span>
+                {/* Lumpsums Section */}
+                {fund.lumpsums && fund.lumpsums.length > 0 && (
+                  <div className="space-y-1">
+                    <span><strong className="text-slate-400">Lumpsum{fund.lumpsums.length > 1 ? 's' : ''}:</strong></span>
+                    {fund.lumpsums.map((lumpsum, idx) => (
+                      <div key={idx} className="flex justify-between pl-2">
+                        <span>{formatDate(lumpsum.date)}</span>
+                        <span>₹{lumpsum.amount.toLocaleString('en-IN')}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between pl-2 pt-1 border-t border-slate-700/30">
+                      <span>Total Lumpsum:</span>
+                      <span className="text-slate-400">₹{fund.totalLumpsum.toLocaleString('en-IN')}</span>
+                    </div>
                   </div>
                 )}
               </div>

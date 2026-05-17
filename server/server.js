@@ -172,20 +172,22 @@ async function calculateFundValue(fund) {
         }
     }
 
-    if (fund.sipAmount > 0 && fund.sipStartDate) {
-        const sipStart = new Date(fund.sipStartDate);
-        const now = new Date();
-        // Calculate effective end date: use sipStopDate if it exists and is before today
-        const endDate = fund.sipStopDate && new Date(fund.sipStopDate) < now ? new Date(fund.sipStopDate) : now;
-        const sipMonths = getMonthsDifference(sipStart, endDate);
-        for (let m = 0; m < sipMonths; m++) {
-            const sipDate = new Date(sipStart);
-            sipDate.setMonth(sipStart.getMonth() + m);
-            sipDate.setDate(5);
-            const nav = getNAVByDate(navHistory, sipDate);
-            if (nav) {
-                totalUnits += fund.sipAmount / nav;
-                totalInvested += fund.sipAmount;
+    const now = new Date();
+    // Process all SIPs from the sips array
+    for (const sip of fund.sips ?? []) {
+        if (sip.amount > 0 && sip.startDate) {
+            const sipStart = new Date(sip.startDate);
+            const endDate = sip.stopDate && new Date(sip.stopDate) < now ? new Date(sip.stopDate) : now;
+            const sipMonths = getMonthsDifference(sipStart, endDate);
+            for (let m = 0; m < sipMonths; m++) {
+                const sipDate = new Date(sipStart);
+                sipDate.setMonth(sipStart.getMonth() + m);
+                sipDate.setDate(5);
+                const nav = getNAVByDate(navHistory, sipDate);
+                if (nav) {
+                    totalUnits += sip.amount / nav;
+                    totalInvested += sip.amount;
+                }
             }
         }
     }
@@ -199,19 +201,21 @@ function buildCashFlows(fund, sipMonths, calculationDate) {
     for (const ls of fund.lumpsums ?? []) {
         cashFlows.push({ date: new Date(ls.date), amount: -ls.amount });
     }
-    if (fund.sipAmount > 0 && fund.sipStartDate) {
-        const sipStart = new Date(fund.sipStartDate);
-        // If sipStopDate exists and is before calculationDate, cap sipMonths at that date
-        let effectiveEndDate = calculationDate;
-        if (fund.sipStopDate && new Date(fund.sipStopDate) < calculationDate) {
-            effectiveEndDate = new Date(fund.sipStopDate);
-        }
-        const effectiveSipMonths = getMonthsDifference(sipStart, effectiveEndDate);
-        for (let i = 0; i < effectiveSipMonths; i++) {
-            const d = new Date(sipStart);
-            d.setMonth(sipStart.getMonth() + i);
-            d.setDate(5);
-            cashFlows.push({ date: d, amount: -fund.sipAmount });
+    // Process all SIPs from the sips array
+    for (const sip of fund.sips ?? []) {
+        if (sip.amount > 0 && sip.startDate) {
+            const sipStart = new Date(sip.startDate);
+            let effectiveEndDate = calculationDate;
+            if (sip.stopDate && new Date(sip.stopDate) < calculationDate) {
+                effectiveEndDate = new Date(sip.stopDate);
+            }
+            const effectiveSipMonths = getMonthsDifference(sipStart, effectiveEndDate);
+            for (let i = 0; i < effectiveSipMonths; i++) {
+                const d = new Date(sipStart);
+                d.setMonth(sipStart.getMonth() + i);
+                d.setDate(5);
+                cashFlows.push({ date: d, amount: -sip.amount });
+            }
         }
     }
     return cashFlows;
@@ -230,6 +234,63 @@ async function loadConfig() {
     const configPath = path.join(__dirname, 'portfolioConfig.json');
     const raw = await fs.readFile(configPath, 'utf-8');
     return JSON.parse(raw);
+}
+
+// ----- Fix the Allocations after LLM's response
+// After getting the API response, post-process to fix the total
+function fixAllocationTotal(response, targetTotal, categoryLookup = {}) {
+  const revisedPlan = response.recommendations.revisedPlan;
+
+  // 1. Build category totals using lookup since revisedPlan has no category field
+  const categoryMap = {};
+  for (const fund of revisedPlan) {
+    if (fund.revised > 0) {
+      const category = categoryLookup[fund.name] ?? "Other";
+      if (!categoryMap[category]) categoryMap[category] = 0;
+      categoryMap[category] += fund.revised;
+    }
+  }
+
+  // 2. Fix revisedPlan total if off
+  const revisedTotal = revisedPlan.reduce((sum, f) => sum + f.revised, 0);
+  const diff = targetTotal - revisedTotal;
+
+  if (diff !== 0) {
+    const activeFunds = revisedPlan
+      .filter(f => !f.stop && f.revised > 0)
+      .sort((a, b) => b.revised - a.revised);
+
+    if (activeFunds.length > 0) {
+      const topFund = activeFunds[0];
+      topFund.revised += diff;
+      topFund.change = (topFund.revised - topFund.current >= 0 ? "+" : "")
+                       + (topFund.revised - topFund.current);
+
+      // Also fix categoryMap for this fund
+      const topCategory = categoryLookup[topFund.name] ?? "Other";
+      categoryMap[topCategory] = (categoryMap[topCategory] || 0) + diff;
+    }
+  }
+
+  // 3. Rebuild recommendedAllocation from corrected categoryMap
+  const originalAllocations = response.recommendedAllocation?.allocations ?? [];
+
+  response.recommendedAllocation = {
+    totalTarget: targetTotal,
+    allocations: Object.entries(categoryMap).map(([category, amount]) => {
+      const orig = originalAllocations.find(a => a.category === category);
+      return {
+        category,
+        amount,
+        percentage: parseFloat(((amount / targetTotal) * 100).toFixed(2)),
+        color: orig?.color ?? "emerald",
+        advice: orig?.advice ?? ""
+      };
+    }),
+    summary: response.recommendedAllocation?.summary ?? ""
+  };
+
+  return response;
 }
 
 // ─── API Endpoints ─────────────────────────────────────────────────────────────
@@ -255,20 +316,39 @@ app.get('/api/portfolio/complete', async (_req, res) => {
                 const { totalUnits, totalInvested, currentValue, latestNAV, latestDate } =
                     await calculateFundValue(fund);
 
-                // Calculate effective SIP end date considering sipStopDate
-                const sipStartDate = fund.sipStartDate ? new Date(fund.sipStartDate) : null;
-                let effectiveSipEndDate = currentDate;
-                if (fund.sipStopDate && new Date(fund.sipStopDate) < currentDate) {
-                    effectiveSipEndDate = new Date(fund.sipStopDate);
+                // Calculate SIP months and total invested from sips array
+                let totalSIPInvested = 0;
+                let sipMonths = 0;
+                let currentMonthlySIP = 0;
+                for (const sip of fund.sips ?? []) {
+                    if (sip.amount > 0 && sip.startDate) {
+                        const sipStart = new Date(sip.startDate);
+                        let effectiveSipEndDate = currentDate;
+                        if (sip.stopDate && new Date(sip.stopDate) < currentDate) {
+                            effectiveSipEndDate = new Date(sip.stopDate);
+                        }
+                        const months = getMonthsDifference(sipStart, effectiveSipEndDate);
+                        totalSIPInvested += sip.amount * months;
+                        sipMonths += months;
+
+                        // If this SIP is currently active (started and not stopped), add to current monthly SIP
+                        if (sipStart <= currentDate && (!sip.stopDate || new Date(sip.stopDate) >= currentDate)) {
+                            currentMonthlySIP += sip.amount;
+                        }
+                    }
                 }
-                const sipMonths = sipStartDate ? getMonthsDifference(sipStartDate, effectiveSipEndDate) : 0;
                 const totalLumpsum = (fund.lumpsums ?? []).reduce((s, l) => s + l.amount, 0);
-                const totalSIPInvested = (fund.sipAmount ?? 0) * sipMonths;
-                const startDate =
-                    fund.sipStartDate ??
-                    (fund.lumpsums?.length
-                        ? new Date(Math.min(...fund.lumpsums.map((l) => new Date(l.date))))
-                        : currentDate);
+
+                // Find the earliest investment date
+                let startDate = currentDate;
+                if (fund.sips?.length > 0) {
+                    const earliestSipStart = new Date(Math.min(...fund.sips.map(s => new Date(s.startDate))));
+                    if (earliestSipStart < startDate) startDate = earliestSipStart;
+                }
+                if (fund.lumpsums?.length > 0) {
+                    const earliestLumpsum = new Date(Math.min(...fund.lumpsums.map(l => new Date(l.date))));
+                    if (earliestLumpsum < startDate) startDate = earliestLumpsum;
+                }
                 const investmentAge = getMonthsDifference(startDate, currentDate);
 
                 const cashFlows = buildCashFlows(fund, sipMonths, currentDate);
@@ -294,6 +374,7 @@ app.get('/api/portfolio/complete', async (_req, res) => {
                     xirr,
                     returns,
                     status: deriveStatus(xirr, sipMonths),
+                    currentMonthlySIP, // Add the current monthly SIP amount for this fund
                 };
             }),
         );
@@ -302,7 +383,7 @@ app.get('/api/portfolio/complete', async (_req, res) => {
             (acc, f) => {
                 acc.totalInvested += f.totalInvested;
                 acc.totalCurrentValue += f.currentValue;
-                acc.monthlySIP += f.sipAmount ?? 0;
+                acc.monthlySIP += f.currentMonthlySIP ?? 0; // Sum up current active SIPs
                 return acc;
             },
             { totalInvested: 0, totalCurrentValue: 0, monthlySIP: 0 },
@@ -332,61 +413,110 @@ app.post('/api/recommendations', async (req, res) => {
         const config = await loadConfig();
         const { llmConfig } = config;
 
-        const totalCurrentSIP = portfolioData.funds.reduce((s, f) => s + (f.sipAmount ?? 0), 0);
+        // Calculate total current SIP from active sips
+        const currentDate = new Date();
+        const totalCurrentSIP = portfolioData.funds.reduce((sum, f) => {
+            let fundActiveSIP = 0;
+            for (const sip of f.sips ?? []) {
+                if (sip.amount > 0 && sip.startDate) {
+                    const sipStart = new Date(sip.startDate);
+                    // Check if this SIP is currently active
+                    if (sipStart <= currentDate && (!sip.stopDate || new Date(sip.stopDate) >= currentDate)) {
+                        fundActiveSIP += sip.amount;
+                    }
+                }
+            }
+            return sum + fundActiveSIP;
+        }, 0);
 
         const portfolioAnalysis = {
-            funds: portfolioData.funds.map((fund) => {
-                const m = currentValues[fund.id] ?? {};
-                return {
-                    id: fund.id,
-                    name: fund.name,
-                    shortName: fund.shortName,
-                    category: fund.category,
-                    sipAmount: fund.sipAmount ?? 0,
-                    sipStartDate: fund.sipStartDate,
-                    totalLumpsum: (fund.lumpsums ?? []).reduce((s, l) => s + l.amount, 0),
-                    lumpsumCount: fund.lumpsums?.length ?? 0,
-                    currentValue: m.currentValue ?? 0,
-                    totalInvested: m.totalInvested ?? 0,
-                    absoluteReturns: m.absoluteReturns ?? 0,
-                    returnsPercentage: m.returnsPercentage ?? 0,
-                    xirr: m.xirr ?? 0,
-                    investmentAgeMonths: fund.sipStartDate
-                        ? Math.max(0, (Date.now() - new Date(fund.sipStartDate)) / (1000 * 60 * 60 * 24 * 30))
-                        : fund.lumpsums?.length
-                            ? Math.max(0, (Date.now() - new Date(fund.lumpsums[0].date)) / (1000 * 60 * 60 * 24 * 30))
-                            : 0,
-                    performanceStatus:
-                        (m.xirr ?? 0) >= 15 ? 'excellent' :
-                            (m.xirr ?? 0) >= 12 ? 'good' :
-                                (m.xirr ?? 0) >= 7 ? 'average' :
-                                    (m.xirr ?? 0) < 0 ? 'poor' : 'monitor',
-                };
-            }),
+            funds: portfolioData.funds
+                .map((fund) => {
+                    const m = currentValues[fund.id] ?? {};
+
+                    // Calculate current active SIP amount for this fund
+                    let currentSipAmount = 0;
+                    let sipStartDate = null;
+                    for (const sip of fund.sips ?? []) {
+                        if (sip.amount > 0 && sip.startDate) {
+                            const sipStart = new Date(sip.startDate);
+                            // Track the earliest SIP start date
+                            if (!sipStartDate || sipStart < sipStartDate) {
+                                sipStartDate = sip.startDate;
+                            }
+                            // Check if this SIP is currently active
+                            if (sipStart <= currentDate && (!sip.stopDate || new Date(sip.stopDate) >= currentDate)) {
+                                currentSipAmount += sip.amount;
+                            }
+                        }
+                    }
+
+                    return {
+                        id: fund.id,
+                        name: fund.name,
+                        shortName: fund.shortName,
+                        category: fund.category,
+                        sipAmount: currentSipAmount,
+                        sipStartDate: sipStartDate,
+                        totalLumpsum: (fund.lumpsums ?? []).reduce((s, l) => s + l.amount, 0),
+                        lumpsumCount: fund.lumpsums?.length ?? 0,
+                        currentValue: m.currentValue ?? 0,
+                        totalInvested: m.totalInvested ?? 0,
+                        absoluteReturns: m.absoluteReturns ?? 0,
+                        returnsPercentage: m.returnsPercentage ?? 0,
+                        xirr: m.xirr ?? 0,
+                        investmentAgeMonths: sipStartDate
+                            ? Math.max(0, (Date.now() - new Date(sipStartDate)) / (1000 * 60 * 60 * 24 * 30))
+                            : fund.lumpsums?.length
+                                ? Math.max(0, (Date.now() - new Date(fund.lumpsums[0].date)) / (1000 * 60 * 60 * 24 * 30))
+                                : 0,
+                        performanceStatus:
+                            (m.xirr ?? 0) >= 15 ? 'excellent' :
+                                (m.xirr ?? 0) >= 12 ? 'good' :
+                                    (m.xirr ?? 0) >= 7 ? 'average' :
+                                        (m.xirr ?? 0) < 0 ? 'poor' : 'monitor',
+                    };
+                })
+                .filter(fund => fund.sipAmount > 0), // Only include funds with active SIPs
             totalCurrentSIP,
             totalInvested: Object.values(currentValues).reduce((s, v) => s + (v.totalInvested ?? 0), 0),
             totalCurrentValue: Object.values(currentValues).reduce((s, v) => s + (v.currentValue ?? 0), 0),
         };
 
         const systemPrompt = `You are an expert investment advisor specializing in Indian mutual funds.
-Analyze the provided portfolio data and generate actionable recommendations.
+        Analyze the provided portfolio data and generate actionable recommendations.
 
-CRITICAL CONSTRAINTS:
-1. MAINTAIN THE SAME TOTAL MONTHLY SIP AMOUNT (₹${totalCurrentSIP}). Do NOT increase or decrease the total.
-2. Include ALL funds in the revisedPlan array.
-3. If stopping a fund, reallocate that amount elsewhere.
+        CRITICAL CONSTRAINTS:
+        1. MAINTAIN THE SAME TOTAL MONTHLY SIP AMOUNT (₹${totalCurrentSIP}). Do NOT increase or decrease the total.
+        2. Include ALL funds in the revisedPlan array.
+        3. If stopping a fund, reallocate that amount elsewhere.
+        4. The sum of all "revised" values in revisedPlan MUST equal exactly ${totalCurrentSIP}. Verify this before responding.
+        5. recommendedAllocation MUST be derived directly from revisedPlan:
+        - Group funds by their category
+        - Sum the "revised" SIP amounts per category (only where revised > 0)
+        - Calculate percentage as (categoryAmount / ${totalCurrentSIP}) * 100, rounded to 2 decimal places
+        - The sum of all allocation amounts MUST equal exactly ${totalCurrentSIP}
+        - Do NOT invent categories or amounts independently of revisedPlan
 
-Return ONLY a valid JSON object with this exact structure:
-{
-  "newInvestments": [{ "name": "...", "category": "...", "suggestedSip": 5000, "expectedReturns": "X-Y% CAGR", "reason": "...", "alternatives": "..." }],
-  "revisedPlan": [{ "name": "...", "current": 4000, "revised": 5000, "change": "+1000", "stop": false, "add": false, "reason": "..." }],
-  "resultMessage": "...",
-  "recommendedAllocation": {
-    "totalTarget": ${totalCurrentSIP},
-    "allocations": [{ "category": "...", "amount": 0, "percentage": 0, "color": "emerald", "advice": "..." }],
-    "summary": "..."
-  }
-}`;
+        SELF-CHECK before outputting (verify all three):
+        ✓ SUM of revisedPlan[*].revised === ${totalCurrentSIP}
+        ✓ SUM of recommendedAllocation.allocations[*].amount === ${totalCurrentSIP}
+        ✓ Every category in recommendedAllocation has at least one fund in revisedPlan with revised > 0
+
+        Return ONLY a valid JSON object with this exact structure:
+        {
+        "newInvestments": [{ "name": "...", "category": "...", "suggestedSip": 5000, "expectedReturns": "X-Y% CAGR", "reason": "...", "alternatives": "..." }],
+        "revisedPlan": [{ "name": "...", "current": 4000, "revised": 5000, "change": "+1000", "stop": false, "add": false, "reason": "..." }],
+        "resultMessage": "...",
+        "recommendedAllocation": {
+            "totalTarget": ${totalCurrentSIP},
+            "allocations": [{ "category": "...", "amount": 0, "percentage": 0, "color": "emerald", "advice": "..." }],
+            "summary": "..."
+        }
+        }
+
+        NOTE: recommendedAllocation.allocations must be computed by grouping revisedPlan entries by category 
+        and summing their revised amounts. Do not generate these numbers independently.`;
 
         const userPrompt = `Portfolio: ${JSON.stringify(portfolioAnalysis)}. Keep total SIP at ₹${totalCurrentSIP}.`;
 
@@ -417,7 +547,7 @@ Return ONLY a valid JSON object with this exact structure:
         if (!jsonMatch) throw new Error('No JSON found in Bedrock response');
         const recs = JSON.parse(jsonMatch[0]);
 
-        ok(res, {
+        var response = {
             recommendations: {
                 newInvestments: recs.newInvestments ?? [],
                 revisedPlan: recs.revisedPlan ?? [],
@@ -428,7 +558,17 @@ Return ONLY a valid JSON object with this exact structure:
                 allocations: [],
                 summary: 'Current allocation',
             },
-        });
+        };
+
+        // Build name → category lookup from your portfolio data
+        const categoryLookup = Object.fromEntries(
+        portfolioAnalysis.funds.map(f => [f.name, f.category])
+        );
+
+        // Fix allocations before sending response
+        const fixedAllocations = fixAllocationTotal(response, totalCurrentSIP, categoryLookup);
+
+        ok(res, fixedAllocations);
     } catch (err) {
         console.error('Recommendation error:', err);
         fail(res, 500, process.env.NODE_ENV === 'development' ? err.message : 'Failed to generate recommendations');
@@ -452,9 +592,11 @@ app.get('/api/portfolio/investment-timeline', async (_req, res) => {
                 const d = new Date(ls.date);
                 if (!earliestDate || d < earliestDate) earliestDate = d;
             }
-            if (fund.sipStartDate) {
-                const d = new Date(fund.sipStartDate);
-                if (!earliestDate || d < earliestDate) earliestDate = d;
+            for (const sip of fund.sips ?? []) {
+                if (sip.startDate) {
+                    const d = new Date(sip.startDate);
+                    if (!earliestDate || d < earliestDate) earliestDate = d;
+                }
             }
         }
 
@@ -475,28 +617,30 @@ app.get('/api/portfolio/investment-timeline', async (_req, res) => {
             let lumpsumAmount = 0;
 
             for (const fund of funds) {
-                // SIP: active this month if start <= cursor, stop >= cursor, and payment date (5th) <= today
-                if (fund.sipAmount > 0 && fund.sipStartDate) {
-                    const sipStart = new Date(fund.sipStartDate);
-                    const sipStartYear = sipStart.getFullYear();
-                    const sipStartMonth = sipStart.getMonth();
-                    const isAfterOrEqualStart =
-                        year > sipStartYear || (year === sipStartYear && monthIdx >= sipStartMonth);
-                    
-                    // Check if SIP is still active (not stopped)
-                    let isBeforeOrEqualStop = true;
-                    if (fund.sipStopDate) {
-                        const sipStop = new Date(fund.sipStopDate);
-                        const sipStopYear = sipStop.getFullYear();
-                        const sipStopMonth = sipStop.getMonth();
-                        isBeforeOrEqualStop =
-                            year < sipStopYear || (year === sipStopYear && monthIdx <= sipStopMonth);
-                    }
-                    
-                    if (isAfterOrEqualStart && isBeforeOrEqualStop) {
-                        const sipPaymentDate = new Date(year, monthIdx, 5);
-                        if (sipPaymentDate <= now) {
-                            sipAmount += fund.sipAmount;
+                // SIP: check all sips in the array
+                for (const sip of fund.sips ?? []) {
+                    if (sip.amount > 0 && sip.startDate) {
+                        const sipStart = new Date(sip.startDate);
+                        const sipStartYear = sipStart.getFullYear();
+                        const sipStartMonth = sipStart.getMonth();
+                        const isAfterOrEqualStart =
+                            year > sipStartYear || (year === sipStartYear && monthIdx >= sipStartMonth);
+
+                        // Check if SIP is still active (not stopped)
+                        let isBeforeOrEqualStop = true;
+                        if (sip.stopDate) {
+                            const sipStop = new Date(sip.stopDate);
+                            const sipStopYear = sipStop.getFullYear();
+                            const sipStopMonth = sipStop.getMonth();
+                            isBeforeOrEqualStop =
+                                year < sipStopYear || (year === sipStopYear && monthIdx <= sipStopMonth);
+                        }
+
+                        if (isAfterOrEqualStart && isBeforeOrEqualStop) {
+                            const sipPaymentDate = new Date(year, monthIdx, 5);
+                            if (sipPaymentDate <= now) {
+                                sipAmount += sip.amount;
+                            }
                         }
                     }
                 }
@@ -527,24 +671,26 @@ app.get('/api/portfolio/investment-timeline', async (_req, res) => {
             const [y, mo] = month.split('-').map(Number);
             let totalCommitment = 0;
             for (const fund of funds) {
-                if (fund.sipAmount > 0 && fund.sipStartDate) {
-                    const sipStart = new Date(fund.sipStartDate);
-                    const startY = sipStart.getFullYear();
-                    const startM = sipStart.getMonth() + 1; // 1-based
-                    
-                    // Check if SIP is active for this month (within start and stop dates)
-                    const isAfterOrEqualStart = y > startY || (y === startY && mo >= startM);
-                    
-                    let isBeforeOrEqualStop = true;
-                    if (fund.sipStopDate) {
-                        const sipStop = new Date(fund.sipStopDate);
-                        const stopY = sipStop.getFullYear();
-                        const stopM = sipStop.getMonth() + 1; // 1-based
-                        isBeforeOrEqualStop = y < stopY || (y === stopY && mo <= stopM);
-                    }
-                    
-                    if (isAfterOrEqualStart && isBeforeOrEqualStop) {
-                        totalCommitment += fund.sipAmount;
+                for (const sip of fund.sips ?? []) {
+                    if (sip.amount > 0 && sip.startDate) {
+                        const sipStart = new Date(sip.startDate);
+                        const startY = sipStart.getFullYear();
+                        const startM = sipStart.getMonth() + 1; // 1-based
+
+                        // Check if SIP is active for this month (within start and stop dates)
+                        const isAfterOrEqualStart = y > startY || (y === startY && mo >= startM);
+
+                        let isBeforeOrEqualStop = true;
+                        if (sip.stopDate) {
+                            const sipStop = new Date(sip.stopDate);
+                            const stopY = sipStop.getFullYear();
+                            const stopM = sipStop.getMonth() + 1; // 1-based
+                            isBeforeOrEqualStop = y < stopY || (y === stopY && mo <= stopM);
+                        }
+
+                        if (isAfterOrEqualStart && isBeforeOrEqualStop) {
+                            totalCommitment += sip.amount;
+                        }
                     }
                 }
             }

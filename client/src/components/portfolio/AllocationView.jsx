@@ -16,7 +16,7 @@ const AllocationView = ({
 
   portfolioData.forEach(fund => {
     const category = fund.category;
-    const sipAmount = fund.sipAmount || 0;
+    const sipAmount = fund.currentMonthlySIP || 0;
     totalSIP += sipAmount;
     allocation[category] = (allocation[category] || 0) + sipAmount;
   });

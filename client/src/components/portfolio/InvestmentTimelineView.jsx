@@ -255,7 +255,7 @@ const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) =
 
         <div className="flex gap-4 mt-3 text-xs text-slate-500">
           <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-primary-400 inline-block" /> SIP payments
+            <span className="w-3 h-3 rounded-sm inline-block" style={{ background: "oklch(76.5% 0.177 163.223)" }} /> SIP payments
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-sm bg-primary inline-block" /> Lumpsum investments

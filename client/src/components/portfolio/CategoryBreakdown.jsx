@@ -40,7 +40,7 @@ const CategoryBreakdown = ({ categoryBreakdown, totals, performanceGroups }) => 
               <p className="text-sm text-white mb-1">{fund.shortName}</p>
               <p className="text-2xl font-bold text-red-400">{fund.returns.toFixed(2)}% Returns</p>
               <p className="text-xs text-red-300 mt-2">
-                {fund.sipAmount > 0 ? `Consider stopping SIP of ₹${fund.sipAmount.toLocaleString('en-IN')}/mo` : 'Consider exiting'}
+                {fund.currentMonthlySIP > 0 ? `Consider stopping SIP of ₹${fund.currentMonthlySIP.toLocaleString('en-IN')}/mo` : 'Consider exiting'}
               </p>
             </div>
           ))}

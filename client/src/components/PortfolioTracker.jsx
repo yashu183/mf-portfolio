@@ -147,7 +147,7 @@ const PortfolioTracker = () => {
       <div className="max-w-7xl mx-auto">
         <PortfolioSummary
           totals={totals}
-          activeFundsCount={portfolioData.filter(f => f.sipAmount > 0).length}
+          activeFundsCount={portfolioData.filter(f => f.currentMonthlySIP > 0).length}
         />
       </div>
 
