@@ -1,0 +1,28 @@
+{
+  "funds": [
+    {
+      "id": 1,
+      "name": "Nippon India Growth Mid Cap Fund",
+      "shortName": "Nippon Growth Mid Cap",
+      "category": "Mid Cap",
+      "schemeId": "100377",
+      "lumpsums": [
+        { "amount": 2000, "date": "2023-02-13" },
+        { "amount": 2000, "date": "2023-02-14" }
+      ],
+      "sips": [
+        { "amount": 2000, "startDate": "2023-04-05", "stopDate": null },
+        { "amount": 3000, "startDate": "2026-05-05", "stopDate": null }
+      ],
+      "color": "#FFFFD2"
+    }
+  ],
+  "llmConfig": {
+    "enabled": true,
+    "model": "us.anthropic.claude-sonnet-4-20250514-v1:0",
+    "max_tokens": 4000,
+    "cacheValidityHours": 24,
+    "temperature": 0.3,
+    "apiKeyRequired": true
+  }
+}

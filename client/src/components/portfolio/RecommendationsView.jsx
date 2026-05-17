@@ -94,7 +94,6 @@ const RecommendationsView = ({
                   <CheckCircle className="w-6 h-6 text-emerald-400" />
                   <h3 className="text-xl font-bold text-emerald-400">AI Recommended New Investments</h3>
                 </div>
-                <span className="text-xs text-emerald-400/70 italic">These are included in the revised plan below</span>
               </div>
               <div className="space-y-4">
                 {recommendations.newInvestments.map((investment, idx) => (

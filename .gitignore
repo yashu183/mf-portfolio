@@ -2,4 +2,4 @@
 **/dist/**
 .env
 .claude/**
-./server/portfolioConfig.json
+**/portfolioConfig.json
