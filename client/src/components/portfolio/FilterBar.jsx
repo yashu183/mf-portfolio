@@ -1,7 +1,8 @@
-import React from 'react';
-import { Search, Filter, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, Filter, X, ChevronDown, ChevronUp } from 'lucide-react';
 
 const FilterBar = ({ filters, onFilterChange, onClearFilters, fundCategories, hiddenFilters = [], staticFilters = [] }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
   const hasActiveFilters = filters.category || filters.status || filters.investmentType || filters.search;
 
   const statusOptions = [
@@ -20,22 +21,46 @@ const FilterBar = ({ filters, onFilterChange, onClearFilters, fundCategories, hi
   ];
 
   return (
-    <div className="bg-gray-900/70 backdrop-blur-xl border border-gray-700/50 rounded-xl p-4 mb-6">
-      <div className="flex items-center gap-2 mb-3">
-        <Filter className="w-4 h-4 text-primary" />
-        <h3 className="font-semibold text-white">Filters</h3>
-        {hasActiveFilters && (
+    <div className="bg-gray-900/70 backdrop-blur-xl border border-gray-700/50 rounded-xl p-4 pb-0 mb-6">
+      {/* Header with Toggle */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-primary" />
+          <h3 className="font-semibold text-white">Filters</h3>
+          {hasActiveFilters && !isExpanded && (
+            <span className="ml-2 px-2 py-0.5 bg-primary/20 text-primary text-xs rounded-full">
+              {[filters.search, filters.category, filters.status, filters.investmentType].filter(Boolean).length}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {hasActiveFilters && (
+            <button
+              onClick={onClearFilters}
+              className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X className="w-3 h-3" />
+              <span className="hidden sm:inline">Clear All</span>
+            </button>
+          )}
           <button
-            onClick={onClearFilters}
-            className="ml-auto flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors cursor-pointer"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="p-1 hover:bg-gray-800/50 rounded transition-colors cursor-pointer"
+            aria-label={isExpanded ? 'Collapse filters' : 'Expand filters'}
           >
-            <X className="w-3 h-3" />
-            Clear All
+            {isExpanded ? (
+              <ChevronUp className="w-4 h-4 text-gray-400" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            )}
           </button>
-        )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* Collapsible Content */}
+      {isExpanded && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         {/* Search */}
         {!hiddenFilters.includes('search') && (
           <div className="relative">
@@ -99,7 +124,7 @@ const FilterBar = ({ filters, onFilterChange, onClearFilters, fundCategories, hi
 
       {/* Static Filters Display */}
       {staticFilters.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-700/50">
+        <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-700/50 mb-3">
           <span className="text-xs text-gray-400 my-auto">Always active:</span>
           {staticFilters.map((filter, idx) => (
             <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-500/10 text-emerald-400 text-xs rounded-full border border-emerald-500/30">
@@ -111,7 +136,7 @@ const FilterBar = ({ filters, onFilterChange, onClearFilters, fundCategories, hi
 
       {/* Active Filters Display */}
       {hasActiveFilters && (
-        <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-700/50">
+        <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-700/50 mb-3">
           <span className="text-xs text-gray-400 my-auto">Active filters:</span>
           {!hiddenFilters.includes('search') && filters.search && (
             <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary text-xs rounded-full">
@@ -158,6 +183,8 @@ const FilterBar = ({ filters, onFilterChange, onClearFilters, fundCategories, hi
             </span>
           )}
         </div>
+      )}
+        </>
       )}
     </div>
   );
