@@ -488,20 +488,20 @@ app.post('/api/recommendations', async (req, res) => {
 
         CRITICAL CONSTRAINTS:
         1. MAINTAIN THE SAME TOTAL MONTHLY SIP AMOUNT (₹${totalCurrentSIP}). Do NOT increase or decrease the total.
-        2. Include ALL funds in the revisedPlan array.
-        3. If stopping a fund, reallocate that amount elsewhere.
-        4. The sum of all "revised" values in revisedPlan MUST equal exactly ${totalCurrentSIP}. Verify this before responding.
-        5. recommendedAllocation MUST be derived directly from revisedPlan:
-        - Group funds by their category
-        - Sum the "revised" SIP amounts per category (only where revised > 0)
-        - Calculate percentage as (categoryAmount / ${totalCurrentSIP}) * 100, rounded to 2 decimal places
-        - The sum of all allocation amounts MUST equal exactly ${totalCurrentSIP}
-        - Do NOT invent categories or amounts independently of revisedPlan
+        2. revisedPlan must contain ONLY the funds from the provided portfolio. No new funds.
+        3. newInvestments is purely a suggestion list — these funds do NOT appear in revisedPlan and are NOT counted in any totals.
+        4. SUM(revisedPlan[*].revised) MUST equal exactly ${totalCurrentSIP}. Verify before responding.
+        5. recommendedAllocation MUST be derived only from revisedPlan:
+        - Group revisedPlan funds (where revised > 0) by category
+        - Sum revised amounts per category
+        - percentage = (amount / ${totalCurrentSIP}) * 100, rounded to 2 decimal places
+        - SUM of all allocation amounts MUST equal exactly ${totalCurrentSIP}
 
-        SELF-CHECK before outputting (verify all three):
-        ✓ SUM of revisedPlan[*].revised === ${totalCurrentSIP}
-        ✓ SUM of recommendedAllocation.allocations[*].amount === ${totalCurrentSIP}
-        ✓ Every category in recommendedAllocation has at least one fund in revisedPlan with revised > 0
+        SELF-CHECK before outputting:
+        ✓ Every fund in revisedPlan exists in the provided portfolio
+        ✓ No new fund appears in revisedPlan
+        ✓ SUM(revisedPlan[*].revised) === ${totalCurrentSIP}
+        ✓ SUM(recommendedAllocation.allocations[*].amount) === ${totalCurrentSIP}
 
         Return ONLY a valid JSON object with this exact structure:
         {
@@ -515,8 +515,10 @@ app.post('/api/recommendations', async (req, res) => {
         }
         }
 
-        NOTE: recommendedAllocation.allocations must be computed by grouping revisedPlan entries by category 
-        and summing their revised amounts. Do not generate these numbers independently.`;
+        REMINDER:
+        - revisedPlan = existing portfolio funds only, no exceptions
+        - newInvestments = suggestions only, ignored in all calculations
+        - recommendedAllocation = derived solely from revisedPlan`;
 
         const userPrompt = `Portfolio: ${JSON.stringify(portfolioAnalysis)}. Keep total SIP at ₹${totalCurrentSIP}.`;
 
@@ -559,6 +561,8 @@ app.post('/api/recommendations', async (req, res) => {
                 summary: 'Current allocation',
             },
         };
+
+        console.log('Raw LLM response:', JSON.stringify(response, null, 2));
 
         // Build name → category lookup from your portfolio data
         const categoryLookup = Object.fromEntries(

@@ -3,6 +3,8 @@ import { CheckCircle, Target, RefreshCw, AlertCircle, Settings, Info } from 'luc
 
 const RecommendationsView = ({
   recommendations,
+  filteredFunds = null,
+  allFunds = null,
   isLoadingRecommendations,
   recommendationError,
   serviceAvailable,
@@ -10,6 +12,29 @@ const RecommendationsView = ({
   onCheckHealth
 }) => {
   const [hoveredReason, setHoveredReason] = useState(null);
+
+  // Filter recommendations based on filtered funds
+  const getFilteredRecommendations = () => {
+    if (!recommendations || !filteredFunds || !allFunds || filteredFunds.length === allFunds.length) {
+      return recommendations;
+    }
+
+    // Create a set of filtered fund names for quick lookup
+    const filteredFundNames = new Set(
+      filteredFunds.flatMap(f => [f.name, f.shortName])
+    );
+
+    return {
+      ...recommendations,
+      revisedPlan: recommendations.revisedPlan?.filter(plan => {
+        // Check if plan name matches any filtered fund name or short name
+        return filteredFundNames.has(plan.name);
+      }),
+    };
+  };
+
+  const filteredRecommendations = getFilteredRecommendations();
+  const hasFiltersApplied = filteredFunds && allFunds && filteredFunds.length < allFunds.length;
 
   return (
     <div className="space-y-6">
@@ -84,10 +109,10 @@ const RecommendationsView = ({
       )}
 
       {/* Show dynamic recommendations when available */}
-      {recommendations && !isLoadingRecommendations && (
+      {filteredRecommendations && !isLoadingRecommendations && (
         <div className="space-y-6">
           {/* New Investments */}
-          {recommendations.newInvestments && recommendations.newInvestments.length > 0 && (
+          {filteredRecommendations.newInvestments && filteredRecommendations.newInvestments.length > 0 && (
             <div className="bg-gradient-to-br from-emerald-900/30 to-emerald-800/10 backdrop-blur-xl border border-emerald-700/30 rounded-xl p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -96,7 +121,7 @@ const RecommendationsView = ({
                 </div>
               </div>
               <div className="space-y-4">
-                {recommendations.newInvestments.map((investment, idx) => (
+                {filteredRecommendations.newInvestments.map((investment, idx) => (
                   <div key={idx} className="bg-slate-800/30 border border-emerald-700/20 rounded-lg p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div>
@@ -130,15 +155,28 @@ const RecommendationsView = ({
           )}
 
           {/* Revised Plan for Existing Funds */}
-          {recommendations.revisedPlan && recommendations.revisedPlan.length > 0 && (
-            <div className="bg-gradient-to-br from-slate-900/50 to-slate-800/30 backdrop-blur-xl border border-slate-700/50 rounded-xl overflow-hidden">
+          {filteredRecommendations.revisedPlan && filteredRecommendations.revisedPlan.length > 0 && (
+            <>
+              {/* Filter notice - only shown above Revised Plan */}
+              {hasFiltersApplied && (
+                <div className="p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg mb-4">
+                  <div className="flex items-center gap-2 text-blue-400">
+                    <Info className="w-4 h-4" />
+                    <span className="text-sm font-medium">
+                      Showing recommendations for {filteredFunds.length} of {allFunds.length} funds based on active filters
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-gradient-to-br from-slate-900/50 to-slate-800/30 backdrop-blur-xl border border-slate-700/50 rounded-xl overflow-hidden">
               {/* Header */}
               <div className="border-b border-primary/30 px-6 py-4">
                 <div className="flex items-center gap-3">
                   <Target className="w-6 h-6 text-primary" />
                   <h3 className="text-xl font-bold text-primary">
                     Revised Monthly SIP Plan : ₹{
-                      recommendations.revisedPlan
+                      filteredRecommendations.revisedPlan
                         .reduce((total, plan) => {
                           return total + (plan.stop || plan.change === 'STOP' ? 0 : plan.revised || 0);
                         }, 0).toLocaleString('en-IN')
@@ -158,24 +196,25 @@ const RecommendationsView = ({
 
                 {/* Table Rows */}
                 <div className="space-y-1 text-sm">
-                  {recommendations.revisedPlan.map((plan, idx) => {
+                  {filteredRecommendations.revisedPlan.map((plan, idx) => {
                     const isIncrease = plan.change && (plan.change.includes('+') || typeof plan.change === 'string' && plan.change.match(/^\+/));
                     const isDecrease = plan.change && (plan.change.includes('-') || typeof plan.change === 'string' && plan.change.match(/^-/));
                     const shouldStop = plan.stop || plan.change === 'STOP';
                     const shouldAdd = plan.add || plan.change === 'ADD';
 
                     // Calculate change amount for display
-                    let changeAmount = 0;
-                    if (shouldStop) {
-                      changeAmount = plan.current;
-                    } else if (shouldAdd) {
-                      changeAmount = plan.revised;
-                    } else if (typeof plan.change === 'string' && (isIncrease || isDecrease)) {
-                      const match = plan.change.match(/[+-]?(\d+)/);
-                      changeAmount = match ? parseInt(match[1]) : Math.abs(plan.revised - plan.current);
-                    } else {
-                      changeAmount = Math.abs(plan.revised - plan.current);
-                    }
+                    // let changeAmount = 0;
+                    // if (shouldStop) {
+                    //   changeAmount = plan.current;
+                    // } else if (shouldAdd) {
+                    //   changeAmount = plan.revised;
+                    // } else if (typeof plan.change === 'string' && (isIncrease || isDecrease)) {
+                    //   const match = plan.change.match(/[+-]?(\d+)/);
+                    //   changeAmount = match ? parseInt(match[1]) : Math.abs(plan.revised - plan.current);
+                    // } else {
+                      
+                    // }
+                    const changeAmount = Math.abs(plan.revised - plan.current);
 
                     return (
                       <div key={idx} className={`grid grid-cols-3 gap-4 p-3 mb-3 rounded-lg ${shouldStop ? 'bg-red-900/20 border border-red-700/30' :
@@ -185,7 +224,7 @@ const RecommendationsView = ({
                         {/* Fund Name with Info Icon */}
                         <div className="text-white flex items-center gap-2 relative">
                           <span>
-                            {plan.name?.replace('Fund', '').replace('Aditya Birla Sun Life', 'Aditya Birla').replace('ICICI Prudential', 'ICICI').replace('Nippon India', 'Nippon') || 'Unknown Fund'}
+                            {plan.name?.replace('Fund', '').replace('Aditya Birla Sun Life', 'Aditya Birla').replace('ICICI Prudential', 'ICICI').replace('Nippon India', 'Nippon').split("-")[0] || 'Unknown Fund'}
                           </span>
                           {plan.reason && (
                             <div className="relative inline-block">
@@ -292,6 +331,7 @@ const RecommendationsView = ({
                 )}
               </div>
             </div>
+            </>
           )}
 
           {/* Disclaimer */}

@@ -8,6 +8,7 @@ import AllocationView from './portfolio/AllocationView';
 import PerformanceView from './portfolio/PerformanceView';
 import RecommendationsView from './portfolio/RecommendationsView';
 import InvestmentTimelineView from './portfolio/InvestmentTimelineView';
+import FilterBar from './portfolio/FilterBar';
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: PieChart },
@@ -20,6 +21,16 @@ const TABS = [
 const PortfolioTracker = () => {
   const [activeView, setActiveView] = useState('dashboard');
   const [selectedFund, setSelectedFund] = useState(null);
+  const [filters, setFilters] = useState({
+    search: '',
+    category: '',
+    status: '',
+    investmentType: '',
+  });
+  const [recommendationFilters, setRecommendationFilters] = useState({
+    search: '',
+    category: '',
+  });
 
   const {
     portfolioData,
@@ -42,8 +53,93 @@ const PortfolioTracker = () => {
     fetchTimeline,
   } = usePortfolioData();
 
+  // ── Filter functions ───────────────────────────────────────────────────────
+  const handleFilterChange = (filterKey, value) => {
+    setFilters(prev => ({ ...prev, [filterKey]: value }));
+  };
+
+  const handleClearFilters = () => {
+    setFilters({ search: '', category: '', status: '', investmentType: '' });
+  };
+
+  const handleRecommendationFilterChange = (filterKey, value) => {
+    setRecommendationFilters(prev => ({ ...prev, [filterKey]: value }));
+  };
+
+  const handleClearRecommendationFilters = () => {
+    setRecommendationFilters({ search: '', category: '' });
+  };
+
+  const fundCategories = useMemo(() => {
+    return [...new Set(portfolioData.map(f => f.category))].sort();
+  }, [portfolioData]);
+
+  // Apply filters to portfolio data
+  const filteredPortfolioData = useMemo(() => {
+    return portfolioData.filter(fund => {
+      // Search filter
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        const matchesSearch =
+          fund.name.toLowerCase().includes(searchLower) ||
+          fund.shortName.toLowerCase().includes(searchLower) ||
+          fund.category.toLowerCase().includes(searchLower);
+        if (!matchesSearch) return false;
+      }
+
+      // Category filter
+      if (filters.category && fund.category !== filters.category) {
+        return false;
+      }
+
+      // Status filter
+      if (filters.status && fund.status !== filters.status) {
+        return false;
+      }
+
+      // Investment type filter
+      if (filters.investmentType) {
+        const hasSIP = fund.currentMonthlySIP > 0;
+        const hasLumpsum = fund.totalLumpsum > 0;
+
+        if (filters.investmentType === 'sip' && !hasSIP) return false;
+        if (filters.investmentType === 'lumpsum' && !hasLumpsum) return false;
+        if (filters.investmentType === 'both' && (!hasSIP || !hasLumpsum)) return false;
+      }
+
+      return true;
+    });
+  }, [portfolioData, filters]);
+
+  // Apply filters for recommendations (always SIP only + search + category)
+  const filteredRecommendationData = useMemo(() => {
+    return portfolioData.filter(fund => {
+      // Always filter to SIP only
+      const hasSIP = fund.currentMonthlySIP > 0;
+      if (!hasSIP) return false;
+
+      // Search filter
+      if (recommendationFilters.search) {
+        const searchLower = recommendationFilters.search.toLowerCase();
+        const matchesSearch =
+          fund.name.toLowerCase().includes(searchLower) ||
+          fund.shortName.toLowerCase().includes(searchLower) ||
+          fund.category.toLowerCase().includes(searchLower);
+        if (!matchesSearch) return false;
+      }
+
+      // Category filter
+      if (recommendationFilters.category && fund.category !== recommendationFilters.category) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [portfolioData, recommendationFilters]);
+
   // ── Derived data (memoised) ────────────────────────────────────────────────
-  const categoryBreakdown = useMemo(() => {
+  // Unfiltered data for Quick Insights (always shows all funds)
+  const unfilteredCategoryBreakdown = useMemo(() => {
     return portfolioData.reduce((acc, fund) => {
       if (!acc[fund.category]) acc[fund.category] = { invested: 0, current: 0, count: 0 };
       acc[fund.category].invested += fund.totalInvested;
@@ -53,12 +149,20 @@ const PortfolioTracker = () => {
     }, {});
   }, [portfolioData]);
 
-  const performanceGroups = useMemo(() => ({
+  const unfilteredPerformanceGroups = useMemo(() => ({
     excellent: portfolioData.filter(f => f.status === 'excellent'),
     good: portfolioData.filter(f => f.status === 'good'),
     monitor: portfolioData.filter(f => f.status === 'monitor'),
     poor: portfolioData.filter(f => f.status === 'poor'),
   }), [portfolioData]);
+
+  // Filtered performance groups for Performance view
+  const filteredPerformanceGroups = useMemo(() => ({
+    excellent: filteredPortfolioData.filter(f => f.status === 'excellent'),
+    good: filteredPortfolioData.filter(f => f.status === 'good'),
+    monitor: filteredPortfolioData.filter(f => f.status === 'monitor'),
+    poor: filteredPortfolioData.filter(f => f.status === 'poor'),
+  }), [filteredPortfolioData]);
 
   // ── Loading state ──────────────────────────────────────────────────────────
   if (isLoadingPortfolio) {
@@ -173,31 +277,61 @@ const PortfolioTracker = () => {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto">
         {activeView === 'dashboard' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-4">
-              <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-                <span className="text-white">Your Funds</span>
-                <span className="text-sm text-gray-500">({portfolioData.length})</span>
-              </h2>
-              {portfolioData.map(fund => (
-                <FundCard
-                  key={fund.id}
-                  fund={fund}
-                  selectedFund={selectedFund}
-                  onSelectFund={setSelectedFund}
-                />
-              ))}
-            </div>
-            <CategoryBreakdown
-              categoryBreakdown={categoryBreakdown}
-              totals={totals}
-              performanceGroups={performanceGroups}
+          <>
+            <FilterBar
+              filters={filters}
+              onFilterChange={handleFilterChange}
+              onClearFilters={handleClearFilters}
+              fundCategories={fundCategories}
             />
-          </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-4">
+                <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+                  <span className="text-primary">Your Funds</span>
+                  <span className="text-sm text-gray-500">
+                    ({filteredPortfolioData.length}{filteredPortfolioData.length !== portfolioData.length && ` of ${portfolioData.length}`})
+                  </span>
+                </h2>
+                {filteredPortfolioData.length > 0 ? (
+                  filteredPortfolioData.map(fund => (
+                    <FundCard
+                      key={fund.id}
+                      fund={fund}
+                      selectedFund={selectedFund}
+                      onSelectFund={setSelectedFund}
+                    />
+                  ))
+                ) : (
+                  <div className="bg-gray-900/70 backdrop-blur-xl border border-gray-700/50 rounded-xl p-8 text-center">
+                    <p className="text-gray-400">No funds match the selected filters.</p>
+                    <button
+                      onClick={handleClearFilters}
+                      className="mt-4 px-4 py-2 bg-primary hover:bg-primary/80 text-white rounded-lg transition-colors cursor-pointer"
+                    >
+                      Clear Filters
+                    </button>
+                  </div>
+                )}
+              </div>
+              <CategoryBreakdown
+                categoryBreakdown={unfilteredCategoryBreakdown}
+                totals={totals}
+                performanceGroups={unfilteredPerformanceGroups}
+              />
+            </div>
+          </>
         )}
 
         {activeView === 'performance' && (
-          <PerformanceView performanceGroups={performanceGroups} />
+          <>
+            <FilterBar
+              filters={filters}
+              onFilterChange={handleFilterChange}
+              onClearFilters={handleClearFilters}
+              fundCategories={fundCategories}
+            />
+            <PerformanceView performanceGroups={filteredPerformanceGroups} />
+          </>
         )}
 
         {activeView === 'allocation' && (
@@ -213,14 +347,26 @@ const PortfolioTracker = () => {
         )}
 
         {activeView === 'recommendations' && (
-          <RecommendationsView
-            recommendations={recommendations}
-            isLoadingRecommendations={isLoadingRecommendations}
-            recommendationError={recommendationError}
-            serviceAvailable={serviceAvailable}
-            onRefreshRecommendations={handleRecommendationRefresh}
-            onCheckHealth={checkHealth}
-          />
+          <>
+            <FilterBar
+              filters={recommendationFilters}
+              onFilterChange={handleRecommendationFilterChange}
+              onClearFilters={handleClearRecommendationFilters}
+              fundCategories={fundCategories}
+              hiddenFilters={['status', 'investmentType']}
+              staticFilters={[{ label: 'Type: SIP Only' }]}
+            />
+            <RecommendationsView
+              recommendations={recommendations}
+              filteredFunds={filteredRecommendationData}
+              allFunds={portfolioData}
+              isLoadingRecommendations={isLoadingRecommendations}
+              recommendationError={recommendationError}
+              serviceAvailable={serviceAvailable}
+              onRefreshRecommendations={handleRecommendationRefresh}
+              onCheckHealth={checkHealth}
+            />
+          </>
         )}
 
         {activeView === 'timeline' && (
