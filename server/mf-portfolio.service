@@ -1,0 +1,21 @@
+[Unit]
+Description=MF Portfolio Backend Service
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/mf_portfolio/server
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+Environment=NODE_ENV=production
+
+# If you want to specify env file location
+# EnvironmentFile=/home/pi/mf_portfolio/server/.env
+
+[Install]
+WantedBy=multi-user.target
