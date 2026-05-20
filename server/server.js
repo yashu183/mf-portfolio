@@ -295,11 +295,6 @@ function fixAllocationTotal(response, targetTotal, categoryLookup = {}) {
 
 // ─── API Endpoints ─────────────────────────────────────────────────────────────
 
-/** GET /health */
-app.get('/health', (_req, res) =>
-    ok(res, { service: 'mf-portfolio-api', timestamp: new Date().toISOString() }),
-);
-
 /** GET /api/health */
 app.get('/api/health', (_req, res) =>
     ok(res, { service: 'mf-portfolio-api', timestamp: new Date().toISOString() }),
@@ -717,7 +712,7 @@ app.get('/api/portfolio/investment-timeline', async (_req, res) => {
 const PORT = process.env.PORT ?? 3002;
 app.listen(PORT, () => {
     console.log(`🚀 MF Portfolio API running on port ${PORT}`);
-    console.log(`   Endpoints: /health  /api/portfolio/complete  /api/recommendations`);
+    console.log(`   Endpoints: /api/health  /api/portfolio/complete  /api/recommendations`);
 });
 
 module.exports = app;

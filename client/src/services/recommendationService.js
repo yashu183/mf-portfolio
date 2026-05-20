@@ -66,12 +66,12 @@ export const clearRecommendationsCache = () => {
   localStorage.removeItem(CACHE_TS_KEY);
 };
 
-/** GET /health */
+/** GET /api/health */
 export const checkServiceHealth = async () => {
   try {
     const controller = new AbortController();
     const tid = setTimeout(() => controller.abort(), 5000);
-    const response = await fetch(`${API_BASE_URL}/health`, { signal: controller.signal });
+    const response = await fetch(`${API_BASE_URL}/api/health`, { signal: controller.signal });
     clearTimeout(tid);
     return response.ok;
   } catch {
