@@ -300,6 +300,11 @@ app.get('/health', (_req, res) =>
     ok(res, { service: 'mf-portfolio-api', timestamp: new Date().toISOString() }),
 );
 
+/** GET /api/health */
+app.get('/api/health', (_req, res) =>
+    ok(res, { service: 'mf-portfolio-api', timestamp: new Date().toISOString() }),
+);
+
 /**
  * GET /api/portfolio/complete
  * Fetches all fund NAVs in PARALLEL, calculates everything and returns ready-to-render data.
