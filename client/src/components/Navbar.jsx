@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Menu, X } from 'lucide-react';
 
 const ASSET_TABS = [
+  { id: 'overview', label: 'Overview' },
   { id: 'mutualFunds', label: 'Mutual Funds' },
   { id: 'gold', label: 'Gold' },
   { id: 'silver', label: 'Silver' },
@@ -45,8 +46,8 @@ const Navbar = ({ activeAsset, onAssetChange }) => {
     <nav className="bg-gray-900/70 backdrop-blur-xl border border-gray-700/50 px-4 md:px-8 py-2">
       {/* Desktop: horizontal tab row */}
       {!isMobileView && <div className="flex items-center justify-between gap-2 max-w-7xl mx-auto">
-        <h4 className="text-primary text-l md:text-xl tracking-wide whitespace-nowrap">
-          Asset Tracking
+        <h4 className="text-primary text-xl md:text-2xl font-bold tracking-wide whitespace-nowrap">
+          Vesta
         </h4>
         <div className="flex items-center gap-2 overflow-x-auto">
           {ASSET_TABS.map((tab) => (
@@ -55,7 +56,7 @@ const Navbar = ({ activeAsset, onAssetChange }) => {
               onClick={() => handleSelect(tab.id)}
               className={`px-4 py-3 rounded-lg font-medium transition-all duration-200 cursor-pointer whitespace-nowrap ${
                 activeAsset === tab.id
-                  ? 'text-white shadow-lg bg-primary'
+                  ? 'text-primary'
                   : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
               }`}
             >
@@ -67,7 +68,7 @@ const Navbar = ({ activeAsset, onAssetChange }) => {
 
       {/* Mobile: collapsed selector with hamburger */}
       {isMobileView && <div className="p-2">
-        <p className="px-1 pb-2 text-sm font-semibold tracking-wide text-primary">Asset Tracking</p>
+        <p className="px-1 pb-2 text-sm font-semibold tracking-wide text-primary">Vesta</p>
         <div className="flex items-center justify-between rounded-lg bg-black/30 border border-gray-800 px-3 py-2.5">
           <div>
             <p className="text-[10px] uppercase tracking-[0.22em] text-gray-500">Assets</p>

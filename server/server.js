@@ -833,6 +833,269 @@ app.get('/api/portfolio/investment-timeline', async (_req, res) => {
     }
 });
 
+// ─── Metals Price Helpers ──────────────────────────────────────────────────────
+const METALS_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+let _metalsCache = { data: null, timestamp: null };
+
+async function fetchMetalSpotPricesINR() {
+    const now = Date.now();
+    if (_metalsCache.data && _metalsCache.timestamp && now - _metalsCache.timestamp < METALS_CACHE_TTL) {
+        return _metalsCache.data;
+    }
+
+    const res = await fetch('https://bullions.co.in/', {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; portfolio-tracker/1.0)',
+            'Accept': 'text/html',
+        },
+    });
+    if (!res.ok) throw new Error(`bullions.co.in HTTP ${res.status}`);
+    const html = await res.text();
+
+    // Primary: table row — label cell contains <small> tag, so use lazy [\ s\S]*? to pass through it
+    // HTML: <td …>Gold 24 Karat <small>(Rs …)</small></td> <td …>15,681</td>
+    const goldTableMatch = html.match(/Gold\s+24\s+Karat[\s\S]*?<\/td>\s*<td[^>]*>([\d,]+)/i);
+    // HTML: <td …>Silver 999 Fine <small>(Rs …)</small></td> <td …>268</td>
+    const silverTableMatch = html.match(/Silver\s+999\s+Fine[\s\S]*?<\/td>\s*<td[^>]*>([\d,]+)/i);
+
+    // Fallback: ticker "GOLD 156,810.00 … / 10gm" and "SILVER 267,790.00 … / 1kg"
+    const goldTickerMatch = html.match(/GOLD\s+([\d,]+(?:\.\d+)?)\s/);
+    const silverTickerMatch = html.match(/SILVER\s+([\d,]+(?:\.\d+)?)\s/);
+
+    let goldPerGram, silverPerGram;
+
+    if (goldTableMatch) {
+        goldPerGram = parseFloat(goldTableMatch[1].replace(/,/g, ''));
+    } else if (goldTickerMatch) {
+        goldPerGram = parseFloat(goldTickerMatch[1].replace(/,/g, '')) / 10; // per 10g → per g
+    } else {
+        throw new Error('Could not parse gold price from bullions.co.in');
+    }
+
+    if (silverTableMatch) {
+        silverPerGram = parseFloat(silverTableMatch[1].replace(/,/g, ''));
+    } else if (silverTickerMatch) {
+        silverPerGram = parseFloat(silverTickerMatch[1].replace(/,/g, '')) / 1000; // per kg → per g
+    } else {
+        throw new Error('Could not parse silver price from bullions.co.in');
+    }
+
+    if (!goldPerGram || goldPerGram <= 0) throw new Error('Invalid gold price from bullions.co.in');
+    if (!silverPerGram || silverPerGram <= 0) throw new Error('Invalid silver price from bullions.co.in');
+
+    const result = {
+        gold: { pricePerGram: goldPerGram },
+        silver: { pricePerGram: silverPerGram },
+        fetchedAt: new Date().toISOString(),
+        source: 'bullions.co.in',
+    };
+    _metalsCache = { data: result, timestamp: now };
+    return result;
+}
+
+function computeMetalHoldings(entries, pricePerGram) {
+    const holdings = entries.map((entry) => {
+        const totalInvested = parseFloat((entry.quantity * entry.purchasePrice).toFixed(2));
+        const currentValue = parseFloat((entry.quantity * pricePerGram).toFixed(2));
+        const gain = parseFloat((currentValue - totalInvested).toFixed(2));
+        const gainPercent = totalInvested > 0 ? parseFloat(((gain / totalInvested) * 100).toFixed(2)) : 0;
+        const holdingDays = Math.floor(
+            (Date.now() - new Date(entry.purchaseDate).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        return { ...entry, totalInvested, currentValue, gain, gainPercent, holdingDays };
+    });
+
+    const totals = holdings.reduce(
+        (acc, h) => ({
+            totalQuantity: acc.totalQuantity + h.quantity,
+            totalInvested: acc.totalInvested + h.totalInvested,
+            totalCurrentValue: acc.totalCurrentValue + h.currentValue,
+            totalGain: acc.totalGain + h.gain,
+        }),
+        { totalQuantity: 0, totalInvested: 0, totalCurrentValue: 0, totalGain: 0 }
+    );
+    totals.totalQuantity = parseFloat(totals.totalQuantity.toFixed(4));
+    totals.totalInvested = parseFloat(totals.totalInvested.toFixed(2));
+    totals.totalCurrentValue = parseFloat(totals.totalCurrentValue.toFixed(2));
+    totals.totalGain = parseFloat(totals.totalGain.toFixed(2));
+    totals.totalGainPercent =
+        totals.totalInvested > 0
+            ? parseFloat(((totals.totalGain / totals.totalInvested) * 100).toFixed(2))
+            : 0;
+
+    return { holdings, totals };
+}
+
+/** GET /api/portfolio/gold */
+app.get('/api/portfolio/gold', async (_req, res) => {
+    try {
+        const [config, prices] = await Promise.all([loadConfig(), fetchMetalSpotPricesINR()]);
+        const { holdings, totals } = computeMetalHoldings(config.gold ?? [], prices.gold.pricePerGram);
+        ok(res, { holdings, totals, pricePerGram: prices.gold.pricePerGram, fetchedAt: prices.fetchedAt });
+    } catch (err) {
+        console.error('Gold portfolio error:', err);
+        fail(res, 500, process.env.NODE_ENV === 'development' ? err.message : 'Failed to fetch gold data');
+    }
+});
+
+/** GET /api/portfolio/silver */
+app.get('/api/portfolio/silver', async (_req, res) => {
+    try {
+        const [config, prices] = await Promise.all([loadConfig(), fetchMetalSpotPricesINR()]);
+        const { holdings, totals } = computeMetalHoldings(config.silver ?? [], prices.silver.pricePerGram);
+        ok(res, { holdings, totals, pricePerGram: prices.silver.pricePerGram, fetchedAt: prices.fetchedAt });
+    } catch (err) {
+        console.error('Silver portfolio error:', err);
+        fail(res, 500, process.env.NODE_ENV === 'development' ? err.message : 'Failed to fetch silver data');
+    }
+});
+
+// ─── EPF Helpers ───────────────────────────────────────────────────────────────
+
+// EPFO declared rates per financial year (Apr–Mar)
+const EPF_RATES = {
+    '2021-22': 8.10,
+    '2022-23': 8.15,
+    '2023-24': 8.25,
+    '2024-25': 8.25,
+    '2025-26': 8.25, // officially declared
+    '2026-27': 8.25, // assumed
+};
+
+function epfFYKey(year, month) {
+    // month is 0-indexed (0=Jan, 3=Apr)
+    const fyStart = month >= 3 ? year : year - 1;
+    return fyStart + '-' + String((fyStart + 1) % 100).padStart(2, '0');
+}
+
+/**
+ * Calculates EPF corpus using the exact EPFO method, verified against passbook.
+ *
+ * Two key rules (derived from passbook data):
+ *  1. OPENING BALANCE: each month contributes its opening balance (before that
+ *     month's deposit) to the interest sum — not the closing balance.
+ *     → First contribution naturally earns 0 (opening = 0), no nil-month hack.
+ *  2. CREDIT-MONTH GROUPING: wages for month M are credited in month M+1, so
+ *     March wages (credited April) fall in the NEXT financial year.
+ *     → FY is complete when the last wage month is February (credited March).
+ *
+ * Interest is posted to accounts only after EPFO processes it (~Sep each year),
+ * so FY 2025-26 interest (due Sep 2026) is excluded on May 2026.
+ */
+function computeEPFValue(epfConfig) {
+    const { startDate, monthlyContribution, employeeContribution, employerContribution } = epfConfig;
+
+    const empContrib  = employeeContribution  ?? monthlyContribution / 2;
+    const emplContrib = employerContribution  ?? monthlyContribution / 2;
+
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const calcEndDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    const calcUpToStr = calcEndDate.getFullYear() + '-' + String(calcEndDate.getMonth() + 1).padStart(2, '0');
+
+    const start = new Date(startDate + 'T00:00:00');
+
+    // Build all wage months from startDate → calcEndDate
+    const months = [];
+    { let y = start.getFullYear(), m = start.getMonth();
+      while (new Date(y, m, 1) <= calcEndDate) {
+          months.push({ year: y, month: m });
+          m++; if (m > 11) { m = 0; y++; }
+      }
+    }
+
+    if (months.length === 0) {
+        return {
+            startDate, monthlyContribution,
+            employeeContribution: empContrib, employerContribution: emplContrib,
+            monthsContributed: 0, totalInvested: 0, currentValue: 0,
+            gain: 0, gainPercent: 0, annualRate: 8.25, calcUpTo: calcUpToStr,
+        };
+    }
+
+    const totalInvested = months.length * monthlyContribution;
+
+    // Group wage months by the FY of their CREDIT month (wage month + 1).
+    // March wages are credited in April → they belong to the next FY.
+    const fyGroups = new Map();
+    for (const e of months) {
+        const creditMonth = (e.month + 1) % 12;
+        const creditYear  = e.month === 11 ? e.year + 1 : e.year;
+        const key = epfFYKey(creditYear, creditMonth);
+        if (!fyGroups.has(key)) fyGroups.set(key, []);
+        fyGroups.get(key).push(e);
+    }
+
+    let balance    = 0;
+    let currentFYRate = 8.25;
+
+    for (const [fyKey, fyMonths] of fyGroups) {
+        const rate = EPF_RATES[fyKey] ?? 8.25;
+        currentFYRate = rate;
+        const monthlyRate = rate / 100 / 12;
+
+        let sumRunningBalances = 0;
+        let running = balance;
+
+        for (const _m of fyMonths) {
+            sumRunningBalances += running;   // opening balance (before deposit)
+            running += monthlyContribution;  // then add this month's contribution
+        }
+
+        // EPFO rounds employee share and employer share interest to the nearest
+        // rupee separately, then sums — matching passbook exactly.
+        const fyComplete    = fyMonths[fyMonths.length - 1].month === 1; // last wage = Feb
+        const fyEndYear     = parseInt(fyKey.split('-')[0]) + 1;
+        const creditingDate = new Date(fyEndYear, 8, 1); // Sep 1 of FY end year
+        const interestEmp  = Math.round(sumRunningBalances * (empContrib  / monthlyContribution) * monthlyRate);
+        const interestEmpl = Math.round(sumRunningBalances * (emplContrib / monthlyContribution) * monthlyRate);
+        const interest = (fyComplete && now >= creditingDate)
+            ? interestEmp + interestEmpl
+            : 0;
+        balance = running + interest;
+    }
+
+    const gain = parseFloat((balance - totalInvested).toFixed(2));
+    const gainPercent = totalInvested > 0
+        ? parseFloat(((gain / totalInvested) * 100).toFixed(2)) : 0;
+
+    return {
+        startDate, monthlyContribution,
+        employeeContribution: empContrib, employerContribution: emplContrib,
+        monthsContributed: months.length,
+        totalInvested: parseFloat(totalInvested.toFixed(2)),
+        currentValue: balance,
+        gain, gainPercent, annualRate: currentFYRate, calcUpTo: calcUpToStr,
+    };
+}
+
+/** GET /api/portfolio/epf */
+app.get('/api/portfolio/epf', async (_req, res) => {
+    try {
+        const config = await loadConfig();
+        if (!config.epf) return fail(res, 404, 'EPF config not found');
+
+        // Support both legacy single-object and new array format
+        const accountConfigs = Array.isArray(config.epf) ? config.epf : [config.epf];
+        const accounts = accountConfigs.map((acc, i) => ({
+            id: acc.id ?? i + 1,
+            label: acc.label ?? 'EPF Account',
+            ...computeEPFValue(acc),
+        }));
+
+        // Aggregate totals across all accounts
+        const totalInvested = parseFloat(accounts.reduce((s, a) => s + a.totalInvested, 0).toFixed(2));
+        const currentValue  = parseFloat(accounts.reduce((s, a) => s + a.currentValue, 0).toFixed(2));
+        const gain          = parseFloat((currentValue - totalInvested).toFixed(2));
+        const gainPercent   = totalInvested > 0 ? parseFloat(((gain / totalInvested) * 100).toFixed(2)) : 0;
+
+        ok(res, { accounts, totalInvested, currentValue, gain, gainPercent });
+    } catch (err) {
+        console.error('EPF portfolio error:', err);
+        fail(res, 500, process.env.NODE_ENV === 'development' ? err.message : 'Failed to calculate EPF');
+    }
+});
+
 // ─── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT ?? 3002;
 app.listen(PORT, () => {

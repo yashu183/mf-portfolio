@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, RefreshCw, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -124,9 +124,12 @@ const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) =
   // ── Loading / error states ─────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <RefreshCw className="w-8 h-8 animate-spin text-primary mr-3" />
-        <span className="text-gray-400 text-lg">Loading timeline...</span>
+      <div className="flex items-center justify-center py-24 text-gray-400">
+        <svg className="animate-spin h-6 w-6 mr-3 text-primary" viewBox="0 0 24 24" fill="none">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+        </svg>
+        Loading timeline…
       </div>
     );
   }

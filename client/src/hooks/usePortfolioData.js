@@ -4,6 +4,12 @@ import {
     clearMFCache,
     getFixedDeposits,
     clearFDCache,
+    getGoldPortfolio,
+    clearGoldCache,
+    getSilverPortfolio,
+    clearSilverCache,
+    getEPFPortfolio,
+    clearEPFCache,
     getInvestmentTimeline,
     clearTimelineCache,
 } from '../services/portfolioService';
@@ -53,7 +59,28 @@ export function usePortfolioData(activeAsset = 'mutualFunds') {
     const [isLoadingFDs, setIsLoadingFDs] = useState(false);
     const [fdError, setFdError] = useState(null);
     const [lastFdUpdate, setLastFdUpdate] = useState(null);
-    const fdFetchedRef = useRef(false); // track whether FDs have been fetched
+    const fdFetchedRef = useRef(false);
+
+    // ── Gold state ────────────────────────────────────────────────────────────────
+    const [goldData, setGoldData] = useState(null);
+    const [isLoadingGold, setIsLoadingGold] = useState(false);
+    const [goldError, setGoldError] = useState(null);
+    const [lastGoldUpdate, setLastGoldUpdate] = useState(null);
+    const goldFetchedRef = useRef(false);
+
+    // ── Silver state ──────────────────────────────────────────────────────────────
+    const [silverData, setSilverData] = useState(null);
+    const [isLoadingSilver, setIsLoadingSilver] = useState(false);
+    const [silverError, setSilverError] = useState(null);
+    const [lastSilverUpdate, setLastSilverUpdate] = useState(null);
+    const silverFetchedRef = useRef(false);
+
+    // ── EPF state ─────────────────────────────────────────────────────────────────
+    const [epfData, setEPFData] = useState(null);
+    const [isLoadingEPF, setIsLoadingEPF] = useState(false);
+    const [epfError, setEPFError] = useState(null);
+    const [lastEPFUpdate, setLastEPFUpdate] = useState(null);
+    const epfFetchedRef = useRef(false);
 
     // ── Fetch MF portfolio ────────────────────────────────────────────────────────
     const fetchPortfolio = useCallback(async () => {
@@ -86,6 +113,57 @@ export function usePortfolioData(activeAsset = 'mutualFunds') {
             console.error('FD fetch error:', err);
         } finally {
             setIsLoadingFDs(false);
+        }
+    }, []);
+
+    // ── Fetch Gold (on-demand) ─────────────────────────────────────────────────────
+    const fetchGold = useCallback(async () => {
+        setIsLoadingGold(true);
+        setGoldError(null);
+        try {
+            const data = await getGoldPortfolio();
+            setGoldData(data);
+            goldFetchedRef.current = true;
+            setLastGoldUpdate(new Date());
+        } catch (err) {
+            setGoldError('Failed to load gold portfolio. Please check if the backend service is running.');
+            console.error('Gold fetch error:', err);
+        } finally {
+            setIsLoadingGold(false);
+        }
+    }, []);
+
+    // ── Fetch Silver (on-demand) ──────────────────────────────────────────────────
+    const fetchSilver = useCallback(async () => {
+        setIsLoadingSilver(true);
+        setSilverError(null);
+        try {
+            const data = await getSilverPortfolio();
+            setSilverData(data);
+            silverFetchedRef.current = true;
+            setLastSilverUpdate(new Date());
+        } catch (err) {
+            setSilverError('Failed to load silver portfolio. Please check if the backend service is running.');
+            console.error('Silver fetch error:', err);
+        } finally {
+            setIsLoadingSilver(false);
+        }
+    }, []);
+
+    // ── Fetch EPF ─────────────────────────────────────────────────────────────────
+    const fetchEPF = useCallback(async () => {
+        setIsLoadingEPF(true);
+        setEPFError(null);
+        try {
+            const data = await getEPFPortfolio();
+            setEPFData(data);
+            epfFetchedRef.current = true;
+            setLastEPFUpdate(new Date());
+        } catch (err) {
+            setEPFError('Failed to load EPF data. Please check if the backend service is running.');
+            console.error('EPF fetch error:', err);
+        } finally {
+            setIsLoadingEPF(false);
         }
     }, []);
 
@@ -152,6 +230,25 @@ export function usePortfolioData(activeAsset = 'mutualFunds') {
             clearFDCache();
             fdFetchedRef.current = false;
             await fetchFDs();
+        } else if (activeAsset === 'gold') {
+            clearGoldCache();
+            goldFetchedRef.current = false;
+            await fetchGold();
+        } else if (activeAsset === 'silver') {
+            clearSilverCache();
+            silverFetchedRef.current = false;
+            await fetchSilver();
+        } else if (activeAsset === 'epf') {
+            clearEPFCache();
+            epfFetchedRef.current = false;
+            await fetchEPF();
+        } else if (activeAsset === 'overview') {
+            clearMFCache(); clearFDCache(); clearGoldCache(); clearSilverCache(); clearEPFCache();
+            fdFetchedRef.current = false;
+            goldFetchedRef.current = false;
+            silverFetchedRef.current = false;
+            epfFetchedRef.current = false;
+            await Promise.all([fetchPortfolio(), fetchFDs(), fetchGold(), fetchSilver(), fetchEPF()]);
         } else if (activeAsset === 'mutualFunds') {
             clearMFCache();
             clearRecommendationsCache();
@@ -159,8 +256,7 @@ export function usePortfolioData(activeAsset = 'mutualFunds') {
             await fetchPortfolio();
             await fetchTimeline();
         }
-        // other assets (gold, silver, epf) have no API yet – nothing to refresh
-    }, [fetchPortfolio, fetchTimeline, fetchFDs, activeAsset]);
+    }, [fetchPortfolio, fetchTimeline, fetchFDs, fetchGold, fetchSilver, fetchEPF, activeAsset]);
 
     // ── Refresh recommendations only ──────────────────────────────────────────────
     const handleRecommendationRefresh = useCallback(() => {
@@ -186,12 +282,30 @@ export function usePortfolioData(activeAsset = 'mutualFunds') {
 
     // ── Lazy FD fetch: trigger once when user first switches to FDs ───────────────
     useEffect(() => {
-        if (activeAsset === 'fds' && !fdFetchedRef.current) {
-            fetchFDs();
-        }
+        if (activeAsset === 'fds' && !fdFetchedRef.current) fetchFDs();
     }, [activeAsset, fetchFDs]);
 
-    // Auto-fetch recommendations once portfolio is loaded
+    // ── Lazy Gold fetch ───────────────────────────────────────────────────────────
+    useEffect(() => {
+        if (activeAsset === 'gold' && !goldFetchedRef.current) fetchGold();
+    }, [activeAsset, fetchGold]);
+
+    // ── Lazy Silver fetch ─────────────────────────────────────────────────────────
+    useEffect(() => {
+        if (activeAsset === 'silver' && !silverFetchedRef.current) fetchSilver();
+    }, [activeAsset, fetchSilver]);
+    // ── Lazy EPF fetch ──────────────────────────────────────────────────────────
+    useEffect(() => {
+        if (activeAsset === 'epf' && !epfFetchedRef.current) fetchEPF();
+    }, [activeAsset, fetchEPF]);    // ── Overview: fetch all assets at once ────────────────────────────────────
+    useEffect(() => {
+        if (activeAsset === 'overview') {
+            if (!fdFetchedRef.current) fetchFDs();
+            if (!goldFetchedRef.current) fetchGold();
+            if (!silverFetchedRef.current) fetchSilver();
+            if (!epfFetchedRef.current) fetchEPF();
+        }
+    }, [activeAsset, fetchFDs, fetchGold, fetchSilver, fetchEPF]);    // Auto-fetch recommendations once portfolio is loaded
     useEffect(() => {
         if (portfolioData.length > 0 && !recommendations) {
             fetchRecommendations();
@@ -230,6 +344,27 @@ export function usePortfolioData(activeAsset = 'mutualFunds') {
         fdError,
         lastFdUpdate,
         fetchFDs,
+
+        // Gold
+        goldData,
+        isLoadingGold,
+        goldError,
+        lastGoldUpdate,
+        fetchGold,
+
+        // Silver
+        silverData,
+        isLoadingSilver,
+        silverError,
+        lastSilverUpdate,
+        fetchSilver,
+
+        // EPF
+        epfData,
+        isLoadingEPF,
+        epfError,
+        lastEPFUpdate,
+        fetchEPF,
     };
 }
 

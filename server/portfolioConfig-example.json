@@ -31,6 +31,22 @@
       ]
     }
   ],
+  "gold": [
+    { "id": 1, "label": "SGB 2024-I", "purchaseDate": "2024-02-05", "quantity": 10, "purchasePrice": 6200 }
+  ],
+  "silver": [
+    { "id": 1, "label": "Silver Coins", "purchaseDate": "2023-08-15", "quantity": 500, "purchasePrice": 72 }
+  ],
+  "epf": [
+    {
+      "id": 1,
+      "label": "Current Employer",
+      "startDate": "2021-09-01",
+      "monthlyContribution": 3600,
+      "employeeContribution": 1800,
+      "employerContribution": 1800
+    }
+  ],
   "llmConfig": {
     "enabled": true,
     "model": "us.anthropic.claude-sonnet-4-20250514-v1:0",

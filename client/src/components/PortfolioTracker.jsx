@@ -10,6 +10,9 @@ import RecommendationsView from './portfolio/RecommendationsView';
 import InvestmentTimelineView from './portfolio/InvestmentTimelineView';
 import FilterBar from './portfolio/FilterBar';
 import FixedDepositsView, { AssetPlaceholder } from './portfolio/FixedDepositsView';
+import GoldSilverView from './portfolio/GoldSilverView';
+import EPFView from './portfolio/EPFView';
+import OverviewView from './portfolio/OverviewView';
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: PieChart },
@@ -20,6 +23,10 @@ const TABS = [
 ];
 
 const ASSET_HEADER_CONTENT = {
+  overview: {
+    title: 'Overview',
+    subtitle: 'Your complete portfolio at a glance — all assets, one view',
+  },
   mutualFunds: {
     title: 'Mutual Funds',
     subtitle: 'Track fund performance, allocations, and SIP planning in one place',
@@ -43,7 +50,7 @@ const ASSET_HEADER_CONTENT = {
 };
 
 
-const PortfolioTracker = ({ activeAsset }) => {
+const PortfolioTracker = ({ activeAsset, onAssetChange }) => {
   const [activeView, setActiveView] = useState('dashboard');
   const [selectedFund, setSelectedFund] = useState(null);
   const [filters, setFilters] = useState({
@@ -80,6 +87,18 @@ const PortfolioTracker = ({ activeAsset }) => {
     isLoadingFDs,
     fdError,
     lastFdUpdate,
+    goldData,
+    isLoadingGold,
+    goldError,
+    lastGoldUpdate,
+    silverData,
+    isLoadingSilver,
+    silverError,
+    lastSilverUpdate,
+    epfData,
+    isLoadingEPF,
+    epfError,
+    lastEPFUpdate,
   } = usePortfolioData(activeAsset);
 
   // ── Filter functions ───────────────────────────────────────────────────────
@@ -205,7 +224,7 @@ const PortfolioTracker = ({ activeAsset }) => {
       <div className="max-w-7xl mx-auto mb-8">
         <div className="flex items-center justify-between mb-2">
           <div>
-            <h3 className="text-3xl md:text-4xl font-bold mb-2 text-primary">
+            <h3 className="text-2xl md:text-3xl mb-2 text-primary">
               {activeAssetHeader.title}
             </h3>
             <p className="text-gray-400 text-sm">{activeAssetHeader.subtitle}</p>
@@ -213,11 +232,34 @@ const PortfolioTracker = ({ activeAsset }) => {
 
           {/* Status + date – reflects current active asset */}
           {(() => {
-            const isFdView = activeAsset === 'fds';
-            const isLoading = isFdView ? isLoadingFDs : isLoadingPortfolio;
-            const hasError  = isFdView ? !!fdError     : !!portfolioError;
-            const updated   = isFdView ? lastFdUpdate  : lastUpdate;
-            const hasApi    = activeAsset === 'mutualFunds' || activeAsset === 'fds';
+            const isFdView    = activeAsset === 'fds';
+            const isGoldView  = activeAsset === 'gold';
+            const isSilverView = activeAsset === 'silver';
+            const isLoading =
+              activeAsset === 'overview' ? (isLoadingPortfolio || isLoadingFDs || isLoadingGold || isLoadingSilver || isLoadingEPF) :
+              isGoldView ? isLoadingGold :
+              isSilverView ? isLoadingSilver :
+              isFdView ? isLoadingFDs :
+              activeAsset === 'epf' ? isLoadingEPF :
+              isLoadingPortfolio;
+            const hasError =
+              isGoldView ? !!goldError :
+              isSilverView ? !!silverError :
+              isFdView ? !!fdError :
+              activeAsset === 'epf' ? !!epfError :
+              !!portfolioError;
+            const updated =
+              isGoldView ? lastGoldUpdate :
+              isSilverView ? lastSilverUpdate :
+              isFdView ? lastFdUpdate :
+              activeAsset === 'epf' ? lastEPFUpdate :
+              lastUpdate;
+            const hasApi = activeAsset === 'mutualFunds' || activeAsset === 'fds'
+              || activeAsset === 'gold' || activeAsset === 'silver' || activeAsset === 'epf';
+            const refreshLabel =
+              isGoldView ? 'gold' :
+              isSilverView ? 'silver' :
+              isFdView ? 'fixed deposits' : 'mutual funds';
             return (
               <div className="hidden md:block text-left">
                 <div className="flex items-center gap-2 mb-1">
@@ -235,7 +277,7 @@ const PortfolioTracker = ({ activeAsset }) => {
                     <button
                       onClick={handleManualRefresh}
                       className="p-1 hover:bg-gray-500/10 rounded transition-colors ml-2 cursor-pointer text-primary"
-                      title={`Refresh ${isFdView ? 'fixed deposits' : 'mutual funds'}`}
+                      title={`Refresh ${refreshLabel}`}
                     >
                       <RefreshCw className="w-4 h-4" />
                     </button>
@@ -417,12 +459,33 @@ const PortfolioTracker = ({ activeAsset }) => {
           </>
         )}
 
+        {activeAsset === 'overview' && (
+          <OverviewView
+            totals={totals}
+            isLoadingMF={isLoadingPortfolio}
+            fixedDeposits={fixedDeposits}
+            isLoadingFDs={isLoadingFDs}
+            goldData={goldData}
+            isLoadingGold={isLoadingGold}
+            silverData={silverData}
+            isLoadingSilver={isLoadingSilver}
+            epfData={epfData}
+            isLoadingEPF={isLoadingEPF}
+            onNavigate={onAssetChange}
+          />
+        )}
         {activeAsset === 'fds' && (
           <FixedDepositsView deposits={fixedDeposits} isLoading={isLoadingFDs} error={fdError} />
         )}
-        {activeAsset === 'gold' && <AssetPlaceholder asset="Gold" />}
-        {activeAsset === 'silver' && <AssetPlaceholder asset="Silver" />}
-        {activeAsset === 'epf' && <AssetPlaceholder asset="EPF" />}
+        {activeAsset === 'gold' && (
+          <GoldSilverView metal="gold" data={goldData} isLoading={isLoadingGold} error={goldError} />
+        )}
+        {activeAsset === 'silver' && (
+          <GoldSilverView metal="silver" data={silverData} isLoading={isLoadingSilver} error={silverError} />
+        )}
+        {activeAsset === 'epf' && (
+          <EPFView data={epfData} isLoading={isLoadingEPF} error={epfError} />
+        )}
       </div>
 
       {/* Footer */}
@@ -441,6 +504,14 @@ const PortfolioTracker = ({ activeAsset }) => {
           ) : activeAsset === 'fds' ? (
             <p className="text-xs text-slate-600">
               FD projections shown with rollover calculations for both 444-day booking cycles.
+            </p>
+          ) : activeAsset === 'gold' || activeAsset === 'silver' ? (
+            <p className="text-xs text-slate-600">
+              Live {activeAsset === 'gold' ? 'gold (24K)' : 'silver (999)'} prices sourced from bullions.co.in · INR/gram
+            </p>
+          ) : activeAsset === 'epf' ? (
+            <p className="text-xs text-slate-600">
+              EPF interest compounded monthly · EPFO declared rates · contributions lag adjusted
             </p>
           ) : (
             <p className="text-xs text-slate-600">
