@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-    getCompletePortfolio,
-    clearPortfolioCache,
+    getMutualFunds,
+    clearMFCache,
+    getFixedDeposits,
+    clearFDCache,
     getInvestmentTimeline,
     clearTimelineCache,
 } from '../services/portfolioService';
@@ -16,9 +18,11 @@ const AUTO_REFRESH_MS = 30 * 60 * 1000; // 30 minutes
 /**
  * usePortfolioData
  * Encapsulates all data-fetching, caching and refresh logic for the portfolio.
+ * Fetches MF data on mount; FD data is fetched lazily the first time
+ * activeAsset === 'fds'.
  */
-export function usePortfolioData() {
-    // ── Portfolio state ──────────────────────────────────────────────────────────
+export function usePortfolioData(activeAsset = 'mutualFunds') {
+    // ── Portfolio (MF) state ─────────────────────────────────────────────────────
     const [portfolioData, setPortfolioData] = useState([]);
     const [totals, setTotals] = useState({
         totalInvested: 0,
@@ -44,12 +48,19 @@ export function usePortfolioData() {
     const [isLoadingTimeline, setIsLoadingTimeline] = useState(false);
     const [timelineError, setTimelineError] = useState(null);
 
-    // ── Fetch portfolio ───────────────────────────────────────────────────────────
+    // ── Fixed Deposit state ───────────────────────────────────────────────────────
+    const [fixedDeposits, setFixedDeposits] = useState([]);
+    const [isLoadingFDs, setIsLoadingFDs] = useState(false);
+    const [fdError, setFdError] = useState(null);
+    const [lastFdUpdate, setLastFdUpdate] = useState(null);
+    const fdFetchedRef = useRef(false); // track whether FDs have been fetched
+
+    // ── Fetch MF portfolio ────────────────────────────────────────────────────────
     const fetchPortfolio = useCallback(async () => {
         setIsLoadingPortfolio(true);
         setPortfolioError(null);
         try {
-            const data = await getCompletePortfolio();
+            const data = await getMutualFunds();
             setPortfolioData(data.funds);
             setTotals(data.totals);
             setLastUpdate(new Date());
@@ -58,6 +69,23 @@ export function usePortfolioData() {
             console.error('Portfolio fetch error:', err);
         } finally {
             setIsLoadingPortfolio(false);
+        }
+    }, []);
+
+    // ── Fetch FDs (on-demand) ─────────────────────────────────────────────────────
+    const fetchFDs = useCallback(async () => {
+        setIsLoadingFDs(true);
+        setFdError(null);
+        try {
+            const data = await getFixedDeposits();
+            setFixedDeposits(data.fixedDeposits ?? []);
+            fdFetchedRef.current = true;
+            setLastFdUpdate(new Date());
+        } catch (err) {
+            setFdError('Failed to load fixed deposits. Please check if the backend service is running.');
+            console.error('FD fetch error:', err);
+        } finally {
+            setIsLoadingFDs(false);
         }
     }, []);
 
@@ -118,14 +146,21 @@ export function usePortfolioData() {
         }
     }, []);
 
-    // ── Hard refresh (clears frontend caches, then re-fetches fresh data) ─────────
+    // ── Hard refresh – only fetches the API relevant to the current asset ─────────
     const handleManualRefresh = useCallback(async () => {
-        clearPortfolioCache();
-        clearRecommendationsCache();
-        clearTimelineCache();
-        await fetchPortfolio();
-        await fetchTimeline();
-    }, [fetchPortfolio, fetchTimeline]);
+        if (activeAsset === 'fds') {
+            clearFDCache();
+            fdFetchedRef.current = false;
+            await fetchFDs();
+        } else if (activeAsset === 'mutualFunds') {
+            clearMFCache();
+            clearRecommendationsCache();
+            clearTimelineCache();
+            await fetchPortfolio();
+            await fetchTimeline();
+        }
+        // other assets (gold, silver, epf) have no API yet – nothing to refresh
+    }, [fetchPortfolio, fetchTimeline, fetchFDs, activeAsset]);
 
     // ── Refresh recommendations only ──────────────────────────────────────────────
     const handleRecommendationRefresh = useCallback(() => {
@@ -140,7 +175,7 @@ export function usePortfolioData() {
         return healthy;
     }, []);
 
-    // ── Mount effects ─────────────────────────────────────────────────────────────
+    // ── Mount: fetch MF data + timeline ──────────────────────────────────────────
     useEffect(() => {
         fetchPortfolio();
         fetchTimeline();
@@ -148,6 +183,13 @@ export function usePortfolioData() {
         const interval = setInterval(fetchPortfolio, AUTO_REFRESH_MS);
         return () => clearInterval(interval);
     }, [fetchPortfolio, fetchTimeline, checkHealth]);
+
+    // ── Lazy FD fetch: trigger once when user first switches to FDs ───────────────
+    useEffect(() => {
+        if (activeAsset === 'fds' && !fdFetchedRef.current) {
+            fetchFDs();
+        }
+    }, [activeAsset, fetchFDs]);
 
     // Auto-fetch recommendations once portfolio is loaded
     useEffect(() => {
@@ -157,7 +199,7 @@ export function usePortfolioData() {
     }, [portfolioData, recommendations, fetchRecommendations]);
 
     return {
-        // Portfolio
+        // Portfolio (MF)
         portfolioData,
         totals,
         isLoadingPortfolio,
@@ -181,5 +223,13 @@ export function usePortfolioData() {
         isLoadingTimeline,
         timelineError,
         fetchTimeline,
+
+        // Fixed deposits
+        fixedDeposits,
+        isLoadingFDs,
+        fdError,
+        lastFdUpdate,
+        fetchFDs,
     };
 }
+

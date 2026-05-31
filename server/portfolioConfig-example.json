@@ -17,6 +17,20 @@
       "color": "#FFFFD2"
     }
   ],
+  "fixedDeposits": [
+    {
+      "id": 1,
+      "name": "Person Name",
+      "bank": "Bank Name",
+      "label": "2L - <Tenure>",
+      "principal": 200000,
+      "startDate": "2025-01-18",
+      "cycles": [
+        { "termDays": 444, "rate": 7.25, "maturityDate": "2026-04-07", "interestBank": 18271 },
+        { "termDays": 444, "rate": 6.45, "maturityDate": "2027-06-25", "interestBank": 17671 }
+      ]
+    }
+  ],
   "llmConfig": {
     "enabled": true,
     "model": "us.anthropic.claude-sonnet-4-20250514-v1:0",

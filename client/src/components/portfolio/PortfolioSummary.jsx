@@ -20,7 +20,7 @@ const PortfolioSummary = ({ totals, activeFundsCount }) => {
           <p className="text-sm text-emerald-400 uppercase tracking-wide">Current Value</p>
           <TrendingUp className="w-5 h-5 text-emerald-500" />
         </div>
-        <p className="text-3xl font-bold text-white">₹{(totals.totalCurrentValue / 100000).toFixed(2)}L</p>
+        <p className="text-3xl font-bold text-emerald-500">₹{(totals.totalCurrentValue / 100000).toFixed(2)}L</p>
         <p className="text-xs text-emerald-400 mt-1">₹{totals.totalCurrentValue.toLocaleString('en-IN')}</p>
       </div>
 
@@ -30,7 +30,7 @@ const PortfolioSummary = ({ totals, activeFundsCount }) => {
           <p className="text-sm uppercase tracking-wide text-primary">Total Returns</p>
           <BarChart3 className="w-5 h-5 text-primary" />
         </div>
-        <p className="text-3xl font-bold text-white">{totals.totalReturns.toFixed(2)}%</p>
+        <p className="text-3xl font-bold text-primary">{totals.totalReturns.toFixed(2)}%</p>
         <p className="text-xs mt-1 text-primary">₹{(totals.totalCurrentValue - totals.totalInvested).toLocaleString('en-IN')} gain</p>
       </div>
 

@@ -62,6 +62,103 @@ function getYearsDifference(startDate, endDate) {
     return (end - start) / (1000 * 60 * 60 * 24 * 365.25);
 }
 
+const FD_MS_PER_DAY = 1000 * 60 * 60 * 24;
+const FD_DAYS_IN_YEAR = 364;
+const FD_DAYS_PER_QUARTER = FD_DAYS_IN_YEAR / 4;
+
+function parseLocalDate(value) {
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day, 0, 0, 0, 0);
+}
+
+function getFdElapsedDays(fromDate, toDate = new Date()) {
+    const end = new Date(toDate);
+    end.setHours(0, 0, 0, 0);
+    return Math.max((end.getTime() - parseLocalDate(fromDate).getTime()) / FD_MS_PER_DAY, 0);
+}
+
+function calcFdCurrentValue(principal, annualRatePercent, elapsedDays) {
+    const annualRate = annualRatePercent / 100;
+    const completedQuarters = Math.floor(elapsedDays / FD_DAYS_PER_QUARTER);
+    const remainingDays = elapsedDays - completedQuarters * FD_DAYS_PER_QUARTER;
+    const roundedDayFraction = Math.round((remainingDays / FD_DAYS_IN_YEAR) * 10000000) / 10000000;
+    const amountAfterCompletedQuarters = principal * Math.pow(1 + annualRate / 4, completedQuarters);
+    return amountAfterCompletedQuarters * (1 + annualRate * roundedDayFraction);
+}
+
+function calculateFixedDeposits(rawDeposits = []) {
+    return rawDeposits.map((deposit) => {
+        const normalizedName = deposit.name ?? `FD ${deposit.label ?? deposit.id}`;
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+
+        let runningAmount = deposit.principal;
+        const cycleData = (deposit.cycles ?? []).map((cycle, index) => {
+            const startAmount = runningAmount;
+            const maturityAmount = startAmount + cycle.interestBank;
+            runningAmount = maturityAmount;
+            return {
+                ...cycle,
+                index,
+                startAmount,
+                interest: cycle.interestBank,
+                maturityAmount,
+                maturityDateObj: parseLocalDate(cycle.maturityDate),
+            };
+        });
+
+        if (cycleData.length === 0) {
+            return {
+                ...deposit,
+                name: normalizedName,
+                cycleData: [],
+                finalMaturityAmount: deposit.principal,
+                totalInterest: 0,
+                currentValue: deposit.principal,
+                activeCycleIdx: 0,
+                progress: { pct: 100, cycleBoundaries: [], activeCycleIdx: 0 },
+            };
+        }
+
+        const finalMaturityAmount = runningAmount;
+        const totalInterest = finalMaturityAmount - deposit.principal;
+
+        let currentValue = finalMaturityAmount;
+        let activeCycleIdx = cycleData.length;
+        for (let i = 0; i < cycleData.length; i++) {
+            if (now < cycleData[i].maturityDateObj) {
+                activeCycleIdx = i;
+                const fromDate = i === 0 ? deposit.startDate : cycleData[i - 1].maturityDate;
+                const elapsedDays = getFdElapsedDays(fromDate, now);
+                currentValue = parseFloat(
+                    calcFdCurrentValue(cycleData[i].startAmount, cycleData[i].rate, elapsedDays).toFixed(2),
+                );
+                break;
+            }
+        }
+
+        const start = parseLocalDate(deposit.startDate);
+        const lastMaturity = cycleData[cycleData.length - 1].maturityDateObj;
+        const totalMs = lastMaturity - start;
+        const elapsedMs = Math.min(Math.max(now - start, 0), totalMs);
+        const pct = totalMs > 0 ? (elapsedMs / totalMs) * 100 : 100;
+        const cycleBoundaries = cycleData.slice(0, -1).map(
+            (cycle) => ((cycle.maturityDateObj - start) / totalMs) * 100,
+        );
+
+        return {
+            ...deposit,
+            name: normalizedName,
+            cycleData,
+            finalMaturityAmount,
+            totalInterest,
+            currentValue,
+            activeCycleIdx,
+            progress: { pct, cycleBoundaries, activeCycleIdx },
+        };
+    });
+}
+
 // XIRR with optional key-based caching (results are stable per fund+nav date)
 const _xirrCache = {};
 function calculateXIRR(cashFlows, guess = 0.1, cacheKey = null) {
@@ -293,6 +390,92 @@ function fixAllocationTotal(response, targetTotal, categoryLookup = {}) {
   return response;
 }
 
+// ─── Shared computation helpers ───────────────────────────────────────────────
+
+/** Compute all MF fund values + totals from a loaded config */
+async function computeMFData(config) {
+    const currentDate = new Date();
+    console.log(`📊 Processing ${config.funds.length} funds in parallel...`);
+
+    const calculatedFunds = await Promise.all(
+        config.funds.map(async (fund) => {
+            const { totalUnits, totalInvested, currentValue, latestNAV, latestDate } =
+                await calculateFundValue(fund);
+
+            let totalSIPInvested = 0;
+            let sipMonths = 0;
+            let currentMonthlySIP = 0;
+            for (const sip of fund.sips ?? []) {
+                if (sip.amount > 0 && sip.startDate) {
+                    const sipStart = new Date(sip.startDate);
+                    let effectiveSipEndDate = currentDate;
+                    if (sip.stopDate && new Date(sip.stopDate) < currentDate) {
+                        effectiveSipEndDate = new Date(sip.stopDate);
+                    }
+                    const months = getMonthsDifference(sipStart, effectiveSipEndDate);
+                    totalSIPInvested += sip.amount * months;
+                    sipMonths += months;
+                    if (sipStart <= currentDate && (!sip.stopDate || new Date(sip.stopDate) >= currentDate)) {
+                        currentMonthlySIP += sip.amount;
+                    }
+                }
+            }
+            const totalLumpsum = (fund.lumpsums ?? []).reduce((s, l) => s + l.amount, 0);
+
+            let startDate = currentDate;
+            if (fund.sips?.length > 0) {
+                const earliestSipStart = new Date(Math.min(...fund.sips.map(s => new Date(s.startDate))));
+                if (earliestSipStart < startDate) startDate = earliestSipStart;
+            }
+            if (fund.lumpsums?.length > 0) {
+                const earliestLumpsum = new Date(Math.min(...fund.lumpsums.map(l => new Date(l.date))));
+                if (earliestLumpsum < startDate) startDate = earliestLumpsum;
+            }
+            const investmentAge = getMonthsDifference(startDate, currentDate);
+
+            const cashFlows = buildCashFlows(fund, sipMonths, currentDate);
+            cashFlows.push({ date: currentDate, amount: currentValue });
+
+            const cacheKey = latestDate ? `${fund.id}_${latestDate}_xirr` : null;
+            const xirr = cashFlows.length > 1 ? calculateXIRR(cashFlows, 0.1, cacheKey) : 0;
+            const returns = totalInvested > 0 ? ((currentValue - totalInvested) / totalInvested) * 100 : 0;
+
+            return {
+                ...fund,
+                totalUnits,
+                totalInvested,
+                currentValue,
+                latestNAV,
+                latestDate,
+                sipMonths,
+                totalSIPInvested,
+                totalLumpsum,
+                investmentAge,
+                xirr,
+                returns,
+                status: deriveStatus(xirr, sipMonths),
+                currentMonthlySIP,
+            };
+        }),
+    );
+
+    const totals = calculatedFunds.reduce(
+        (acc, f) => {
+            acc.totalInvested += f.totalInvested;
+            acc.totalCurrentValue += f.currentValue;
+            acc.monthlySIP += f.currentMonthlySIP ?? 0;
+            return acc;
+        },
+        { totalInvested: 0, totalCurrentValue: 0, monthlySIP: 0 },
+    );
+    totals.totalReturns =
+        totals.totalInvested > 0
+            ? ((totals.totalCurrentValue - totals.totalInvested) / totals.totalInvested) * 100
+            : 0;
+
+    return { funds: calculatedFunds, totals };
+}
+
 // ─── API Endpoints ─────────────────────────────────────────────────────────────
 
 /** GET /api/health */
@@ -300,100 +483,42 @@ app.get('/api/health', (_req, res) =>
     ok(res, { service: 'mf-portfolio-api', timestamp: new Date().toISOString() }),
 );
 
+/** GET /api/portfolio/funds – Mutual funds only */
+app.get('/api/portfolio/funds', async (_req, res) => {
+    try {
+        const config = await loadConfig();
+        const { funds, totals } = await computeMFData(config);
+        ok(res, { funds, totals });
+    } catch (err) {
+        console.error('Funds portfolio error:', err);
+        fail(res, 500, process.env.NODE_ENV === 'development' ? err.message : 'Failed to calculate mutual funds');
+    }
+});
+
+/** GET /api/portfolio/fds – Fixed deposits only */
+app.get('/api/portfolio/fds', async (_req, res) => {
+    try {
+        const config = await loadConfig();
+        const fixedDeposits = calculateFixedDeposits(config.fixedDeposits ?? []);
+        ok(res, { fixedDeposits });
+    } catch (err) {
+        console.error('FDs portfolio error:', err);
+        fail(res, 500, process.env.NODE_ENV === 'development' ? err.message : 'Failed to calculate fixed deposits');
+    }
+});
+
 /**
  * GET /api/portfolio/complete
- * Fetches all fund NAVs in PARALLEL, calculates everything and returns ready-to-render data.
+ * Kept for backward compatibility – returns funds + totals + fixedDeposits in one shot.
  */
 app.get('/api/portfolio/complete', async (_req, res) => {
     try {
         const config = await loadConfig();
-        const currentDate = new Date();
-        console.log(`📊 Processing ${config.funds.length} funds in parallel...`);
-
-        // ⚡ Parallel NAV fetching – all funds fetched concurrently
-        const calculatedFunds = await Promise.all(
-            config.funds.map(async (fund) => {
-                const { totalUnits, totalInvested, currentValue, latestNAV, latestDate } =
-                    await calculateFundValue(fund);
-
-                // Calculate SIP months and total invested from sips array
-                let totalSIPInvested = 0;
-                let sipMonths = 0;
-                let currentMonthlySIP = 0;
-                for (const sip of fund.sips ?? []) {
-                    if (sip.amount > 0 && sip.startDate) {
-                        const sipStart = new Date(sip.startDate);
-                        let effectiveSipEndDate = currentDate;
-                        if (sip.stopDate && new Date(sip.stopDate) < currentDate) {
-                            effectiveSipEndDate = new Date(sip.stopDate);
-                        }
-                        const months = getMonthsDifference(sipStart, effectiveSipEndDate);
-                        totalSIPInvested += sip.amount * months;
-                        sipMonths += months;
-
-                        // If this SIP is currently active (started and not stopped), add to current monthly SIP
-                        if (sipStart <= currentDate && (!sip.stopDate || new Date(sip.stopDate) >= currentDate)) {
-                            currentMonthlySIP += sip.amount;
-                        }
-                    }
-                }
-                const totalLumpsum = (fund.lumpsums ?? []).reduce((s, l) => s + l.amount, 0);
-
-                // Find the earliest investment date
-                let startDate = currentDate;
-                if (fund.sips?.length > 0) {
-                    const earliestSipStart = new Date(Math.min(...fund.sips.map(s => new Date(s.startDate))));
-                    if (earliestSipStart < startDate) startDate = earliestSipStart;
-                }
-                if (fund.lumpsums?.length > 0) {
-                    const earliestLumpsum = new Date(Math.min(...fund.lumpsums.map(l => new Date(l.date))));
-                    if (earliestLumpsum < startDate) startDate = earliestLumpsum;
-                }
-                const investmentAge = getMonthsDifference(startDate, currentDate);
-
-                const cashFlows = buildCashFlows(fund, sipMonths, currentDate);
-                cashFlows.push({ date: currentDate, amount: currentValue });
-
-                // Stable cache key: fund + nav date (NAV date acts as a proxy for "data version")
-                const cacheKey = latestDate ? `${fund.id}_${latestDate}_xirr` : null;
-                const xirr = cashFlows.length > 1 ? calculateXIRR(cashFlows, 0.1, cacheKey) : 0;
-                const returns =
-                    totalInvested > 0 ? ((currentValue - totalInvested) / totalInvested) * 100 : 0;
-
-                return {
-                    ...fund,
-                    totalUnits,
-                    totalInvested,
-                    currentValue,
-                    latestNAV,
-                    latestDate,
-                    sipMonths,
-                    totalSIPInvested,
-                    totalLumpsum,
-                    investmentAge,
-                    xirr,
-                    returns,
-                    status: deriveStatus(xirr, sipMonths),
-                    currentMonthlySIP, // Add the current monthly SIP amount for this fund
-                };
-            }),
-        );
-
-        const totals = calculatedFunds.reduce(
-            (acc, f) => {
-                acc.totalInvested += f.totalInvested;
-                acc.totalCurrentValue += f.currentValue;
-                acc.monthlySIP += f.currentMonthlySIP ?? 0; // Sum up current active SIPs
-                return acc;
-            },
-            { totalInvested: 0, totalCurrentValue: 0, monthlySIP: 0 },
-        );
-        totals.totalReturns =
-            totals.totalInvested > 0
-                ? ((totals.totalCurrentValue - totals.totalInvested) / totals.totalInvested) * 100
-                : 0;
-
-        ok(res, { funds: calculatedFunds, totals });
+        const [{ funds, totals }, fixedDeposits] = await Promise.all([
+            computeMFData(config),
+            Promise.resolve(calculateFixedDeposits(config.fixedDeposits ?? [])),
+        ]);
+        ok(res, { funds, totals, fixedDeposits });
     } catch (err) {
         console.error('Complete portfolio error:', err);
         fail(res, 500, process.env.NODE_ENV === 'development' ? err.message : 'Failed to calculate portfolio');
