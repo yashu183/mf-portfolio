@@ -138,3 +138,23 @@ export const getEPFPortfolio = async () => {
 
 export const clearEPFCache = () => { _epfCache = { data: null, timestamp: null }; };
 
+// ─── Overview ──────────────────────────────────────────────────────────────────
+let _overviewCache = { data: null, timestamp: null };
+
+/** GET /api/portfolio/overview – returns aggregated overview data for all assets */
+export const getOverview = async () => {
+  const now = Date.now();
+  if (_overviewCache.data && _overviewCache.timestamp && now - _overviewCache.timestamp < CACHE_TTL) {
+    console.log('📋 Using cached overview data');
+    return _overviewCache.data;
+  }
+  const response = await fetch(`${API_BASE_URL}/api/portfolio/overview`);
+  if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  const result = await response.json();
+  if (result.status !== 'success') throw new Error(result.message ?? 'Unknown server error');
+  _overviewCache = { data: result.data, timestamp: now };
+  return result.data;
+};
+
+export const clearOverviewCache = () => { _overviewCache = { data: null, timestamp: null }; };
+

@@ -12,6 +12,8 @@ import {
     clearEPFCache,
     getInvestmentTimeline,
     clearTimelineCache,
+    getOverview,
+    clearOverviewCache,
 } from '../services/portfolioService';
 import {
     getCachedRecommendations,
@@ -81,6 +83,13 @@ export function usePortfolioData(activeAsset = 'mutualFunds') {
     const [epfError, setEPFError] = useState(null);
     const [lastEPFUpdate, setLastEPFUpdate] = useState(null);
     const epfFetchedRef = useRef(false);
+
+    // ── Overview state ────────────────────────────────────────────────────────────
+    const [overviewData, setOverviewData] = useState(null);
+    const [isLoadingOverview, setIsLoadingOverview] = useState(false);
+    const [overviewError, setOverviewError] = useState(null);
+    const [lastOverviewUpdate, setLastOverviewUpdate] = useState(null);
+    const overviewFetchedRef = useRef(false);
 
     // ── Fetch MF portfolio ────────────────────────────────────────────────────────
     const fetchPortfolio = useCallback(async () => {
@@ -167,6 +176,23 @@ export function usePortfolioData(activeAsset = 'mutualFunds') {
         }
     }, []);
 
+    // ── Fetch Overview ────────────────────────────────────────────────────────────
+    const fetchOverview = useCallback(async () => {
+        setIsLoadingOverview(true);
+        setOverviewError(null);
+        try {
+            const data = await getOverview();
+            setOverviewData(data);
+            overviewFetchedRef.current = true;
+            setLastOverviewUpdate(new Date());
+        } catch (err) {
+            setOverviewError('Failed to load overview data. Please check if the backend service is running.');
+            console.error('Overview fetch error:', err);
+        } finally {
+            setIsLoadingOverview(false);
+        }
+    }, []);
+
     // ── Fetch recommendations ─────────────────────────────────────────────────────
     const fetchRecommendations = useCallback(
         async (forceRefresh = false) => {
@@ -243,12 +269,9 @@ export function usePortfolioData(activeAsset = 'mutualFunds') {
             epfFetchedRef.current = false;
             await fetchEPF();
         } else if (activeAsset === 'overview') {
-            clearMFCache(); clearFDCache(); clearGoldCache(); clearSilverCache(); clearEPFCache();
-            fdFetchedRef.current = false;
-            goldFetchedRef.current = false;
-            silverFetchedRef.current = false;
-            epfFetchedRef.current = false;
-            await Promise.all([fetchPortfolio(), fetchFDs(), fetchGold(), fetchSilver(), fetchEPF()]);
+            clearOverviewCache();
+            overviewFetchedRef.current = false;
+            await fetchOverview();
         } else if (activeAsset === 'mutualFunds') {
             clearMFCache();
             clearRecommendationsCache();
@@ -256,7 +279,7 @@ export function usePortfolioData(activeAsset = 'mutualFunds') {
             await fetchPortfolio();
             await fetchTimeline();
         }
-    }, [fetchPortfolio, fetchTimeline, fetchFDs, fetchGold, fetchSilver, fetchEPF, activeAsset]);
+    }, [fetchPortfolio, fetchTimeline, fetchFDs, fetchGold, fetchSilver, fetchEPF, fetchOverview, activeAsset]);
 
     // ── Refresh recommendations only ──────────────────────────────────────────────
     const handleRecommendationRefresh = useCallback(() => {
@@ -297,15 +320,12 @@ export function usePortfolioData(activeAsset = 'mutualFunds') {
     // ── Lazy EPF fetch ──────────────────────────────────────────────────────────
     useEffect(() => {
         if (activeAsset === 'epf' && !epfFetchedRef.current) fetchEPF();
-    }, [activeAsset, fetchEPF]);    // ── Overview: fetch all assets at once ────────────────────────────────────
+    }, [activeAsset, fetchEPF]);    // ── Overview: fetch aggregated overview data ──────────────────────────────────
     useEffect(() => {
-        if (activeAsset === 'overview') {
-            if (!fdFetchedRef.current) fetchFDs();
-            if (!goldFetchedRef.current) fetchGold();
-            if (!silverFetchedRef.current) fetchSilver();
-            if (!epfFetchedRef.current) fetchEPF();
+        if (activeAsset === 'overview' && !overviewFetchedRef.current) {
+            fetchOverview();
         }
-    }, [activeAsset, fetchFDs, fetchGold, fetchSilver, fetchEPF]);    // Auto-fetch recommendations once portfolio is loaded
+    }, [activeAsset, fetchOverview]);    // Auto-fetch recommendations once portfolio is loaded
     useEffect(() => {
         if (portfolioData.length > 0 && !recommendations) {
             fetchRecommendations();
@@ -365,6 +385,13 @@ export function usePortfolioData(activeAsset = 'mutualFunds') {
         epfError,
         lastEPFUpdate,
         fetchEPF,
+
+        // Overview
+        overviewData,
+        isLoadingOverview,
+        overviewError,
+        lastOverviewUpdate,
+        fetchOverview,
     };
 }
 

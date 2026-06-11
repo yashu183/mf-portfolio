@@ -99,6 +99,10 @@ const PortfolioTracker = ({ activeAsset, onAssetChange }) => {
     isLoadingEPF,
     epfError,
     lastEPFUpdate,
+    overviewData,
+    isLoadingOverview,
+    overviewError,
+    lastOverviewUpdate,
   } = usePortfolioData(activeAsset);
 
   // ── Filter functions ───────────────────────────────────────────────────────
@@ -461,16 +465,9 @@ const PortfolioTracker = ({ activeAsset, onAssetChange }) => {
 
         {activeAsset === 'overview' && (
           <OverviewView
-            totals={totals}
-            isLoadingMF={isLoadingPortfolio}
-            fixedDeposits={fixedDeposits}
-            isLoadingFDs={isLoadingFDs}
-            goldData={goldData}
-            isLoadingGold={isLoadingGold}
-            silverData={silverData}
-            isLoadingSilver={isLoadingSilver}
-            epfData={epfData}
-            isLoadingEPF={isLoadingEPF}
+            overviewData={overviewData}
+            isLoading={isLoadingOverview}
+            error={overviewError}
             onNavigate={onAssetChange}
           />
         )}

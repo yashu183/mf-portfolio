@@ -5,11 +5,11 @@ import {
 } from 'recharts';
 
 const ASSET_CFG = [
-  { id: 'mutualFunds', label: 'Mutual Funds',  short: 'MF',     color: '#644ff0' },
-  { id: 'fds',         label: 'Fixed Deposits', short: 'FDs',    color: '#f59e0b' },
-  { id: 'gold',        label: 'Gold',           short: 'Gold',   color: '#fbbf24' },
-  { id: 'silver',      label: 'Silver',         short: 'Silver', color: '#94a3b8' },
-  { id: 'epf',         label: 'EPF',            short: 'EPF',    color: '#10b981' },
+  { id: 'mutualFunds', label: 'Mutual Funds',  short: 'MF',     color: '#8b5cf6', gradient: 'from-purple-600 to-purple-400' },
+  { id: 'fds',         label: 'Fixed Deposits', short: 'FDs',    color: '#3b82f6', gradient: 'from-blue-600 to-blue-400' },
+  { id: 'gold',        label: 'Gold',           short: 'Gold',   color: '#fbbf24', gradient: 'from-yellow-500 to-yellow-300' },
+  { id: 'silver',      label: 'Silver',         short: 'Silver', color: '#94a3b8', gradient: 'from-slate-500 to-slate-300' },
+  { id: 'epf',         label: 'EPF',            short: 'EPF',    color: '#10b981', gradient: 'from-emerald-600 to-emerald-400' },
 ];
 
 const fmt = (v) =>
@@ -25,68 +25,35 @@ const Spinner = () => (
 );
 
 export default function OverviewView({
-  totals, isLoadingMF,
-  fixedDeposits, isLoadingFDs,
-  goldData, isLoadingGold,
-  silverData, isLoadingSilver,
-  epfData, isLoadingEPF,
-  onNavigate,
+  overviewData, isLoading, error, onNavigate,
 }) {
-  const fdTotals = useMemo(() =>
-    fixedDeposits.reduce(
-      (acc, d) => ({ invested: acc.invested + (d.principal ?? 0), current: acc.current + (d.currentValue ?? 0) }),
-      { invested: 0, current: 0 },
-    ),
-  [fixedDeposits]);
+  const assets = useMemo(() => {
+    if (!overviewData?.assets) return ASSET_CFG.map(cfg => ({ ...cfg, invested: 0, current: 0, hasData: false }));
 
-  const assets = useMemo(() => [
-    {
-      ...ASSET_CFG[0],
-      invested: totals.totalInvested,
-      current: totals.totalCurrentValue,
-      isLoading: isLoadingMF,
-      hasData: totals.totalCurrentValue > 0,
-    },
-    {
-      ...ASSET_CFG[1],
-      invested: fdTotals.invested,
-      current: fdTotals.current,
-      isLoading: isLoadingFDs,
-      hasData: fixedDeposits.length > 0,
-    },
-    {
-      ...ASSET_CFG[2],
-      invested: goldData?.totals?.totalInvested ?? 0,
-      current: goldData?.totals?.totalCurrentValue ?? 0,
-      isLoading: isLoadingGold,
-      hasData: !!goldData,
-    },
-    {
-      ...ASSET_CFG[3],
-      invested: silverData?.totals?.totalInvested ?? 0,
-      current: silverData?.totals?.totalCurrentValue ?? 0,
-      isLoading: isLoadingSilver,
-      hasData: !!silverData,
-    },
-    {
-      ...ASSET_CFG[4],
-      invested: epfData?.totalInvested ?? 0,
-      current: epfData?.currentValue ?? 0,
-      isLoading: isLoadingEPF,
-      hasData: !!epfData,
-    },
-  ], [totals, fdTotals, fixedDeposits, goldData, silverData, epfData,
-      isLoadingMF, isLoadingFDs, isLoadingGold, isLoadingSilver, isLoadingEPF]);
+    return ASSET_CFG.map(cfg => {
+      const assetData = overviewData.assets.find(a => a.id === cfg.id);
+      return {
+        ...cfg,
+        invested: assetData?.invested ?? 0,
+        current: assetData?.current ?? 0,
+        returns: assetData?.returns ?? 0,
+        returnPercent: assetData?.returnPercent ?? 0,
+        hasData: assetData ? (assetData.invested > 0 || assetData.current > 0) : false,
+      };
+    });
+  }, [overviewData]);
 
   const loadedAssets = useMemo(() => assets.filter(a => a.hasData), [assets]);
 
   const grand = useMemo(() => {
-    const invested = loadedAssets.reduce((s, a) => s + a.invested, 0);
-    const current  = loadedAssets.reduce((s, a) => s + a.current, 0);
-    const gain     = current - invested;
-    const gainPct  = invested > 0 ? (gain / invested) * 100 : 0;
-    return { invested, current, gain, gainPct };
-  }, [loadedAssets]);
+    if (!overviewData?.totals) return { invested: 0, current: 0, gain: 0, gainPct: 0 };
+    return {
+      invested: overviewData.totals.totalInvested,
+      current: overviewData.totals.totalCurrentValue,
+      gain: overviewData.totals.totalGain,
+      gainPct: overviewData.totals.totalGainPercent,
+    };
+  }, [overviewData]);
 
   const [pieMode, setPieMode] = useState('currentValue');
 
@@ -151,7 +118,7 @@ export default function OverviewView({
       <div className="bg-gray-900 border border-gray-700/80 rounded-xl px-4 py-3 text-sm shadow-2xl">
         <p className="font-semibold text-white mb-2">{label}</p>
         <p className="text-gray-400">Invested: {fmt(inv)}</p>
-        <p className="text-emerald-400">Current: {fmt(cur)}</p>
+        <p className="text-gray-400">Current: <strong className="text-primary">{fmt(cur)}</strong></p>
         <p className={gain >= 0 ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>
           {gain >= 0 ? '+' : ''}{fmt(gain)} ({gainPct}%)
         </p>
@@ -271,8 +238,6 @@ export default function OverviewView({
             </div>
             {/* Rows */}
             {assets.map(a => {
-              const gain = a.current - a.invested;
-              const gainPct = a.invested > 0 ? (gain / a.invested) * 100 : 0;
               return (
                 <button
                   key={a.id}
@@ -282,18 +247,18 @@ export default function OverviewView({
                   <span className="col-span-4 flex items-center gap-2 text-sm font-medium text-white">
                     <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color }} />
                     <span className="truncate">{a.label}</span>
-                    {a.isLoading && <Spinner />}
+                    {isLoading && <Spinner />}
                   </span>
                   <span className="col-span-3 text-right text-sm text-gray-300">
-                    {a.hasData ? fmt(a.invested) : <span className="text-gray-600">{a.isLoading ? '…' : '—'}</span>}
+                    {a.hasData ? fmt(a.invested) : <span className="text-gray-600">{isLoading ? '…' : '—'}</span>}
                   </span>
-                  <span className="col-span-3 text-right text-sm font-medium text-emerald-400">
-                    {a.hasData ? fmt(a.current) : <span className="text-gray-600">{a.isLoading ? '…' : '—'}</span>}
+                  <span className="col-span-3 text-right text-sm font-medium text-primary">
+                    {a.hasData ? fmt(a.current) : <span className="text-gray-600">{isLoading ? '…' : '—'}</span>}
                   </span>
-                  <span className={`col-span-2 text-right text-sm font-bold ${a.hasData ? (gainPct >= 0 ? 'text-emerald-400' : 'text-red-400') : 'text-gray-600'}`}>
+                  <span className={`col-span-2 text-right text-sm font-bold ${a.hasData ? (a.returnPercent >= 0 ? 'text-emerald-400' : 'text-red-400') : 'text-gray-600'}`}>
                     {a.hasData
-                      ? `${gainPct >= 0 ? '+' : ''}${gainPct.toFixed(1)}%`
-                      : (a.isLoading ? '…' : '—')
+                      ? `${a.returnPercent >= 0 ? '+' : ''}${a.returnPercent.toFixed(1)}%`
+                      : (isLoading ? '…' : '—')
                     }
                   </span>
                 </button>
@@ -304,8 +269,8 @@ export default function OverviewView({
               <div className="grid grid-cols-12 items-center pt-3 mt-1 border-t border-gray-700/80">
                 <span className="col-span-4 text-xs text-gray-400 uppercase tracking-wide font-semibold pl-2">Total</span>
                 <span className="col-span-3 text-right text-sm font-bold text-white">{fmt(grand.invested)}</span>
-                <span className="col-span-3 text-right text-sm font-bold text-emerald-400">{fmt(grand.current)}</span>
-                <span className={`col-span-2 text-right text-sm font-bold ${grand.gainPct >= 0 ? 'text-primary' : 'text-red-400'}`}>
+                <span className="col-span-3 text-right text-sm font-bold text-primary">{fmt(grand.current)}</span>
+                <span className={`col-span-2 text-right text-sm font-bold ${grand.gainPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                   {grand.gainPct >= 0 ? '+' : ''}{grand.gainPct.toFixed(1)}%
                 </span>
               </div>

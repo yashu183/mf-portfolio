@@ -1096,11 +1096,123 @@ app.get('/api/portfolio/epf', async (_req, res) => {
     }
 });
 
+/** GET /api/portfolio/overview – Aggregated overview data for all assets */
+app.get('/api/portfolio/overview', async (_req, res) => {
+    try {
+        const config = await loadConfig();
+
+        // Parallel fetch of all asset totals
+        const [
+            { totals: mfTotals },
+            metalPrices,
+        ] = await Promise.all([
+            computeMFData(config),
+            fetchMetalSpotPricesINR(),
+        ]);
+
+        // FDs - calculate totals only
+        const fds = calculateFixedDeposits(config.fixedDeposits ?? []);
+        const fdTotals = {
+            totalInvested: parseFloat(fds.reduce((sum, fd) => sum + fd.principal, 0).toFixed(2)),
+            totalCurrentValue: parseFloat(fds.reduce((sum, fd) => sum + fd.currentValue, 0).toFixed(2)),
+        };
+
+        // Gold totals
+        const { totals: goldTotals } = computeMetalHoldings(config.gold ?? [], metalPrices.gold.pricePerGram);
+
+        // Silver totals
+        const { totals: silverTotals } = computeMetalHoldings(config.silver ?? [], metalPrices.silver.pricePerGram);
+
+        // EPF totals
+        let epfTotals = { totalInvested: 0, totalCurrentValue: 0 };
+        if (config.epf) {
+            const accountConfigs = Array.isArray(config.epf) ? config.epf : [config.epf];
+            const accounts = accountConfigs.map(acc => computeEPFValue(acc));
+            epfTotals.totalInvested = parseFloat(accounts.reduce((s, a) => s + a.totalInvested, 0).toFixed(2));
+            epfTotals.totalCurrentValue = parseFloat(accounts.reduce((s, a) => s + a.currentValue, 0).toFixed(2));
+        }
+
+        // Build asset breakdown
+        const assets = [
+            {
+                id: 'mutualFunds',
+                label: 'Mutual Funds',
+                invested: mfTotals.totalInvested,
+                current: mfTotals.totalCurrentValue,
+                returns: parseFloat((mfTotals.totalCurrentValue - mfTotals.totalInvested).toFixed(2)),
+                returnPercent: mfTotals.totalInvested > 0
+                    ? parseFloat(((mfTotals.totalCurrentValue - mfTotals.totalInvested) / mfTotals.totalInvested * 100).toFixed(2))
+                    : 0,
+            },
+            {
+                id: 'fds',
+                label: 'Fixed Deposits',
+                invested: fdTotals.totalInvested,
+                current: fdTotals.totalCurrentValue,
+                returns: parseFloat((fdTotals.totalCurrentValue - fdTotals.totalInvested).toFixed(2)),
+                returnPercent: fdTotals.totalInvested > 0
+                    ? parseFloat(((fdTotals.totalCurrentValue - fdTotals.totalInvested) / fdTotals.totalInvested * 100).toFixed(2))
+                    : 0,
+            },
+            {
+                id: 'gold',
+                label: 'Gold',
+                invested: goldTotals.totalInvested,
+                current: goldTotals.totalCurrentValue,
+                returns: parseFloat((goldTotals.totalCurrentValue - goldTotals.totalInvested).toFixed(2)),
+                returnPercent: goldTotals.totalInvested > 0
+                    ? parseFloat(((goldTotals.totalCurrentValue - goldTotals.totalInvested) / goldTotals.totalInvested * 100).toFixed(2))
+                    : 0,
+            },
+            {
+                id: 'silver',
+                label: 'Silver',
+                invested: silverTotals.totalInvested,
+                current: silverTotals.totalCurrentValue,
+                returns: parseFloat((silverTotals.totalCurrentValue - silverTotals.totalInvested).toFixed(2)),
+                returnPercent: silverTotals.totalInvested > 0
+                    ? parseFloat(((silverTotals.totalCurrentValue - silverTotals.totalInvested) / silverTotals.totalInvested * 100).toFixed(2))
+                    : 0,
+            },
+            {
+                id: 'epf',
+                label: 'EPF',
+                invested: epfTotals.totalInvested,
+                current: epfTotals.totalCurrentValue,
+                returns: parseFloat((epfTotals.totalCurrentValue - epfTotals.totalInvested).toFixed(2)),
+                returnPercent: epfTotals.totalInvested > 0
+                    ? parseFloat(((epfTotals.totalCurrentValue - epfTotals.totalInvested) / epfTotals.totalInvested * 100).toFixed(2))
+                    : 0,
+            },
+        ];
+
+        // Grand totals
+        const grandTotals = {
+            totalInvested: parseFloat(assets.reduce((sum, a) => sum + a.invested, 0).toFixed(2)),
+            totalCurrentValue: parseFloat(assets.reduce((sum, a) => sum + a.current, 0).toFixed(2)),
+            totalGain: parseFloat(assets.reduce((sum, a) => sum + a.returns, 0).toFixed(2)),
+            totalGainPercent: 0,
+        };
+        grandTotals.totalGainPercent = grandTotals.totalInvested > 0
+            ? parseFloat((grandTotals.totalGain / grandTotals.totalInvested * 100).toFixed(2))
+            : 0;
+
+        ok(res, {
+            totals: grandTotals,
+            assets,
+            timestamp: new Date().toISOString(),
+        });
+    } catch (err) {
+        console.error('Overview portfolio error:', err);
+        fail(res, 500, process.env.NODE_ENV === 'development' ? err.message : 'Failed to calculate overview');
+    }
+});
+
 // ─── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT ?? 3002;
 app.listen(PORT, () => {
     console.log(`🚀 MF Portfolio API running on port ${PORT}`);
-    console.log(`   Endpoints: /api/health  /api/portfolio/complete  /api/recommendations`);
+    console.log(`   Endpoints: /api/health  /api/portfolio/overview  /api/portfolio/complete  /api/recommendations`);
 });
 
 module.exports = app;

@@ -76,6 +76,61 @@ const RevisionDot = (props) => {
   );
 };
 
+// Custom bar shape with conditional rounding
+const RoundedBar = (props) => {
+  const { fill, x, y, width, height, payload } = props;
+  if (!height || height < 0) return null;
+
+  const hasLumpsum = payload.lumpsumAmount > 0;
+  const hasSIP = payload.sipAmount > 0;
+  const isBothPresent = hasLumpsum && hasSIP;
+
+  // Determine which bar this is based on fill color
+  const isSIP = fill === 'oklch(76.5% 0.177 163.223)';
+
+  let radius = 4;
+  let topLeftRadius = 0, topRightRadius = 0, bottomLeftRadius = 0, bottomRightRadius = 0;
+
+  if (isSIP) {
+    // SIP bar (bottom/green)
+    if (isBothPresent) {
+      // When stacked with lumpsum: no rounding
+      topLeftRadius = topRightRadius = bottomLeftRadius = bottomRightRadius = 0;
+    } else {
+      // When alone: fully rounded
+      topLeftRadius = topRightRadius = bottomLeftRadius = bottomRightRadius = radius;
+    }
+  } else {
+    // Lumpsum bar (top/purple)
+    if (isBothPresent) {
+      // When stacked with SIP: only top corners rounded
+      topLeftRadius = topRightRadius = radius;
+      bottomLeftRadius = bottomRightRadius = 0;
+    } else {
+      // When alone: fully rounded
+      topLeftRadius = topRightRadius = bottomLeftRadius = bottomRightRadius = radius;
+    }
+  }
+
+  return (
+    <path
+      d={`
+        M ${x + topLeftRadius} ${y}
+        L ${x + width - topRightRadius} ${y}
+        Q ${x + width} ${y}, ${x + width} ${y + topRightRadius}
+        L ${x + width} ${y + height - bottomRightRadius}
+        Q ${x + width} ${y + height}, ${x + width - bottomRightRadius} ${y + height}
+        L ${x + bottomLeftRadius} ${y + height}
+        Q ${x} ${y + height}, ${x} ${y + height - bottomLeftRadius}
+        L ${x} ${y + topLeftRadius}
+        Q ${x} ${y}, ${x + topLeftRadius} ${y}
+        Z
+      `}
+      fill={fill}
+    />
+  );
+};
+
 const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) => {
   const [barPage, setBarPage] = useState(null); // null = last page (most recent)
 
@@ -243,14 +298,14 @@ const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) =
               dataKey="sipAmount"
               stackId="a"
               fill="oklch(76.5% 0.177 163.223)"
-              radius={[0, 0, 4, 4]}
+              shape={<RoundedBar />}
               name="sipAmount"
             />
             <Bar
               dataKey="lumpsumAmount"
               stackId="a"
               fill="#644ff0"
-              radius={[4, 4, 0, 0]}
+              shape={<RoundedBar />}
               name="lumpsumAmount"
             />
           </BarChart>
