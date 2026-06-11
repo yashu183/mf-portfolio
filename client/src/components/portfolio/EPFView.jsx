@@ -132,10 +132,10 @@ export default function EPFView({ data, isLoading, error }) {
                         <BarChart3 className={`w-4 h-4 md:w-5 md:h-5 ${isProfit ? 'text-primary' : 'text-red-400'}`} />
                     </div>
                     <p className={`text-2xl md:text-3xl font-bold ${isProfit ? 'text-primary' : 'text-red-400'}`}>
-                        {isProfit ? '+' : ''}{formatCompact(gain)}
+                        {formatCompact(gain)}
                     </p>
                     <p className={`text-xs mt-1 ${isProfit ? 'text-primary' : 'text-red-400'}`}>
-                        {isProfit ? '+' : ''}{gainPercent.toFixed(2)}%
+                        {gainPercent.toFixed(2)}%
                     </p>
                 </div>
 

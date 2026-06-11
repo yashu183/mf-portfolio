@@ -97,10 +97,10 @@ export default function GoldSilverView({ metal, data, isLoading, error }) {
                         <BarChart3 className={`w-4 h-4 md:w-5 md:h-5 ${isTotalProfit ? 'text-primary' : 'text-red-400'}`} />
                     </div>
                     <p className={`text-2xl md:text-3xl font-bold ${isTotalProfit ? 'text-primary' : 'text-red-400'}`}>
-                        {isTotalProfit ? '+' : ''}{formatCompact(totals.totalGain)}
+                        {formatCompact(totals.totalGain)}
                     </p>
                     <p className={`text-xs mt-1 ${isTotalProfit ? 'text-primary' : 'text-red-400'}`}>
-                        {isTotalProfit ? '+' : ''}{totals.totalGainPercent.toFixed(2)}%
+                        {totals.totalGainPercent.toFixed(2)}%
                     </p>
                 </div>
             </div>
@@ -139,7 +139,7 @@ export default function GoldSilverView({ metal, data, isLoading, error }) {
                                         <p className="text-lg md:text-2xl font-bold text-primary">{formatCurrentValue(h.currentValue)}</p>
                                         <div className={`flex items-center gap-1 justify-end mt-1 text-xs font-semibold ${isProfit ? 'text-green-400' : 'text-red-400'}`}>
                                             {isProfit ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                                            {isProfit ? '+' : ''}{h.gainPercent.toFixed(2)}%
+                                            {h.gainPercent.toFixed(2)}%
                                         </div>
                                     </div>
                                 </div>
@@ -165,7 +165,7 @@ export default function GoldSilverView({ metal, data, isLoading, error }) {
                                         }`}>
                                             <p className={`text-xs mb-1 ${isProfit ? 'text-primary' : 'text-red-400'}`}>Gain/Loss</p>
                                             <p className={`text-sm font-bold ${isProfit ? 'text-primary' : 'text-red-400'}`}>
-                                                {isProfit ? '+' : ''}{formatCompact(h.gain)}
+                                                {formatCompact(h.gain)}
                                             </p>
                                         </div>
                                     </div>
@@ -180,10 +180,10 @@ export default function GoldSilverView({ metal, data, isLoading, error }) {
                                         <div className="text-right">
                                             <p className="text-gray-500 mb-0.5">Gain / Loss</p>
                                             <p className={`font-medium ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                {isProfit ? '+' : ''}{formatCompact(h.gain)}
+                                                {formatCompact(h.gain)}
                                             </p>
                                             <p className={isProfit ? 'text-emerald-600' : 'text-red-600'}>
-                                                {isProfit ? '+' : ''}{formatCurrentValue(h.gain)}
+                                                {formatCurrentValue(h.gain)}
                                             </p>
                                         </div>
                                     </div>

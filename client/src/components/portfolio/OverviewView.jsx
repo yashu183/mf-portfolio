@@ -120,7 +120,7 @@ export default function OverviewView({
         <p className="text-gray-400">Invested: {fmt(inv)}</p>
         <p className="text-gray-400">Current: <strong className="text-primary">{fmt(cur)}</strong></p>
         <p className={gain >= 0 ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>
-          {gain >= 0 ? '+' : ''}{fmt(gain)} ({gainPct}%)
+          {gain >= 0 ? '' : '-'}{fmt(Math.abs(gain))} ({gainPct}%)
         </p>
       </div>
     );
@@ -145,7 +145,7 @@ export default function OverviewView({
         <div className={`bg-gradient-to-br border rounded-2xl p-5 ${grand.gain >= 0 ? 'from-emerald-900/20 to-black/40 border-emerald-700/20' : 'from-red-900/20 to-black/40 border-red-700/20'}`}>
           <p className={`text-xs uppercase tracking-wide mb-2 ${grand.gain >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>Total Gain</p>
           <p className={`text-2xl font-bold ${grand.gain >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {grand.gain >= 0 ? '+' : '-'}{fmt(Math.abs(grand.gain))}
+            {grand.gain >= 0 ? '' : '-'}{fmt(Math.abs(grand.gain))}
           </p>
           <p className={`text-xs mt-1 ${grand.gain >= 0 ? 'text-emerald-800' : 'text-red-800'}`}>
             {grand.gain >= 0 ? 'unrealised profit' : 'unrealised loss'}
@@ -154,7 +154,7 @@ export default function OverviewView({
         <div className="bg-gray-900/90 border border-primary/40 rounded-2xl p-5">
           <p className="text-xs text-primary uppercase tracking-wide mb-2">Overall Return</p>
           <p className={`text-2xl font-bold ${grand.gainPct >= 0 ? 'text-primary' : 'text-red-400'}`}>
-            {grand.gainPct >= 0 ? '+' : ''}{grand.gainPct.toFixed(2)}%
+            {grand.gainPct >= 0 ? '' : '-'}{grand.gainPct.toFixed(2)}%
           </p>
           <p className="text-xs text-gray-600 mt-1">blended across assets</p>
         </div>
@@ -257,7 +257,7 @@ export default function OverviewView({
                   </span>
                   <span className={`col-span-2 text-right text-sm font-bold ${a.hasData ? (a.returnPercent >= 0 ? 'text-emerald-400' : 'text-red-400') : 'text-gray-600'}`}>
                     {a.hasData
-                      ? `${a.returnPercent >= 0 ? '+' : ''}${a.returnPercent.toFixed(1)}%`
+                      ? `${a.returnPercent >= 0 ? '' : '-'}${Math.abs(a.returnPercent).toFixed(1)}%`
                       : (isLoading ? '…' : '—')
                     }
                   </span>
@@ -271,7 +271,7 @@ export default function OverviewView({
                 <span className="col-span-3 text-right text-sm font-bold text-white">{fmt(grand.invested)}</span>
                 <span className="col-span-3 text-right text-sm font-bold text-primary">{fmt(grand.current)}</span>
                 <span className={`col-span-2 text-right text-sm font-bold ${grand.gainPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {grand.gainPct >= 0 ? '+' : ''}{grand.gainPct.toFixed(1)}%
+                  {grand.gainPct >= 0 ? '' : '-'}{Math.abs(grand.gainPct).toFixed(1)}%
                 </span>
               </div>
             )}
