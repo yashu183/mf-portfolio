@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { PieChart, BarChart3, Target, TrendingUp, RefreshCw, Wifi, WifiOff, CalendarDays } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { usePortfolioData } from '../hooks/usePortfolioData';
+import { ASSET_PATHS, MUTUAL_FUND_VIEWS, mutualFundViewPath } from '../utils/assetRoutes';
 import PortfolioSummary from './portfolio/PortfolioSummary';
 import FundCard from './portfolio/FundCard';
 import CategoryBreakdown from './portfolio/CategoryBreakdown';
@@ -13,14 +15,6 @@ import FixedDepositsView, { AssetPlaceholder } from './portfolio/FixedDepositsVi
 import GoldSilverView from './portfolio/GoldSilverView';
 import EPFView from './portfolio/EPFView';
 import OverviewView from './portfolio/OverviewView';
-
-const TABS = [
-  { id: 'dashboard', label: 'Dashboard', icon: PieChart },
-  { id: 'performance', label: 'Performance', icon: TrendingUp },
-  { id: 'allocation', label: 'Allocation', icon: BarChart3 },
-  { id: 'recommendations', label: 'Recommendations', icon: Target },
-  { id: 'timeline', label: 'Timeline', icon: CalendarDays },
-];
 
 const ASSET_HEADER_CONTENT = {
   overview: {
@@ -50,8 +44,12 @@ const ASSET_HEADER_CONTENT = {
 };
 
 
-const PortfolioTracker = ({ activeAsset, onAssetChange }) => {
-  const [activeView, setActiveView] = useState('dashboard');
+const PortfolioTracker = ({ activeAsset }) => {
+  const navigate = useNavigate();
+  const { view: viewParam } = useParams();
+  const activeView = MUTUAL_FUND_VIEWS.some(v => v.id === viewParam) ? viewParam : 'dashboard';
+  const goToView = (viewId) => navigate(mutualFundViewPath(viewId));
+  const goToAsset = (assetId) => navigate(ASSET_PATHS[assetId] ?? '/');
   const [selectedFund, setSelectedFund] = useState(null);
   const [filters, setFilters] = useState({
     search: '',
@@ -314,10 +312,10 @@ const PortfolioTracker = ({ activeAsset, onAssetChange }) => {
 
             <div className="mb-6">
               <div className="flex gap-2 bg-gray-900/70 backdrop-blur-xl p-1 rounded-xl border border-gray-700/50 overflow-x-auto">
-                {TABS.map(tab => (
+                {MUTUAL_FUND_VIEWS.map(tab => (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveView(tab.id)}
+                    onClick={() => goToView(tab.id)}
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 cursor-pointer whitespace-nowrap ${activeView === tab.id
                       ? 'text-white shadow-lg bg-primary'
                       : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
@@ -468,7 +466,7 @@ const PortfolioTracker = ({ activeAsset, onAssetChange }) => {
             overviewData={overviewData}
             isLoading={isLoadingOverview}
             error={overviewError}
-            onNavigate={onAssetChange}
+            onNavigate={goToAsset}
           />
         )}
         {activeAsset === 'fds' && (
