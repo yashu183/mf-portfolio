@@ -4,6 +4,7 @@
   "description": "Unified backend service: portfolio calculations + AI recommendations",
   "main": "server.js",
   "scripts": {
+    "test": "node --test auth.test.js",
     "start": "node server.js",
     "dev": "nodemon server.js"
   },

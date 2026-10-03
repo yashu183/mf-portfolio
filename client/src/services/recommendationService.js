@@ -1,4 +1,5 @@
 // Recommendation Service – calls the unified backend
+import { authenticatedFetch } from './authService';
 
 const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://localhost:3002';
 
@@ -11,7 +12,7 @@ const CACHE_TTL = 60 * 60 * 1000; // 1 hour
  * Generates AI-powered recommendations via the secure backend.
  */
 export const generatePortfolioRecommendations = async (portfolioData, currentValues) => {
-  const response = await fetch(`${API_BASE_URL}/api/recommendations`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/recommendations`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ portfolioData, currentValues }),

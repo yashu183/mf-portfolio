@@ -56,6 +56,29 @@ A real-time mutual fund portfolio tracking application with AI-powered investmen
 
 ## Configuration
 
+### Private Access Code
+
+Set `AUTH_ACCESS_CODE` to your own six-digit code in `server/.env` (for example,
+use `server/.env.example` as a setup template). Keep the value as six digits;
+leading zeroes are supported. Do not put it in a `VITE_` variable or commit it.
+Restart the backend after changing the code. Missing or invalid configuration
+denies access rather than disabling authentication.
+
+The landing page opens a six-box entry form on Continue. Enter or the submit
+button verifies the code on the backend and opens the existing portfolio.
+Every page reload returns to the landing page. API sessions last one hour,
+expire on server restart, and use an HttpOnly cookie. Attempts are limited to
+10 per IP address every 15 minutes. This is a shared PIN, not an emailed OTP.
+
+Production requires HTTPS, `NODE_ENV=production`, and an explicit
+`ALLOWED_ORIGINS` value matching the frontend. Host the frontend and API on the
+same site (ideally proxy `/api` under the frontend origin); the session cookie
+uses `SameSite=Strict`. If using a reverse proxy, configure Express's trusted
+proxy setting for that specific deployment so IP rate limits work correctly.
+
+Run authentication regression tests with `npm --prefix server test` and build
+the frontend with `npm --prefix client run build`.
+
 ### Step 1: Set up Portfolio Configuration
 
 1. Navigate to the server directory
