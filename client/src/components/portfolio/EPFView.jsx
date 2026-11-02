@@ -1,4 +1,4 @@
-import { TrendingUp, BarChart3, Wallet, Percent } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart3, Wallet, Percent, History } from 'lucide-react';
 import { formatCurrency, formatCurrentValue, formatCompact } from '../../utils/formatters';
 
 function fmtYM(yyyyMM) {
@@ -51,6 +51,45 @@ function AccountCard({ acc }) {
                     <span className="font-bold text-emerald-400">{formatCurrency(acc.currentValue)}</span>
                 </div>
             </div>
+
+            {acc.contributionRevisions?.length > 1 && (
+                <div className="pt-3 border-t border-gray-700/50">
+                    <div className="flex items-center gap-1.5 mb-3 text-xs uppercase tracking-wide text-gray-400">
+                        <History className="w-3.5 h-3.5 text-primary" /> Contribution history
+                    </div>
+                    <ol className="relative border-l border-gray-700/60 ml-1.5 space-y-3">
+                        {acc.contributionRevisions.map((r, i, arr) => {
+                            const isCurrent = i === arr.length - 1 && r.from <= acc.calcUpTo;
+                            const isUpcoming = r.from > acc.calcUpTo;
+                            const diff = i > 0 ? r.total - arr[i - 1].total : 0;
+                            return (
+                                <li key={r.from} className="pl-4 relative">
+                                    <span className={`absolute -left-[5px] top-1.5 w-2.5 h-2.5 rounded-full border-2 border-gray-900 ${isCurrent ? 'bg-primary' : isUpcoming ? 'bg-amber-400' : 'bg-gray-600'}`} />
+                                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5">
+                                        <span className="text-sm text-white">
+                                            {fmtYM(r.from)}
+                                            {isCurrent && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary align-middle">Current</span>}
+                                            {isUpcoming && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 align-middle">Upcoming</span>}
+                                        </span>
+                                        <span className="text-sm font-semibold text-white">
+                                            {formatCurrency(r.total)}<span className="text-xs font-normal text-gray-500">/mo</span>
+                                        </span>
+                                    </div>
+                                    <div className="flex flex-wrap items-center justify-between gap-x-3 text-xs text-gray-500">
+                                        <span>₹{r.employeeContribution.toLocaleString('en-IN')} + ₹{r.employerContribution.toLocaleString('en-IN')}</span>
+                                        {diff !== 0 && (
+                                            <span className={`flex items-center gap-0.5 ${diff > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                {diff > 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                                                {diff > 0 ? '+' : '-'}₹{Math.abs(diff).toLocaleString('en-IN')}
+                                            </span>
+                                        )}
+                                    </div>
+                                </li>
+                            );
+                        })}
+                    </ol>
+                </div>
+            )}
         </div>
     );
 }

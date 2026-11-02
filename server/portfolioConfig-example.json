@@ -44,7 +44,8 @@
       "startDate": "2021-09-01",
       "monthlyContribution": 3600,
       "employeeContribution": 1800,
-      "employerContribution": 1800
+      "employerContribution": 1800,
+      "contributionHistory": [ { "from": "2026-09", "employeeContribution": 3000, "employerContribution": 3000 } ]
     }
   ],
   "llmConfig": {

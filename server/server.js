@@ -1077,8 +1077,23 @@ function epfFYKey(year, month) {
 function computeEPFValue(epfConfig) {
     const { startDate, monthlyContribution, employeeContribution, employerContribution } = epfConfig;
 
-    const empContrib  = employeeContribution  ?? monthlyContribution / 2;
-    const emplContrib = employerContribution  ?? monthlyContribution / 2;
+    // Base contribution applies from startDate; contributionHistory entries
+    // ({ from: 'YYYY-MM', employeeContribution, employerContribution }) override it
+    // from that wage month onward.
+    const baseEmp  = employeeContribution ?? monthlyContribution / 2;
+    const baseEmpl = employerContribution ?? monthlyContribution / 2;
+    const history = [...(epfConfig.contributionHistory ?? [])].sort((a, b) => a.from.localeCompare(b.from));
+    const contribFor = (year, month) => {
+        const key = year + '-' + String(month + 1).padStart(2, '0');
+        let emp = baseEmp, empl = baseEmpl;
+        for (const h of history) {
+            if (h.from <= key) {
+                emp = h.employeeContribution ?? emp;
+                empl = h.employerContribution ?? empl;
+            }
+        }
+        return { emp, empl };
+    };
 
     const now = new Date();
     now.setHours(0, 0, 0, 0);
@@ -1096,16 +1111,47 @@ function computeEPFValue(epfConfig) {
       }
     }
 
+    // Current (latest applicable) contribution, reported back to the UI
+    const latest = months.length
+        ? contribFor(months[months.length - 1].year, months[months.length - 1].month)
+        : { emp: baseEmp, empl: baseEmpl };
+    const empContrib = latest.emp;
+    const emplContrib = latest.empl;
+    const currentMonthly = empContrib + emplContrib;
+
+    // Revision timeline for the UI: starting amounts + each change
+    const startKey = startDate.slice(0, 7);
+    const contributionRevisions = [
+        { from: startKey, employeeContribution: baseEmp, employerContribution: baseEmpl },
+        ...history.map((h, i, arr) => {
+            const prev = arr.slice(0, i).reduce(
+                (acc, x) => ({
+                    emp: x.employeeContribution ?? acc.emp,
+                    empl: x.employerContribution ?? acc.empl,
+                }),
+                { emp: baseEmp, empl: baseEmpl }
+            );
+            return {
+                from: h.from,
+                employeeContribution: h.employeeContribution ?? prev.emp,
+                employerContribution: h.employerContribution ?? prev.empl,
+            };
+        }),
+    ].map((r) => ({ ...r, total: r.employeeContribution + r.employerContribution }));
+
     if (months.length === 0) {
         return {
-            startDate, monthlyContribution,
+            startDate, monthlyContribution: currentMonthly, contributionRevisions,
             employeeContribution: empContrib, employerContribution: emplContrib,
             monthsContributed: 0, totalInvested: 0, currentValue: 0,
             gain: 0, gainPercent: 0, annualRate: 8.25, calcUpTo: calcUpToStr,
         };
     }
 
-    const totalInvested = months.length * monthlyContribution;
+    const totalInvested = months.reduce((sum, e) => {
+        const c = contribFor(e.year, e.month);
+        return sum + c.emp + c.empl;
+    }, 0);
 
     // Group wage months by the FY of their CREDIT month (wage month + 1).
     // March wages are credited in April → they belong to the next FY.
@@ -1118,7 +1164,8 @@ function computeEPFValue(epfConfig) {
         fyGroups.get(key).push(e);
     }
 
-    let balance    = 0;
+    let balEmp  = 0;
+    let balEmpl = 0;
     let currentFYRate = 8.25;
 
     for (const [fyKey, fyMonths] of fyGroups) {
@@ -1126,12 +1173,15 @@ function computeEPFValue(epfConfig) {
         currentFYRate = rate;
         const monthlyRate = rate / 100 / 12;
 
-        let sumRunningBalances = 0;
-        let running = balance;
+        let sumEmp = 0, sumEmpl = 0;
+        let runEmp = balEmp, runEmpl = balEmpl;
 
-        for (const _m of fyMonths) {
-            sumRunningBalances += running;   // opening balance (before deposit)
-            running += monthlyContribution;  // then add this month's contribution
+        for (const m of fyMonths) {
+            sumEmp  += runEmp;               // opening balance (before deposit)
+            sumEmpl += runEmpl;
+            const c = contribFor(m.year, m.month);
+            runEmp  += c.emp;                // then add this month's contribution
+            runEmpl += c.empl;
         }
 
         // EPFO rounds employee share and employer share interest to the nearest
@@ -1139,20 +1189,18 @@ function computeEPFValue(epfConfig) {
         const fyComplete    = fyMonths[fyMonths.length - 1].month === 1; // last wage = Feb
         const fyEndYear     = parseInt(fyKey.split('-')[0]) + 1;
         const creditingDate = new Date(fyEndYear, 8, 1); // Sep 1 of FY end year
-        const interestEmp  = Math.round(sumRunningBalances * (empContrib  / monthlyContribution) * monthlyRate);
-        const interestEmpl = Math.round(sumRunningBalances * (emplContrib / monthlyContribution) * monthlyRate);
-        const interest = (fyComplete && now >= creditingDate)
-            ? interestEmp + interestEmpl
-            : 0;
-        balance = running + interest;
+        const credit = fyComplete && now >= creditingDate;
+        balEmp  = runEmp  + (credit ? Math.round(sumEmp  * monthlyRate) : 0);
+        balEmpl = runEmpl + (credit ? Math.round(sumEmpl * monthlyRate) : 0);
     }
+    const balance = balEmp + balEmpl;
 
     const gain = parseFloat((balance - totalInvested).toFixed(2));
     const gainPercent = totalInvested > 0
         ? parseFloat(((gain / totalInvested) * 100).toFixed(2)) : 0;
 
     return {
-        startDate, monthlyContribution,
+        startDate, monthlyContribution: currentMonthly, contributionRevisions,
         employeeContribution: empContrib, employerContribution: emplContrib,
         monthsContributed: months.length,
         totalInvested: parseFloat(totalInvested.toFixed(2)),
