@@ -48,17 +48,18 @@ const PerformanceView = ({ performanceGroups }) => {
                   <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-2 sm:mb-3">
                     <div>
                       <p className="text-xs text-slate-500">XIRR</p>
-                      <p className={`text-base sm:text-lg font-bold ${fund.xirr >= 15 ? 'text-emerald-400' :
+                      <p className={`text-base sm:text-lg font-bold ${fund.xirr == null ? 'text-slate-500' :
+                          fund.xirr >= 15 ? 'text-emerald-400' :
                           fund.xirr >= 12 ? 'text-blue-400' :
                             fund.xirr >= 0 ? 'text-amber-400' : 'text-red-400'
                         }`}>
-                        {fund.xirr.toFixed(1)}%
+                        {fund.xirr == null ? 'N/A' : `${fund.xirr.toFixed(1)}%`}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-500">Returns</p>
                       <p className={`text-base sm:text-lg font-bold ${fund.returns >= 15 ? 'text-emerald-400' : fund.returns >= 12 ? 'text-blue-400' : fund.returns >= 7 ? 'text-amber-400' : 'text-red-400'}`}>
-                        {fund.returns.toFixed(2)}%
+                        {fund.returns == null ? 'N/A' : `${fund.returns.toFixed(2)}%`}
                       </p>
                     </div>
                     <div>

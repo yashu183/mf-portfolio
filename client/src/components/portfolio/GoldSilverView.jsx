@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { TrendingUp, TrendingDown, Calendar, Scale, BarChart3, IndianRupee } from 'lucide-react';
+import { TrendingUp, TrendingDown, Calendar, Scale, BarChart3, IndianRupee, Coins } from 'lucide-react';
+import MetalSetsSection from './MetalSetsSection';
 import { formatCurrency, formatCurrentValue, formatCompact } from '../../utils/formatters';
 
 export default function GoldSilverView({ metal, data, isLoading, error }) {
@@ -36,16 +37,27 @@ export default function GoldSilverView({ metal, data, isLoading, error }) {
     return (
         <div className="space-y-6">
             {/* Live price banner */}
-            <div className="bg-gray-900/70 backdrop-blur-xl border border-gray-700/50 rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-2">
-                <span className="text-sm font-semibold text-green-400">
-                    <span className="inline-block w-2 h-2 rounded-full bg-green-400 mr-2 align-middle" /> Live {metalLabel} Price:{' '}
-                    <span className="text-green-400">{formatCurrency(pricePerGram)}/g</span>
-                </span>
-                {fetchedAt && (
-                    <span className="text-xs text-gray-500">
-                        Fetched {new Date(fetchedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                <div className="bg-gray-900/70 backdrop-blur-xl border border-gray-700/50 rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm font-semibold text-green-400">
+                        <span className="inline-block w-2 h-2 rounded-full bg-green-400 mr-2 align-middle" /> Live {metalLabel} Price:{' '}
+                        <span className="text-green-400">{formatCurrency(pricePerGram)}/g</span>
                     </span>
-                )}
+                    {fetchedAt && (
+                        <span className="text-xs text-gray-500">
+                            Fetched {new Date(fetchedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                    )}
+                </div>
+                <div className="bg-gray-900/70 backdrop-blur-xl border border-gray-700/50 rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm font-semibold text-blue-400">
+                        <span className="inline-block w-2 h-2 rounded-full bg-blue-400 mr-2 align-middle" /> Avg {metalLabel} Price:{' '}
+                        <span className="text-blue-400">
+                            {totals.totalQuantity > 0 ? `${formatCurrency(totals.totalInvested / totals.totalQuantity)}/g` : '—'}
+                        </span>
+                    </span>
+                    <span className="text-xs text-gray-500">Avg buy price</span>
+                </div>
             </div>
 
             {/* Summary tiles */}
@@ -105,7 +117,14 @@ export default function GoldSilverView({ metal, data, isLoading, error }) {
                 </div>
             </div>
 
+            <MetalSetsSection sets={data.sets} pricePerGram={pricePerGram} metalLabel={metalLabel} />
+
             {/* Holding cards */}
+            <div className="flex items-center gap-2">
+                <Coins className="w-4 h-4 text-primary" />
+                <h3 className="text-lg font-bold text-white">{metalLabel} Holdings</h3>
+                <span className="text-xs text-gray-500">({enrichedHoldings.length})</span>
+            </div>
             {enrichedHoldings.length === 0 ? (
                 <div className="bg-gray-900/70 backdrop-blur-xl border border-gray-700/50 rounded-2xl p-10 text-center text-gray-500">
                     <p className="font-medium text-white mb-1">No {metalLabel} holdings found</p>

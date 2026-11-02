@@ -988,15 +988,42 @@ function computeMetalHoldings(entries, pricePerGram) {
             ? parseFloat(((totals.totalGain / totals.totalInvested) * 100).toFixed(2))
             : 0;
 
-    return { holdings, totals };
+    // Group entries into sets (optional `set` field) -> weighted avg buy price per set
+    const setMap = new Map();
+    for (const h of holdings) {
+        const name = h.set || 'Unassigned';
+        if (!setMap.has(name)) setMap.set(name, []);
+        setMap.get(name).push(h);
+    }
+    const sets = [...setMap.entries()].map(([name, items]) => {
+        const quantity = parseFloat(items.reduce((a, h) => a + h.quantity, 0).toFixed(4));
+        const invested = parseFloat(items.reduce((a, h) => a + h.totalInvested, 0).toFixed(2));
+        const currentValue = parseFloat(items.reduce((a, h) => a + h.currentValue, 0).toFixed(2));
+        const gain = parseFloat((currentValue - invested).toFixed(2));
+        const dates = items.map((h) => h.purchaseDate).sort();
+        return {
+            name,
+            from: dates[0],
+            to: dates[dates.length - 1],
+            entryCount: items.length,
+            quantity,
+            invested,
+            avgPrice: quantity > 0 ? parseFloat((invested / quantity).toFixed(2)) : 0,
+            currentValue,
+            gain,
+            gainPercent: invested > 0 ? parseFloat(((gain / invested) * 100).toFixed(2)) : 0,
+        };
+    }).sort((a, b) => a.from.localeCompare(b.from));
+
+    return { holdings, totals, sets };
 }
 
 /** GET /api/portfolio/gold */
 app.get('/api/portfolio/gold', async (_req, res) => {
     try {
         const [config, prices] = await Promise.all([loadConfig(), fetchMetalSpotPricesINR()]);
-        const { holdings, totals } = computeMetalHoldings(config.gold ?? [], prices.gold.pricePerGram);
-        ok(res, { holdings, totals, pricePerGram: prices.gold.pricePerGram, fetchedAt: prices.fetchedAt });
+        const { holdings, totals, sets } = computeMetalHoldings(config.gold ?? [], prices.gold.pricePerGram);
+        ok(res, { holdings, totals, sets, pricePerGram: prices.gold.pricePerGram, fetchedAt: prices.fetchedAt });
     } catch (err) {
         console.error('Gold portfolio error:', err);
         fail(res, 500, process.env.NODE_ENV === 'development' ? err.message : 'Failed to fetch gold data');
@@ -1007,8 +1034,8 @@ app.get('/api/portfolio/gold', async (_req, res) => {
 app.get('/api/portfolio/silver', async (_req, res) => {
     try {
         const [config, prices] = await Promise.all([loadConfig(), fetchMetalSpotPricesINR()]);
-        const { holdings, totals } = computeMetalHoldings(config.silver ?? [], prices.silver.pricePerGram);
-        ok(res, { holdings, totals, pricePerGram: prices.silver.pricePerGram, fetchedAt: prices.fetchedAt });
+        const { holdings, totals, sets } = computeMetalHoldings(config.silver ?? [], prices.silver.pricePerGram);
+        ok(res, { holdings, totals, sets, pricePerGram: prices.silver.pricePerGram, fetchedAt: prices.fetchedAt });
     } catch (err) {
         console.error('Silver portfolio error:', err);
         fail(res, 500, process.env.NODE_ENV === 'development' ? err.message : 'Failed to fetch silver data');

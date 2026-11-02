@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
+import React, { useMemo, useRef, useEffect } from 'react';
+import { AlertCircle } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -7,15 +7,14 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   LineChart,
   Line,
   ReferenceLine,
   ResponsiveContainer,
 } from 'recharts';
 
-const PAGE_SIZE = 6;
-
+// Width (px) allotted to each month in the scrollable bar chart
+const MONTH_SLOT_PX = 92;
 // ─── Custom Tooltip for Bar Chart ─────────────────────────────────────────────
 const BarTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
@@ -132,10 +131,19 @@ const RoundedBar = (props) => {
 };
 
 const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) => {
-  const [barPage, setBarPage] = useState(null); // null = last page (most recent)
+  const scrollRef = useRef(null);
 
   // ── Derived data ───────────────────────────────────────────────────────────
-  const months = timelineData?.months ?? [];
+  // Trim empty months at both ends (e.g. the current month before its SIP is paid)
+  const months = useMemo(() => {
+    const all = timelineData?.months ?? [];
+    const hasData = (m) => (m.sipAmount || 0) + (m.lumpsumAmount || 0) > 0;
+    const first = all.findIndex(hasData);
+    if (first === -1) return [];
+    let last = all.length - 1;
+    while (last > first && !hasData(all[last])) last--;
+    return all.slice(first, last + 1);
+  }, [timelineData]);
   const rawCommitment = timelineData?.sipCommitmentHistory ?? [];
 
   // Mark revision points on the commitment line
@@ -155,17 +163,11 @@ const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) =
     [commitmentData],
   );
 
-  const totalPages = Math.ceil(months.length / PAGE_SIZE);
-  // Default to last page so the most recent months are shown first
-  const currentPage = barPage !== null ? barPage : Math.max(0, totalPages - 1);
-
-  const visibleMonths = months.slice(
-    currentPage * PAGE_SIZE,
-    currentPage * PAGE_SIZE + PAGE_SIZE,
-  );
-
-  const canGoBack = currentPage > 0;
-  const canGoForward = currentPage < totalPages - 1;
+  // Start scrolled to the most recent months
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [months.length, isLoading]);
 
   // Summary stats
   const totalSIP = months.reduce((s, m) => s + m.sipAmount, 0);
@@ -235,45 +237,24 @@ const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) =
       </div>
 
       {/* ── Stacked Bar Chart ──────────────────────────────────────────────── */}
-      <div className="bg-gray-900/70 backdrop-blur-xl border border-gray-700/50 rounded-xl p-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-gray-900/70 backdrop-blur-xl border border-gray-700/50 rounded-xl p-4 sm:p-6">
+        <div className="flex items-center justify-between gap-3 mb-4 sm:mb-6">
           <div>
             <h3 className="text-lg font-semibold text-primary">Monthly Investments</h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Showing {currentPage * PAGE_SIZE + 1}–
-              {Math.min((currentPage + 1) * PAGE_SIZE, months.length)} of {months.length} months
+              {months.length} months · scroll sideways for earlier history
             </p>
           </div>
 
-          {/* Navigation */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setBarPage(currentPage - 1)}
-              disabled={!canGoBack}
-              className="p-1.5 rounded-lg border border-gray-700 hover:border-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
-              aria-label="Previous months"
-            >
-              <ChevronLeft className="w-4 h-4 text-white" />
-            </button>
-            <span className="text-xs text-slate-500">
-              {currentPage + 1} / {totalPages}
-            </span>
-            <button
-              onClick={() => setBarPage(currentPage + 1)}
-              disabled={!canGoForward}
-              className="p-1.5 rounded-lg border border-gray-700 hover:border-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
-              aria-label="Next months"
-            >
-              <ChevronRight className="w-4 h-4 text-white" />
-            </button>
-          </div>
         </div>
 
-        <ResponsiveContainer width="100%" height={300}>
+        <div ref={scrollRef} className="overflow-x-auto pb-2">
+        <div style={{ minWidth: Math.max(months.length * MONTH_SLOT_PX, 320), height: 300 }}>
+        <ResponsiveContainer width="100%" height="100%">
           <BarChart
-            data={visibleMonths}
-            margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
-            barSize={36}
+            data={months}
+            margin={{ top: 4, right: 8, left: 0, bottom: 4 }}
+            maxBarSize={48}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
             <XAxis
@@ -287,13 +268,9 @@ const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) =
               tick={{ fill: '#9ca3af', fontSize: 11 }}
               axisLine={false}
               tickLine={false}
-              width={56}
+              width={48}
             />
             <Tooltip content={<BarTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
-            <Legend
-              wrapperStyle={{ paddingTop: 12, fontSize: 12, color: '#9ca3af' }}
-              formatter={(value) => (value === 'sipAmount' ? 'SIP' : 'Lumpsum')}
-            />
             <Bar
               dataKey="sipAmount"
               stackId="a"
@@ -310,6 +287,8 @@ const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) =
             />
           </BarChart>
         </ResponsiveContainer>
+        </div>
+        </div>
 
         <div className="flex gap-4 mt-3 text-xs text-slate-500">
           <span className="flex items-center gap-1.5">

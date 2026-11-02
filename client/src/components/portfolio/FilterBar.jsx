@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Select from './Select';
 import { Search, Filter, X, ChevronDown, ChevronUp } from 'lucide-react';
 
 const FilterBar = ({ filters, onFilterChange, onClearFilters, fundCategories, hiddenFilters = [], staticFilters = [] }) => {
@@ -21,7 +22,7 @@ const FilterBar = ({ filters, onFilterChange, onClearFilters, fundCategories, hi
   ];
 
   return (
-    <div className="bg-gray-900/70 backdrop-blur-xl border border-gray-700/50 rounded-xl p-4 pb-0 mb-6">
+    <div className="relative z-30 bg-gray-900/70 backdrop-blur-xl border border-gray-700/50 rounded-xl p-4 pb-0 mb-6">
       {/* Header with Toggle */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
@@ -77,48 +78,17 @@ const FilterBar = ({ filters, onFilterChange, onClearFilters, fundCategories, hi
 
         {/* Category Filter */}
         {!hiddenFilters.includes('category') && (
-          <select
-            value={filters.category || ''}
-            onChange={(e) => onFilterChange('category', e.target.value)}
-            className="bg-gray-800/50 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary transition-colors cursor-pointer"
-          >
-            <option value="">All Categories</option>
-            {fundCategories.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
+          <Select value={filters.category || ''} onChange={(v) => onFilterChange('category', v)} options={[{ value: '', label: 'All Categories' }, ...fundCategories.map((c) => ({ value: c, label: c }))]} />
         )}
 
         {/* Status Filter */}
         {!hiddenFilters.includes('status') && (
-          <select
-            value={filters.status || ''}
-            onChange={(e) => onFilterChange('status', e.target.value)}
-            className="bg-gray-800/50 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary transition-colors cursor-pointer"
-          >
-            {statusOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <Select value={filters.status || ''} onChange={(v) => onFilterChange('status', v)} options={statusOptions} />
         )}
 
         {/* Investment Type Filter */}
         {!hiddenFilters.includes('investmentType') && (
-          <select
-            value={filters.investmentType || ''}
-            onChange={(e) => onFilterChange('investmentType', e.target.value)}
-            className="bg-gray-800/50 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary transition-colors cursor-pointer"
-          >
-            {investmentTypeOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <Select value={filters.investmentType || ''} onChange={(v) => onFilterChange('investmentType', v)} options={investmentTypeOptions} />
         )}
       </div>
 

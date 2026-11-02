@@ -32,10 +32,10 @@
     }
   ],
   "gold": [
-    { "id": 1, "label": "SGB 2024-I", "purchaseDate": "2024-02-05", "quantity": 10, "purchasePrice": 6200 }
+    { "id": 1, "label": "SGB 2024-I", "set": "SGB 2024", "purchaseDate": "2024-02-05", "quantity": 10, "purchasePrice": 6200 }
   ],
   "silver": [
-    { "id": 1, "label": "Silver Coins", "purchaseDate": "2023-08-15", "quantity": 500, "purchasePrice": 72 }
+    { "id": 1, "label": "Silver Coins", "set": "Coins 2023", "purchaseDate": "2023-08-15", "quantity": 500, "purchasePrice": 72 }
   ],
   "epf": [
     {

@@ -126,7 +126,7 @@ const AccessGate = ({ children }) => {
             <fieldset className="grid grid-cols-6 gap-2" disabled={busy}>
               <legend className="sr-only">Six-digit access code</legend>
               {digits.map((digit, index) => (
-                <input key={index} ref={element => { inputs.current[index] = element; }} aria-label={`Digit ${index + 1}`} aria-invalid={Boolean(error)} aria-describedby={error ? 'access-error' : undefined} type="text" inputMode="numeric" autoComplete="off" maxLength={6} value={digit}
+                <input key={index} ref={element => { inputs.current[index] = element; }} aria-label={`Digit ${index + 1}`} aria-invalid={Boolean(error)} aria-describedby={error ? 'access-error' : undefined} type="password" inputMode="numeric" autoComplete="off" maxLength={6} value={digit}
                   className={`${inputBaseClass} ${error ? 'border-red-500' : ''}`}
                   onChange={event => updateDigits(event.target.value, index)}
                   onFocus={event => event.target.select()}
