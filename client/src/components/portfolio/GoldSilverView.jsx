@@ -64,7 +64,7 @@ export default function GoldSilverView({ metal, data, isLoading, error }) {
                 rows={[
                     { label: 'Quantity', value: `${totals.totalQuantity} g` },
                     { label: 'Invested', value: formatCompact(totals.totalInvested) },
-                    { label: 'Avg buy price', value: totals.totalQuantity > 0 ? `${formatCurrency(totals.totalInvested / totals.totalQuantity)}/g` : '—' },
+                    { label: 'Avg buy price', value: totals.totalQuantity > 0 ? `${formatCurrency(totals.totalInvested / totals.totalQuantity)}/g` : '-' },
                     { label: 'Gain', value: formatCompact(totals.totalGain), tone: isTotalProfit ? 'gain' : 'loss' },
                 ]}
             />
@@ -82,7 +82,7 @@ export default function GoldSilverView({ metal, data, isLoading, error }) {
 
             {/* Holdings, as a transactions table */}
             <section className="space-y-3">
-            <div className="flex items-baseline justify-between">
+            <div className="pin-head flex items-baseline justify-between pb-3 mb-0">
                 <h2 className="text-[20px] leading-[28px] text-ink">{metalLabel} holdings</h2>
                 <span className="font-mono text-[12px] text-muted">{enrichedHoldings.length} holdings</span>
             </div>

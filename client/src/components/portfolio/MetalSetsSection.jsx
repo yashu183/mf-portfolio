@@ -82,7 +82,7 @@ export default function MetalSetsSection({ sets, pricePerGram, metalLabel }) {
 
     return (
         <div className="space-y-4">
-            <div className="flex items-baseline justify-between">
+            <div className="pin-head flex items-baseline justify-between pb-3 mb-1">
                 <h2 className="text-[20px] leading-[28px] text-ink">{metalLabel} sets</h2>
                 <span className="font-mono text-[12px] text-muted">{sets.length} sets</span>
             </div>
@@ -129,7 +129,7 @@ export default function MetalSetsSection({ sets, pricePerGram, metalLabel }) {
             </div>
 
             {/* Set cards: Vercel project cards, the dates on one short line */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 @lg:grid-cols-2 @3xl:grid-cols-3 gap-4">
                 {sets.map((s) => {
                     const isProfit = s.gain >= 0;
                     const vsLive = pricePerGram - s.avgPrice;

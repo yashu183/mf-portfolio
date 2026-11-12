@@ -102,7 +102,7 @@ const FixedDepositsView = ({ deposits, isLoading = false, error = null }) => {
       </aside>
 
       <section aria-labelledby="deposits-h" className={`min-w-0 ${PANE}`}>
-        <div className="flex items-baseline justify-between mb-3">
+        <div className="pin-head flex items-baseline justify-between pb-3">
           <h2 id="deposits-h" className="text-[20px] leading-[28px] text-ink">Deposits</h2>
           <span className="font-mono text-[12px] text-muted">{filteredDeposits.length} {filteredDeposits.length === 1 ? 'deposit' : 'deposits'}{selectedFdName !== 'All' ? ` · ${selectedFdName.toLowerCase()}` : ''}</span>
         </div>
@@ -121,7 +121,7 @@ const FixedDepositsView = ({ deposits, isLoading = false, error = null }) => {
                   type="button"
                   onClick={() => setOpenId(open ? null : d.id)}
                   aria-expanded={open}
-                  className={`w-full text-left grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_150px_140px_16px] gap-x-4 items-center px-4 md:px-5 py-3.5 transition-colors cursor-pointer ${open ? 'bg-surface-strong/40' : 'hover:bg-surface-strong/40'}`}
+                  className={`w-full text-left grid grid-cols-[minmax(0,1fr)_auto] @lg:grid-cols-[minmax(0,1fr)_150px_140px_16px] gap-x-4 items-center px-4 md:px-5 py-3.5 transition-colors cursor-pointer ${open ? 'bg-surface-strong/40' : 'hover:bg-surface-strong/40'}`}
                 >
                   <span className="flex items-center gap-3 min-w-0">
                     <span className={`w-2 h-2 rounded-full shrink-0 ${matured ? 'bg-gain' : 'bg-link'}`} aria-hidden="true" />
@@ -132,7 +132,7 @@ const FixedDepositsView = ({ deposits, isLoading = false, error = null }) => {
                       </span>
                     </span>
                   </span>
-                  <span className="hidden md:flex items-center gap-2">
+                  <span className="hidden @lg:flex items-center gap-2">
                     <span className="flex-1 h-1 rounded-full bg-surface-strong overflow-hidden"><span className={`block h-full rounded-full ${matured ? 'bg-gain' : 'bg-ink'}`} style={{ width: `${pct}%` }} /></span>
                     <span className="w-9 text-right font-mono text-[12px] text-muted">{Math.round(pct)}%</span>
                   </span>
@@ -140,7 +140,7 @@ const FixedDepositsView = ({ deposits, isLoading = false, error = null }) => {
                     <span className="block num text-[14px] text-ink">{formatCurrentValue(d.currentValue)}</span>
                     <span className="block num text-[12px] text-gain">+{formatCurrency(d.currentValue - d.principal)}</span>
                   </span>
-                  <ChevronRight className={`hidden md:block w-4 h-4 text-muted transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden="true" />
+                  <ChevronRight className={`hidden @lg:block w-4 h-4 text-muted transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden="true" />
                 </button>
                 {open && (
             <div className="px-4 md:px-5 py-4 space-y-4 bg-surface-strong/40 border-t border-line">

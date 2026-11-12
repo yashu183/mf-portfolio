@@ -699,7 +699,7 @@ app.post('/api/recommendations', async (req, res) => {
         CRITICAL CONSTRAINTS:
         1. MAINTAIN THE SAME TOTAL MONTHLY SIP AMOUNT (₹${totalCurrentSIP}). Do NOT increase or decrease the total.
         2. revisedPlan must contain ONLY the funds from the provided portfolio. No new funds.
-        3. newInvestments is purely a suggestion list — these funds do NOT appear in revisedPlan and are NOT counted in any totals.
+        3. newInvestments is purely a suggestion list - these funds do NOT appear in revisedPlan and are NOT counted in any totals.
         4. SUM(revisedPlan[*].revised) MUST equal exactly ${totalCurrentSIP}. Verify before responding.
         5. recommendedAllocation MUST be derived only from revisedPlan:
         - Group revisedPlan funds (where revised > 0) by category
@@ -937,7 +937,7 @@ async function fetchMetalSpotPricesINR() {
     if (!res.ok) throw new Error(`bullions.co.in HTTP ${res.status}`);
     const html = await res.text();
 
-    // Primary: table row — label cell contains <small> tag, so use lazy [\ s\S]*? to pass through it
+    // Primary: table row - label cell contains <small> tag, so use lazy [\ s\S]*? to pass through it
     // HTML: <td …>Gold 24 Karat <small>(Rs …)</small></td> <td …>15,681</td>
     const goldTableMatch = html.match(/Gold\s+24\s+Karat[\s\S]*?<\/td>\s*<td[^>]*>([\d,]+)/i);
     // HTML: <td …>Silver 999 Fine <small>(Rs …)</small></td> <td …>268</td>
@@ -1085,7 +1085,7 @@ function epfFYKey(year, month) {
  *
  * Two key rules (derived from passbook data):
  *  1. OPENING BALANCE: each month contributes its opening balance (before that
- *     month's deposit) to the interest sum — not the closing balance.
+ *     month's deposit) to the interest sum - not the closing balance.
  *     → First contribution naturally earns 0 (opening = 0), no nil-month hack.
  *  2. CREDIT-MONTH GROUPING: wages for month M are credited in month M+1, so
  *     March wages (credited April) fall in the NEXT financial year.
@@ -1205,7 +1205,7 @@ function computeEPFValue(epfConfig) {
         }
 
         // EPFO rounds employee share and employer share interest to the nearest
-        // rupee separately, then sums — matching passbook exactly.
+        // rupee separately, then sums - matching passbook exactly.
         const fyComplete    = fyMonths[fyMonths.length - 1].month === 1; // last wage = Feb
         const fyEndYear     = parseInt(fyKey.split('-')[0]) + 1;
         const creditingDate = new Date(fyEndYear, 8, 1); // Sep 1 of FY end year

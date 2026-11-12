@@ -159,5 +159,22 @@
   #nav-drawer, #nav-drawer + * { animation: none !important; }
 }
 
+/* A section's heading row pins while its section scrolls past, then leaves with the section's end, so
+   the next heading takes its place. Below 1024px the page scrolls, so it pins under the page head and
+   the toolbar (--tb-h, set by ScrollPane); from 1024px it pins to the top of its scrolling column.
+   The solid band reaches 8px past the column so the cards' 1px rings never show beside it. */
+.pin-head {
+  position: sticky;
+  top: calc(var(--head-h, 0px) + var(--tb-h, 0px));
+  z-index: 10;
+  /* solid except its last pixel: the card under a heading draws its 1px ring just above its own
+     edge, on that pixel, and the heading (which sits over the content) must not paint it out */
+  background: linear-gradient(var(--c-canvas), var(--c-canvas)) top / 100% calc(100% - 1px) no-repeat;
+  margin-inline: -8px;
+  padding-inline: 8px;
+}
+/* -1px: the column keeps 1px of top padding (so card rings aren't clipped); the heading covers it too */
+@media (min-width: 1024px) { .pin-head { top: -1px; } }
+
 /* The main column's own scroll (ScrollPane): a thin quiet bar in the line colour */
 .pane-scroll { scrollbar-width: thin; scrollbar-color: var(--c-line-strong) transparent; }

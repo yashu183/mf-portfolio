@@ -37,11 +37,11 @@ export const ViewToggle = ({ view, onChange }) => (
 );
 
 const inr = (v, digits = 0) => `₹${(v ?? 0).toLocaleString('en-IN', { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
-const formatDate = (date) => (date ? new Date(date).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : '—');
+const formatDate = (date) => (date ? new Date(date).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : '-');
 const pct = (v) => `${(v ?? 0) >= 0 ? '+' : '−'}${Math.abs(v ?? 0).toFixed(2)}%`;
 
 const Details = ({ fund }) => (
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-4 md:px-5 py-5 bg-surface-strong/50 border-t border-line text-[14px]">
+  <div className="grid grid-cols-1 @2xl:grid-cols-3 gap-6 px-4 md:px-5 py-5 bg-surface-strong/50 border-t border-line text-[14px]">
     {fund.sips?.length > 0 && (
       <div>
         <p className="eyebrow mb-3">SIP{fund.sips.length > 1 ? 's' : ''}</p>
@@ -79,14 +79,14 @@ const Details = ({ fund }) => (
   </div>
 );
 
-const COLS = 'md:grid-cols-[minmax(0,1fr)_120px_84px_72px_118px_16px] md:gap-x-3';
+const COLS = '@2xl:grid-cols-[minmax(0,1fr)_120px_84px_72px_118px_16px] @2xl:gap-x-3';
 
 // Vercel's deployment list: one bordered container, a row per item, hairlines between, the row opens in place.
 const FundList = ({ funds }) => {
   const [openId, setOpenId] = useState(null);
   return (
     <div className="card overflow-hidden">
-      <div className={`hidden md:grid ${COLS} gap-4 px-5 h-10 items-center border-b border-line bg-surface-strong/40`} aria-hidden="true">
+      <div className={`hidden @2xl:grid ${COLS} gap-4 px-5 h-10 items-center border-b border-line bg-surface-strong/40`} aria-hidden="true">
         <span className="eyebrow">Fund</span>
         <span className="eyebrow text-right">Current</span>
         <span className="eyebrow text-right">Returns</span>
@@ -113,18 +113,18 @@ const FundList = ({ funds }) => {
                     <span className="block font-mono text-[12px] text-muted truncate">{fund.category.toLowerCase()} · {fund.investmentAge}mo</span>
                   </span>
                 </span>
-                <span className="md:hidden text-right">
+                <span className="@2xl:hidden text-right">
                   <span className="block num text-[14px] text-ink">{inr(fund.currentValue)}</span>
                   <span className={`block num text-[12px] ${up ? 'text-gain' : 'text-loss'}`}>{pct(fund.returns)}</span>
                 </span>
-                <span className="hidden md:block text-right">
+                <span className="hidden @2xl:block text-right">
                   <span className="block num text-[14px] text-ink">{inr(fund.currentValue)}</span>
                   <span className="block font-mono text-[11px] text-muted">on {inr(fund.totalInvested)}</span>
                 </span>
-                <span className={`hidden md:block text-right num text-[14px] ${up ? 'text-gain' : 'text-loss'}`}>{pct(fund.returns)}</span>
-                <span className="hidden md:block text-right num text-[14px] text-ink">{(fund.xirr ?? 0).toFixed(2)}%</span>
-                <span className="hidden md:block"><StatusBadge status={fund.status} /></span>
-                <ChevronRight className={`hidden md:block w-4 h-4 text-muted transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden="true" />
+                <span className={`hidden @2xl:block text-right num text-[14px] ${up ? 'text-gain' : 'text-loss'}`}>{pct(fund.returns)}</span>
+                <span className="hidden @2xl:block text-right num text-[14px] text-ink">{(fund.xirr ?? 0).toFixed(2)}%</span>
+                <span className="hidden @2xl:block"><StatusBadge status={fund.status} /></span>
+                <ChevronRight className={`hidden @2xl:block w-4 h-4 text-muted transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden="true" />
               </button>
               {open && <Details fund={fund} />}
             </li>
@@ -137,7 +137,7 @@ const FundList = ({ funds }) => {
 
 // Vercel's project cards: the name and its mono line, the one figure that matters, state at the foot.
 const FundGrid = ({ funds }) => (
-  <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+  <div className="grid @lg:grid-cols-2 @3xl:grid-cols-3 gap-4">
     {funds.map((fund) => {
       const up = (fund.returns ?? 0) >= 0;
       return (

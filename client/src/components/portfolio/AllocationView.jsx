@@ -50,7 +50,7 @@ const AllocationView = ({
           value={`₹${totalSIP.toLocaleString('en-IN')}`}
           rows={[
             { label: 'Categories', value: `${Object.values(current).filter(Boolean).length}` },
-            { label: 'Claude target', value: recommendedAllocation ? `₹${recommendedAllocation.totalTarget.toLocaleString('en-IN')}` : '—' },
+            { label: 'Claude target', value: recommendedAllocation ? `₹${recommendedAllocation.totalTarget.toLocaleString('en-IN')}` : '-' },
           ]}
         />
         <section className="card p-5 space-y-3" aria-labelledby="ai-h">
@@ -77,7 +77,7 @@ const AllocationView = ({
       </aside>
 
       <section aria-labelledby="alloc-h" className={`min-w-0 ${PANE}`}>
-        <div className="flex items-baseline justify-between mb-3">
+        <div className="pin-head flex items-baseline justify-between pb-3">
           <h2 id="alloc-h" className="text-[20px] leading-[28px] text-ink">Allocation by SIP</h2>
           <span className="flex items-center gap-4 font-mono text-[12px] text-muted">
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-1 rounded-full bg-ink" aria-hidden="true" />current</span>
@@ -85,7 +85,7 @@ const AllocationView = ({
           </span>
         </div>
         <div className="card overflow-hidden">
-          <div className="hidden md:grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_96px_80px] gap-4 px-5 h-10 items-center border-b border-line bg-surface-strong/40" aria-hidden="true">
+          <div className="hidden @xl:grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_96px_80px] gap-4 px-5 h-10 items-center border-b border-line bg-surface-strong/40" aria-hidden="true">
             <span className="eyebrow">Category</span>
             <span className="eyebrow">Current vs target</span>
             <span className="eyebrow text-right">SIP</span>
@@ -95,7 +95,7 @@ const AllocationView = ({
             {rows.map((r) => {
               const delta = r.targetPct != null ? r.targetPct - r.pct : null;
               return (
-                <li key={r.category} className="px-4 md:px-5 py-3.5 grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_96px_80px] gap-x-4 gap-y-2 items-center">
+                <li key={r.category} className="px-4 md:px-5 py-3.5 grid grid-cols-[minmax(0,1fr)_auto] @xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_96px_80px] gap-x-4 gap-y-2 items-center">
                   <div className="min-w-0">
                     <p className="text-[14px] font-medium text-ink truncate">{r.category}</p>
                     <p className="font-mono text-[12px] text-muted">
@@ -103,14 +103,14 @@ const AllocationView = ({
                       {r.pct > 50 ? ' · overweight' : r.amount === 0 ? ' · missing' : ''}
                     </p>
                   </div>
-                  <div className="col-span-2 md:col-span-1 order-last md:order-none space-y-1.5" aria-hidden="true">
+                  <div className="col-span-2 @xl:col-span-1 order-last @xl:order-none space-y-1.5" aria-hidden="true">
                     <div className="h-1.5 rounded-full bg-surface-strong overflow-hidden"><div className="h-full rounded-full bg-ink" style={{ width: `${Math.min(r.pct, 100)}%` }} /></div>
                     {r.targetPct != null && <div className="h-1.5 rounded-full bg-surface-strong overflow-hidden"><div className="h-full rounded-full bg-link" style={{ width: `${Math.min(r.targetPct, 100)}%` }} /></div>}
                     {r.target?.advice && <p className="text-[12px] text-body pt-0.5">{r.target.advice}</p>}
                   </div>
                   <span className="text-right num text-[14px] text-ink">₹{r.amount.toLocaleString('en-IN')}</span>
-                  <span className={`hidden md:block text-right num text-[13px] ${delta == null || Math.abs(delta) < 0.5 ? 'text-muted' : delta > 0 ? 'text-gain' : 'text-loss'}`}>
-                    {delta == null ? '—' : `${delta > 0 ? '+' : delta < 0 ? '−' : ''}${Math.abs(delta).toFixed(1)}pt`}
+                  <span className={`hidden @xl:block text-right num text-[13px] ${delta == null || Math.abs(delta) < 0.5 ? 'text-muted' : delta > 0 ? 'text-gain' : 'text-loss'}`}>
+                    {delta == null ? '-' : `${delta > 0 ? '+' : delta < 0 ? '−' : ''}${Math.abs(delta).toFixed(1)}pt`}
                   </span>
                 </li>
               );

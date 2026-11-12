@@ -3,12 +3,13 @@ import { PANE } from './ScrollPane';
 import SummaryPanel from './SummaryPanel';
 import { formatCurrentValue } from '../../utils/formatters';
 import ChartTooltip from './ChartTooltip';
+import AllocationChart, { StyleSwitch, ALLOCATION_STYLES } from './AllocationChart';
 import { LineChart as FundsIcon, Landmark, PiggyBank, Coins, Gem, ArrowRight } from 'lucide-react';
 import { useTheme, chartPalette } from '../../hooks/useTheme';
 
 const ASSET_ICON = { mutualFunds: FundsIcon, fds: Landmark, epf: PiggyBank, gold: Coins, silver: Gem };
 import {
-  PieChart, Pie, Cell, Tooltip, BarChart, Bar,
+  Tooltip, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend,
 } from 'recharts';
 
@@ -21,6 +22,10 @@ const ASSET_CFG = [
   { id: 'gold',        label: 'Gold',           short: 'Gold',   slot: 3 },
   { id: 'silver',      label: 'Silver',         short: 'Silver', slot: 4 },
 ];
+
+// The allocation chart's style is a per-device preference, like the theme; storage can be blocked
+const STYLE_KEY = 'vesta-allocation-style';
+const readStyle = () => { try { const v = localStorage.getItem(STYLE_KEY); return ALLOCATION_STYLES.some(x => x.id === v) ? v : 'pie'; } catch { return 'pie'; } };
 
 const fmt = (v) =>
   v >= 1e7 ? `₹${(v / 1e7).toFixed(2)}Cr`
@@ -70,6 +75,10 @@ export default function OverviewView({
   }, [overviewData]);
 
   const [pieMode, setPieMode] = useState('currentValue');
+  // the asset under the pointer (by name), shared by the chart and the list rows
+  const [hot, setHot] = useState(null);
+  const [chartStyle, setChartStyleState] = useState(readStyle);
+  const setChartStyle = (v) => { setChartStyleState(v); try { localStorage.setItem(STYLE_KEY, v); } catch {} };
 
   const PIE_MODES = [
     { id: 'currentValue', label: 'Current Value' },
@@ -95,6 +104,8 @@ export default function OverviewView({
   }, [loadedAssets, pieMode]);
 
   const pieTotal = useMemo(() => pieData.reduce((s, d) => s + d.value, 0), [pieData]);
+  const share = (v) => (pieTotal > 0 ? ((v / pieTotal) * 100).toFixed(1) : '0');
+  const modeLabel = pieMode === 'currentValue' ? 'Current value' : pieMode === 'invested' ? 'Invested' : 'Gain';
 
   const barData = useMemo(() =>
     loadedAssets.filter(a => a.invested > 0 || a.current > 0).map(a => ({
@@ -104,14 +115,6 @@ export default function OverviewView({
       color: a.color,
     })),
   [loadedAssets]);
-
-  const PieTooltipContent = ({ active, payload }) => {
-    if (!active || !payload?.length) return null;
-    const { name, value, color } = payload[0].payload;
-    const pct = pieTotal > 0 ? ((value / pieTotal) * 100).toFixed(1) : '0';
-    const modeLabel = pieMode === 'currentValue' ? 'Current value' : pieMode === 'invested' ? 'Invested' : 'Gain';
-    return <ChartTooltip title={modeLabel} rows={[{ color, label: name, value: fmt(value) }]} footer={{ label: 'Share', value: `${pct}%` }} />;
-  };
 
   const BarTooltipContent = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
@@ -137,6 +140,7 @@ export default function OverviewView({
     <section className="card overflow-hidden" aria-labelledby="alloc-h">
       <div className="flex items-center justify-between gap-3 px-5 pt-5">
         <p id="alloc-h" className="eyebrow">Allocation</p>
+        <StyleSwitch value={chartStyle} onChange={setChartStyle} />
       </div>
       <div className="px-5 pt-3">
         <div className="flex p-0.5 rounded-md bg-surface-strong" role="group" aria-label="Allocation by">
@@ -155,28 +159,32 @@ export default function OverviewView({
       </div>
       {pieData.length > 0 ? (
         <>
-          <div className="h-[180px] px-5">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" innerRadius={52} outerRadius={76} paddingAngle={1} dataKey="value" stroke={palette.surface} strokeWidth={2}>
-                  {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                </Pie>
-                <Tooltip content={<PieTooltipContent />} />
-              </PieChart>
-            </ResponsiveContainer>
+          <div className="px-5 pt-5 pb-5">
+            <AllocationChart
+              style={chartStyle}
+              data={pieData}
+              hot={hot}
+              onHot={setHot}
+              share={share}
+              label={`${modeLabel} by asset: ${pieData.map(d => `${d.name} ${share(d.value)}%`).join(', ')}`}
+              tip={(d) => `${d.name}: ${fmt(d.value)} (${share(d.value)}%)`}
+              surface={palette.surface}
+              grid={palette.grid}
+            />
           </div>
-          <ul className="border-t border-line divide-y divide-line">
+          <ul className="border-t border-line divide-y divide-line" onMouseLeave={() => setHot(null)}>
             {pieData.map((entry, i) => (
-              <li key={i} className="flex items-center gap-2 px-5 h-10 text-[13px]">
+              <li key={entry.name} onMouseEnter={() => setHot(entry.name)} className={`flex items-center gap-2 px-5 h-10 text-[13px] transition-colors ${hot === entry.name ? 'bg-surface-strong/50' : ''}`}>
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: entry.color }} aria-hidden="true" />
-                <span className="flex-1 text-ink">{entry.name}</span>
-                <span className="num text-body">{pieTotal > 0 ? ((entry.value / pieTotal) * 100).toFixed(1) : 0}%</span>
+                <span className="flex-1 min-w-0 truncate text-ink">{entry.name}</span>
+                <span className="num text-body">{fmt(entry.value)}</span>
+                <span className="w-12 text-right num text-muted">{share(entry.value)}%</span>
               </li>
             ))}
           </ul>
         </>
       ) : (
-        <div className="h-[180px] grid place-items-center font-mono text-[12px] text-muted">loading assets…</div>
+        <div className="h-[120px] grid place-items-center font-mono text-[12px] text-muted">loading assets…</div>
       )}
     </section>
   );
@@ -203,11 +211,11 @@ export default function OverviewView({
       <div className={`min-w-0 space-y-10 ${PANE}`}>
         {/* Assets: Vercel's project cards, each opening its page */}
         <section aria-labelledby="accounts-h">
-          <div className="flex items-baseline justify-between mb-3">
+          <div className="pin-head flex items-baseline justify-between pb-3">
             <h2 id="accounts-h" className="text-[20px] leading-[28px] text-ink">Assets</h2>
             <span className="font-mono text-[12px] text-muted">{loadedCount} of {assets.length} with holdings</span>
           </div>
-          <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid @lg:grid-cols-2 @3xl:grid-cols-3 gap-4">
             {assets.map(a => {
               const Icon = ASSET_ICON[a.id];
               const share = grand.current > 0 && a.hasData ? (a.current / grand.current) * 100 : 0;
@@ -228,7 +236,7 @@ export default function OverviewView({
                     {isLoading && <Spinner />}
                   </span>
                   <span>
-                    <span className="block text-[24px] font-semibold tracking-[-0.03em] text-ink num">{a.hasData ? fmt(a.current) : '—'}</span>
+                    <span className="block text-[24px] font-semibold tracking-[-0.03em] text-ink num">{a.hasData ? fmt(a.current) : '-'}</span>
                     {a.hasData && (
                       <span className="block mt-0.5 text-[13px] text-body"><span className={`num ${up ? 'text-gain' : 'text-loss'}`}>{up ? '+' : '−'}{Math.abs(a.returnPercent).toFixed(1)}%</span> on <span className="num">{fmt(a.invested)}</span></span>
                     )}
@@ -245,7 +253,7 @@ export default function OverviewView({
 
         {barData.length > 0 && (
           <section aria-labelledby="growth-h">
-            <div className="flex items-baseline justify-between mb-3">
+            <div className="pin-head flex items-baseline justify-between pb-3">
               <h2 id="growth-h" className="text-[20px] leading-[28px] text-ink">Invested and current value</h2>
               <span className="font-mono text-[12px] text-muted">per asset class</span>
             </div>

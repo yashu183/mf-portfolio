@@ -157,7 +157,7 @@ export default function EPFView({ data, isLoading, error }) {
           <div className={`min-w-0 ${PANE}`}>
             {/* Accounts */}
             <section aria-labelledby="epf-accounts-h">
-                <div className="flex items-baseline justify-between mb-3">
+                <div className="pin-head flex items-baseline justify-between pb-3">
                     <h2 id="epf-accounts-h" className="text-[20px] leading-[28px] text-ink">Accounts</h2>
                     <span className="font-mono text-[12px] text-muted">{accounts.length} {accounts.length === 1 ? 'account' : 'accounts'}</span>
                 </div>

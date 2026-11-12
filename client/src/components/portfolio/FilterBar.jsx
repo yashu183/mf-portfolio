@@ -34,9 +34,11 @@ const FilterBar = ({ filters, onFilterChange, onClearFilters, fundCategories, hi
   }, [hiddenFilters]);
 
   return (
-    // below 1024px it pins under the menu bar while the page scrolls; from 1024px it sits at the
-    // top of a ScrollPane, which keeps it in place and scrolls the list inside the column instead
-    <div className="sticky lg:static z-20 bg-canvas py-3 -mt-3 mb-3 flex flex-col sm:flex-row sm:items-center gap-2" style={{ top: 'var(--head-h, 0px)' }}>
+    // it sits in a ScrollPane's toolbar, which keeps it in place while the list scrolls. It lays out
+    // by its own width, not the window's: beside the 300px column at 1024px the bar is narrow, so
+    // the search takes its own row and the filters wrap under it
+    <div className="@container mb-6">
+    <div className="flex flex-col @2xl:flex-row @2xl:items-center gap-2">
       {!hiddenFilters.includes('search') && (
         <label className="relative flex-1 min-w-0">
           <span className="sr-only">Search funds</span>
@@ -73,6 +75,7 @@ const FilterBar = ({ filters, onFilterChange, onClearFilters, fundCategories, hi
         )}
         {right}
       </div>
+    </div>
     </div>
   );
 };

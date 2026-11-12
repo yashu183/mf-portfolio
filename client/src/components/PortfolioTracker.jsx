@@ -22,7 +22,7 @@ import ScrollPane from './portfolio/ScrollPane';
 const ASSET_HEADER_CONTENT = {
   overview: {
     title: 'Welcome, Yashwanth',
-    subtitle: 'Your complete portfolio at a glance — all assets, one view',
+    subtitle: 'Your complete portfolio at a glance - all assets, one view',
   },
   mutualFunds: {
     title: 'Mutual Funds',
@@ -231,12 +231,18 @@ const PortfolioTracker = ({ activeAsset }) => {
     const el = headRef.current;
     if (!el) return undefined;
     const desktop = window.matchMedia('(min-width: 1024px)');
-    const publish = () => document.documentElement.style.setProperty('--head-h', `${desktop.matches ? el.offsetHeight : 56}px`);
+    const tablet = window.matchMedia('(min-width: 768px)');
+    // tablets pin the page head under the 56px menu bar, so both count, plus the 31px solid band under
+    // it: toolbars and section headings pin right where the band ends, leaving no strip for rows to show
+    // through. Phones pin only the menu bar.
+    const height = () => (desktop.matches ? el.offsetHeight : tablet.matches ? 56 + el.offsetHeight + 31 : 56);
+    const publish = () => document.documentElement.style.setProperty('--head-h', `${height()}px`);
     const ro = new ResizeObserver(publish);
     ro.observe(el);
     desktop.addEventListener('change', publish);
+    tablet.addEventListener('change', publish);
     publish();
-    return () => { ro.disconnect(); desktop.removeEventListener('change', publish); };
+    return () => { ro.disconnect(); desktop.removeEventListener('change', publish); tablet.removeEventListener('change', publish); };
   }, []);
 
   const isFdView = activeAsset === 'fds';
@@ -270,8 +276,11 @@ const PortfolioTracker = ({ activeAsset }) => {
   return (
     <div className="min-h-screen bg-canvas text-ink">
       {/* Page head: Vercel's project header band, title left, actions right, Mutual Funds' sections as tabs */}
-      <div ref={headRef} className="bg-surface border-b border-line lg:sticky lg:top-0 lg:z-30">
-        <div className={`${WRAP} pt-8 md:pt-10 lg:pt-6 ${activeAsset === 'mutualFunds' ? 'pb-0' : 'pb-8 lg:pb-6'}`}>
+      {/* Below it on tablets, a solid band over the 32px gap above the content that the page scrolls under,
+          so content stops short of the head as a laptop's scrolling columns do. It is 31px, not 32, so the
+          1px ring of a card resting at the top of the gap stays visible */}
+      <div ref={headRef} className="bg-surface border-b border-line md:sticky md:top-14 lg:top-0 md:z-30 md:max-lg:after:absolute md:max-lg:after:inset-x-0 md:max-lg:after:top-[calc(100%+1px)] md:max-lg:after:h-[31px] md:max-lg:after:bg-canvas">
+        <div className={`${WRAP} pt-8 md:pt-6 ${activeAsset === 'mutualFunds' ? 'pb-0' : 'pb-8 md:pb-6'}`}>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="max-w-2xl">
               <h1 className="text-[28px] md:text-[32px] leading-[1.25] text-ink">{activeAssetHeader.title}</h1>
@@ -509,7 +518,7 @@ const PortfolioTracker = ({ activeAsset }) => {
       {/* From 1024px every view fills the window exactly and scrolls inside its own column, so the
           footer steps aside there; otherwise scrolling the page would slide the content under the head */}
       <footer className={`${WRAP} mt-20 lg:hidden`}>
-        <div className="py-8 border-t border-line flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-[12px] leading-[1.4] tracking-[0.02em] text-slate">
+        <div className="py-8 border-t border-line flex flex-col items-center text-center gap-2 text-[12px] leading-[1.4] tracking-[0.02em] text-slate">
         <span>
           {activeAsset === 'mutualFunds'
             ? `₹${(totals.totalCurrentValue / 100000).toFixed(2)}L at ${totals.totalReturns.toFixed(2)}% returns · XIRR and SIP months worked out from each start date`

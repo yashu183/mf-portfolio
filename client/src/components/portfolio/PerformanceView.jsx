@@ -17,11 +17,13 @@ const PerformanceView = ({ performanceGroups }) => (
       if (funds.length === 0) return null;
       return (
         <section key={id} aria-labelledby={`perf-${id}`}>
-          <div className="flex items-baseline gap-3 mb-1">
-            <h3 id={`perf-${id}`} className="text-[16px] leading-[1.5] font-semibold text-ink">{title}</h3>
-            <span className="text-[14px] text-ink-2 tabular-nums">{funds.length}</span>
+          <div className="pin-head pb-4">
+            <div className="flex items-baseline gap-3 mb-1">
+              <h3 id={`perf-${id}`} className="text-[16px] leading-[1.5] font-semibold text-ink">{title}</h3>
+              <span className="text-[14px] text-ink-2 tabular-nums">{funds.length}</span>
+            </div>
+            <p className="text-[15px] text-ink-2">{note}</p>
           </div>
-          <p className="mb-4 text-[15px] text-ink-2">{note}</p>
           <FundsTable funds={[...funds].sort((a, b) => (b.xirr ?? 0) - (a.xirr ?? 0))} />
         </section>
       );

@@ -224,7 +224,7 @@ const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) =
       <div className={`min-w-0 space-y-10 ${PANE}`}>
       {/* ── Stacked Bar Chart ──────────────────────────────────────────────── */}
       <section aria-labelledby="monthly-h">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 mb-3">
+      <div className="pin-head flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pb-3">
         <h2 id="monthly-h" className="text-[20px] leading-[28px] text-ink">Monthly investments</h2>
         <span className="flex items-center gap-4 font-mono text-[12px] text-muted">
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px]" style={{ background: pal.series[0] }} aria-hidden="true" />sip</span>
@@ -281,7 +281,7 @@ const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) =
 
       {/* ── SIP Commitment Line Chart ──────────────────────────────────────── */}
       <section aria-labelledby="commit-h">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 mb-3">
+      <div className="pin-head flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pb-3">
         <h2 id="commit-h" className="text-[20px] leading-[28px] text-ink">SIP commitment</h2>
         <span className="font-mono text-[12px] text-muted">monthly · dots mark revisions</span>
       </div>
@@ -326,7 +326,7 @@ const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) =
 
       {revisions.length > 0 && (
         <section aria-labelledby="rev-h">
-          <div className="flex items-baseline justify-between mb-3">
+          <div className="pin-head flex items-baseline justify-between pb-3">
             <h2 id="rev-h" className="text-[20px] leading-[28px] text-ink">SIP revisions</h2>
             <span className="font-mono text-[12px] text-muted">{revisions.length} changes</span>
           </div>

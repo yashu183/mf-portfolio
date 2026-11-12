@@ -57,11 +57,11 @@ const RecommendationsView = ({
       <aside className="space-y-4 lg:sticky lg:top-[calc(var(--head-h,0px)+32px)] lg:max-h-[calc(100vh-var(--head-h,0px)-64px)] lg:overflow-y-auto [scrollbar-width:none] lg:p-px lg:-m-px">
         <SummaryPanel
           label="Revised monthly SIP"
-          value={recommendations ? inr(revisedTotal) : '—'}
+          value={recommendations ? inr(revisedTotal) : '-'}
           change={recommendations && delta !== 0 ? `${inr(Math.abs(delta))} vs today` : null}
           changeTone={delta >= 0 ? 'gain' : 'loss'}
           rows={[
-            { label: 'Current SIP', value: recommendations ? inr(currentTotal) : '—' },
+            { label: 'Current SIP', value: recommendations ? inr(currentTotal) : '-' },
             { label: 'Funds in plan', value: `${plan.length}` },
             { label: 'New funds', value: `${newInvestments.length}` },
           ]}
@@ -105,13 +105,13 @@ const RecommendationsView = ({
         {/* Revised plan: Vercel's list, the reason opens in place */}
         {plan.length > 0 && !isLoadingRecommendations && (
           <section aria-labelledby="plan-h">
-            <div className="flex items-baseline justify-between mb-3">
+            <div className="pin-head flex items-baseline justify-between pb-3">
               <h2 id="plan-h" className="text-[20px] leading-[28px] text-ink">Revised SIP plan</h2>
               <span className="font-mono text-[12px] text-muted">{inr(currentTotal)}<ToArrow />{inr(revisedTotal)}</span>
             </div>
             {filtersApplied && <div className="mb-3"><Note tone="info">Showing {plan.length} of {recommendations.revisedPlan.length} funds for the active filters.</Note></div>}
             <div className="card overflow-hidden">
-              <div className="hidden md:grid grid-cols-[minmax(0,1fr)_100px_100px_120px_16px] gap-3 px-5 h-10 items-center border-b border-line bg-surface-strong/40" aria-hidden="true">
+              <div className="hidden @xl:grid grid-cols-[minmax(0,1fr)_100px_100px_120px_16px] gap-3 px-5 h-10 items-center border-b border-line bg-surface-strong/40" aria-hidden="true">
                 <span className="eyebrow">Fund</span>
                 <span className="eyebrow text-right">Current</span>
                 <span className="eyebrow text-right">Revised</span>
@@ -128,20 +128,20 @@ const RecommendationsView = ({
                         type="button"
                         onClick={() => p.reason && setOpenIdx(open ? null : idx)}
                         aria-expanded={p.reason ? open : undefined}
-                        className={`w-full text-left grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_100px_100px_120px_16px] gap-x-3 gap-y-1 items-center px-4 md:px-5 py-3.5 transition-colors ${p.reason ? 'cursor-pointer hover:bg-surface-strong/40' : ''} ${open ? 'bg-surface-strong/40' : ''}`}
+                        className={`w-full text-left grid grid-cols-[minmax(0,1fr)_auto] @xl:grid-cols-[minmax(0,1fr)_100px_100px_120px_16px] gap-x-3 gap-y-1 items-center px-4 md:px-5 py-3.5 transition-colors ${p.reason ? 'cursor-pointer hover:bg-surface-strong/40' : ''} ${open ? 'bg-surface-strong/40' : ''}`}
                       >
                         <span className="min-w-0">
                           <span className="block text-[14px] font-medium text-ink truncate">{shortName(p.name)}</span>
                           {p.reason && <span className="block font-mono text-[12px] text-muted truncate">{open ? 'reason below' : p.reason.toLowerCase()}</span>}
                         </span>
-                        <span className="md:hidden text-right">
+                        <span className="@xl:hidden text-right">
                           <span className="block num text-[14px] text-ink">{inr(p.current)}<ToArrow />{inr(v.revised)}</span>
                           <span className="inline-flex items-center gap-1.5 text-[12px] text-body"><span className={`w-2 h-2 rounded-full ${v.dot}`} />{v.label}</span>
                         </span>
-                        <span className="hidden md:block text-right num text-[14px] text-body">{p.current > 0 ? inr(p.current) : '—'}</span>
-                        <span className={`hidden md:block text-right num text-[14px] ${v.tone}`}>{inr(v.revised)}</span>
-                        <span className="hidden md:inline-flex items-center gap-1.5 text-[13px] text-body"><span className={`w-2 h-2 rounded-full ${v.dot}`} aria-hidden="true" /><span className="num">{v.label}</span></span>
-                        {p.reason ? <ChevronRight className={`hidden md:block w-4 h-4 text-muted transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden="true" /> : <span className="hidden md:block" />}
+                        <span className="hidden @xl:block text-right num text-[14px] text-body">{p.current > 0 ? inr(p.current) : '-'}</span>
+                        <span className={`hidden @xl:block text-right num text-[14px] ${v.tone}`}>{inr(v.revised)}</span>
+                        <span className="hidden @xl:inline-flex items-center gap-1.5 text-[13px] text-body"><span className={`w-2 h-2 rounded-full ${v.dot}`} aria-hidden="true" /><span className="num">{v.label}</span></span>
+                        {p.reason ? <ChevronRight className={`hidden @xl:block w-4 h-4 text-muted transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden="true" /> : <span className="hidden @xl:block" />}
                       </button>
                       {open && <p className="px-4 md:px-5 py-4 bg-surface-strong/40 border-t border-line text-[14px] leading-[22px] text-body">{p.reason}</p>}
                     </li>
@@ -159,11 +159,11 @@ const RecommendationsView = ({
         {/* New funds: Vercel cards */}
         {newInvestments.length > 0 && !isLoadingRecommendations && (
           <section aria-labelledby="new-h">
-            <div className="flex items-baseline justify-between mb-3">
+            <div className="pin-head flex items-baseline justify-between pb-3">
               <h2 id="new-h" className="text-[20px] leading-[28px] text-ink">Funds to add</h2>
               <span className="font-mono text-[12px] text-muted">{newInvestments.length} suggested</span>
             </div>
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid @lg:grid-cols-2 gap-4">
               {newInvestments.map((inv, idx) => (
                 <article key={idx} className="card flex flex-col overflow-hidden">
                   <div className="p-5">
@@ -174,11 +174,11 @@ const RecommendationsView = ({
                       </div>
                       <span className="inline-flex items-center gap-1.5 text-[12px] text-body whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-gain" aria-hidden="true" />New</span>
                     </div>
-                    <p className="mt-4 text-[24px] leading-none font-semibold tracking-[-0.03em] text-ink num">{inv.suggestedSip ? inr(inv.suggestedSip) : '—'}<span className="text-[13px] font-normal tracking-normal text-muted">/mo</span></p>
+                    <p className="mt-4 text-[24px] leading-none font-semibold tracking-[-0.03em] text-ink num">{inv.suggestedSip ? inr(inv.suggestedSip) : '-'}<span className="text-[13px] font-normal tracking-normal text-muted">/mo</span></p>
                     {inv.reason && <p className="mt-3 text-[14px] leading-[22px] text-body">{inv.reason}</p>}
                   </div>
                   <dl className="mt-auto border-t border-line divide-y divide-line text-[13px]">
-                    <div className="flex justify-between gap-3 px-5 h-10 items-center"><dt className="text-body">Expected returns</dt><dd className="num text-ink">{inv.expectedReturns || '—'}</dd></div>
+                    <div className="flex justify-between gap-3 px-5 h-10 items-center"><dt className="text-body">Expected returns</dt><dd className="num text-ink">{inv.expectedReturns || '-'}</dd></div>
                     {inv.alternatives && <div className="flex justify-between gap-3 px-5 py-2.5"><dt className="text-body shrink-0">Alternatives</dt><dd className="text-ink text-right">{inv.alternatives}</dd></div>}
                   </dl>
                 </article>
