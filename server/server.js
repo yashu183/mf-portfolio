@@ -77,12 +77,32 @@ app.post('/api/auth/verify', authLimiter, (req, res) => {
     return res.json({ status: 'success' });
 });
 
+const readSessionToken = (req) => (req.headers.cookie || '').split(';')
+    .map(cookie => cookie.trim()).find(cookie => cookie.startsWith('portfolio_session='))
+    ?.slice('portfolio_session='.length);
+
+// Lock: ends the session on the server at once (not when the hour runs out) and clears the cookie.
+// It sits before the session check so an already-expired session can still sign out cleanly.
+app.post('/api/auth/logout', (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    if (req.headers.origin && !authOrigins.includes(req.headers.origin)) {
+        return res.status(403).json({ status: 'error', message: 'Request origin not allowed.' });
+    }
+    const token = readSessionToken(req);
+    if (token) sessions.delete(token);
+    res.clearCookie('portfolio_session', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: '/api',
+    });
+    return res.json({ status: 'success' });
+});
+
 app.use('/api', (req, res, next) => {
     if (req.path === '/health') return next();
     res.set('Cache-Control', 'no-store');
-    const sessionCookie = (req.headers.cookie || '').split(';')
-        .map(cookie => cookie.trim()).find(cookie => cookie.startsWith('portfolio_session='));
-    const token = sessionCookie?.slice('portfolio_session='.length);
+    const token = readSessionToken(req);
     const expiry = sessions.get(token);
     if (!expiry || expiry <= Date.now()) {
         if (token) sessions.delete(token);

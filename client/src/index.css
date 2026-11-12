@@ -1,26 +1,163 @@
 @import "tailwindcss";
 
-@theme {
-  --color-primary-50: #f5f3ff;
-  --color-primary-100: #ede9fe;
-  --color-primary-200: #ddd6fe;
-  --color-primary-300: #c4b5fd;
-  --color-primary-400: #a78bfa;
-  --color-primary-500: #644ff0;
-  --color-primary-600: #5b47d6;
-  --color-primary-700: #4c3ab8;
-  --color-primary-800: #3d2e94;
-  --color-primary-900: #2e2270;
-  --color-primary: #644ff0;
+/* Vesta on Vercel's design language (design-md/vercel/DESIGN.md in VoltAgent/awesome-design-md):
+   stark ink on near-white (and its Geist dark twin), a grey ladder for every surface and divider,
+   black primary buttons that flip to white in dark, Geist at 600 with tight negative tracking for
+   headings, Geist Mono for technical labels, 12px cards held by an inset hairline and a soft stack.
+   Every role is a variable that flips with <html data-theme>; the app and the landing page share it. */
+
+:root, :root[data-theme="light"] {
+  color-scheme: light;
+  --c-canvas: #fafafa;          /* page */
+  --c-surface: #ffffff;         /* cards */
+  --c-surface-soft: #fafafa;
+  --c-surface-strong: #f2f2f2;  /* inset regions, quiet controls */
+  --c-ink: #171717;
+  --c-body: #4d4d4d;
+  --c-muted: #6f6f6f;           /* Vercel's #888 is 3.5:1; one step deeper reads as text */
+  --c-muted-soft: #a1a1a1;
+  --c-line: #ebebeb;
+  --c-line-strong: #d4d4d4;
+  --c-primary: #171717;
+  --c-primary-active: #383838;
+  --c-on-primary: #ffffff;
+  --c-link: #0070f3;
+  --c-up: #1a7f37;
+  --c-down: #c50000;
+  --c-warn: #ab570a;
+  --c-ring: rgb(0 0 0 / 0.08);
+  --c-shadow: 0 1px 1px rgb(0 0 0 / 0.02), 0 2px 2px rgb(0 0 0 / 0.04);
+  --c-shadow-float: 0 2px 2px rgb(0 0 0 / 0.04), 0 8px 16px -4px rgb(0 0 0 / 0.04);
 }
 
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --c-canvas: #000000;
+  --c-surface: #0a0a0a;
+  --c-surface-soft: #0a0a0a;
+  --c-surface-strong: #1a1a1a;
+  --c-ink: #ededed;
+  --c-body: #a1a1a1;
+  --c-muted: #8f8f8f;
+  --c-muted-soft: #5f5f5f;
+  --c-line: #1f1f1f;
+  --c-line-strong: #2e2e2e;
+  --c-primary: #ededed;
+  --c-primary-active: #cfcfcf;
+  --c-on-primary: #0a0a0a;
+  --c-link: #52a8ff;
+  --c-up: #63c174;
+  --c-down: #ff6166;
+  --c-warn: #f2a20d;
+  --c-ring: rgb(255 255 255 / 0.10);
+  --c-shadow: 0 0 0 0 transparent;
+  --c-shadow-float: 0 8px 24px -8px rgb(0 0 0 / 0.6);
+}
+
+@theme {
+  --color-canvas: var(--c-canvas);
+  --color-surface: var(--c-surface);
+  --color-surface-soft: var(--c-surface-soft);
+  --color-surface-strong: var(--c-surface-strong);
+  --color-ink: var(--c-ink);
+  --color-body: var(--c-body);
+  --color-muted: var(--c-muted);
+  --color-line: var(--c-line);
+  --color-line-strong: var(--c-line-strong);
+  --color-primary: var(--c-primary);
+  --color-primary-600: var(--c-primary-active);
+  --color-on-primary: var(--c-on-primary);
+  --color-link: var(--c-link);
+  --color-up: var(--c-up);
+  --color-down: var(--c-down);
+
+  /* names the components already use, pointed at the Vercel roles */
+  --color-surface-tint: var(--c-surface-soft);
+  --color-lavender: var(--c-surface-strong);
+  --color-ink-2: var(--c-body);
+  --color-slate: var(--c-muted);
+  --color-fog: var(--c-muted-soft);
+  --color-gain: var(--c-up);
+  --color-loss: var(--c-down);
+  --color-warn: var(--c-warn);
+  --color-vesta-bg: var(--c-canvas);
+  --color-vesta-surface: var(--c-surface);
+  --color-vesta-raised: var(--c-surface-strong);
+  --color-vesta-ink: var(--c-ink);
+  --color-vesta-muted: var(--c-body);
+  --color-vesta-accent: var(--c-primary);
+  --color-vesta-accent-text: var(--c-link);
+
+  --font-sans: "Geist", "Inter", system-ui, -apple-system, sans-serif;
+  --font-display: "Geist", "Inter", system-ui, -apple-system, sans-serif;
+  --font-text: "Geist", "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, Monaco, monospace;
+}
+
+@layer base {
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    background: var(--c-canvas);
+    color: var(--c-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    transition: background-color .2s ease, color .2s ease;
+  }
+  ::selection { background: var(--c-ink); color: var(--c-canvas); }
+  /* headings: 600 is the ceiling, tracking is always negative */
+  h1 { font-weight: 600; letter-spacing: -0.04em; }
+  h2 { font-weight: 600; letter-spacing: -0.035em; }
+  h3, h4 { font-weight: 600; letter-spacing: -0.02em; }
+  :focus-visible { outline: 2px solid var(--c-link); outline-offset: 2px; }
+}
+
+@layer components {
+  /* figures: the sans with tabular digits (mono is kept for technical labels) */
+  .num, .tabular-nums { font-variant-numeric: tabular-nums; font-weight: 500; letter-spacing: -0.01em; }
+  /* eyebrows and table heads: Geist Mono caption caps, Vercel's technical voice */
+  .eyebrow { font-family: var(--font-mono); font-size: 12px; font-weight: 400; line-height: 16px; letter-spacing: 0.02em; text-transform: uppercase; color: var(--c-muted); }
+  /* cards: an inset hairline ring plus a soft stack, never a heavy drop */
+  .card { background: var(--c-surface); border-radius: 12px; box-shadow: 0 0 0 1px var(--c-ring), var(--c-shadow); }
+  .card-lavender, .card-soft { background: var(--c-surface-strong); border-radius: 12px; }
+  /* buttons: in-app scale is a 6px radius; .pill-round is the 100px marketing pill (landing only) */
+  .pill { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 6px; font-size: 14px; font-weight: 500; line-height: 20px; white-space: nowrap; cursor: pointer; transition: background-color .15s, color .15s, box-shadow .15s, transform .1s; }
+  .pill:active { transform: translateY(1px); }
+  .pill-sm { height: 32px; padding: 0 10px; font-size: 14px; }
+  .pill-round { border-radius: 100px; height: 48px; padding: 0 20px; font-size: 16px; }
+  .pill-primary { background: var(--c-primary); color: var(--c-on-primary); }
+  .pill-primary:hover { background: var(--c-primary-active); }
+  .pill-tint, .pill-quiet, .pill-secondary { background: var(--c-surface); color: var(--c-ink); box-shadow: 0 0 0 1px var(--c-line-strong); }
+  .pill-tint:hover, .pill-quiet:hover, .pill-secondary:hover { background: var(--c-surface-strong); }
+  .pill[disabled] { opacity: .5; cursor: not-allowed; }
+  /* the round plate behind an asset glyph: canvas with a hairline */
+  .asset-plate { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 9999px; background: var(--c-surface-soft); box-shadow: inset 0 0 0 1px var(--c-line-strong); color: var(--c-ink); font-size: 11px; font-weight: 600; flex: none; }
 }
 
 #root {
   width: 100%;
   height: 100%;
 }
+
+/* Hidden amounts in running text: the big balance's asterisks (Geist, semibold, spaced), scaled up
+   and dropped level with the figures around them, without changing the line's height. */
+.amount-mask {
+  display: inline-block;
+  font-weight: 600;
+  font-size: 1.3em;
+  line-height: 0;
+  letter-spacing: 0.06em;
+  vertical-align: -0.3em;
+  margin-left: 0.05em;
+}
+
+/* The navigation drawer on small screens */
+@keyframes drawer-in { from { transform: translateX(-100%); } to { transform: none; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  #nav-drawer, #nav-drawer + * { animation: none !important; }
+}
+
+/* The main column's own scroll (ScrollPane): a thin quiet bar in the line colour */
+.pane-scroll { scrollbar-width: thin; scrollbar-color: var(--c-line-strong) transparent; }

@@ -27,3 +27,10 @@ export const verifyAccessCode = async (code) => {
     throw new Error(result.message || 'Unable to verify access. Please try again.');
   }
 };
+// Ends the session on the server. Locking must still work offline, so a failed request is ignored:
+// the caller locks the app either way, and the cookie can't outlive its hour.
+export const logout = async () => {
+  try {
+    await fetch(`${API_BASE_URL}/api/auth/logout`, { method: 'POST', credentials: 'include' });
+  } catch {}
+};

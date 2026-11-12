@@ -47,6 +47,18 @@ test('PIN authentication protects portfolio APIs', async () => {
             headers: { Cookie: 'portfolio_session=forged' },
         });
         assert.equal(forged.status, 401);
+        const logout = (origin = 'http://localhost:5173') => fetch(`${base}/api/auth/logout`, {
+            method: 'POST',
+            headers: { Cookie: cookie.split(';')[0], Origin: origin },
+        });
+        assert.equal((await logout('https://untrusted.example')).status, 403);
+        const loggedOut = await logout();
+        assert.equal(loggedOut.status, 200);
+        assert.match(loggedOut.headers.get('set-cookie'), /portfolio_session=;/);
+        const afterLogout = await fetch(`${base}/api/portfolio/fds`, {
+            headers: { Cookie: cookie.split(';')[0] },
+        });
+        assert.equal(afterLogout.status, 401, 'a locked session must not reach the API');
         for (let attempt = 0; attempt < 10; attempt += 1) await verify('999999');
         assert.equal((await verify('012345')).status, 429);
     } finally {

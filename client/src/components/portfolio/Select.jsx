@@ -27,16 +27,16 @@ const Select = ({ value, onChange, options, className = '' }) => {
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className={`w-full flex items-center justify-between gap-2 bg-gray-800/50 border rounded-lg px-3 py-2 text-sm text-white transition-colors cursor-pointer focus:outline-none ${open ? 'border-primary' : 'border-gray-700/50 hover:border-gray-600'}`}
+        className={`w-full h-10 flex items-center justify-between gap-2 bg-surface rounded-md px-3 text-[14px] text-ink transition-shadow cursor-pointer focus:outline-none ${open ? 'shadow-[0_0_0_1px_var(--c-ink),0_0_0_4px_var(--c-line)]' : 'shadow-[0_0_0_1px_var(--c-line-strong)] hover:shadow-[0_0_0_1px_var(--c-muted-soft)]'}`}
       >
         <span className="truncate">{selected?.label}</span>
-        <ChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 text-muted flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
         <ul
           role="listbox"
-          className="absolute z-50 mt-1 w-full max-h-64 overflow-auto bg-gray-900 border border-gray-700/70 rounded-lg shadow-2xl p-1"
+          className="absolute z-50 mt-1.5 min-w-full w-max max-w-[280px] max-h-72 overflow-auto rounded-lg bg-surface p-1 shadow-[0_0_0_1px_var(--c-ring),0_1px_1px_rgb(0_0_0/0.02),0_8px_16px_-4px_rgb(0_0_0/0.06),0_24px_32px_-8px_rgb(0_0_0/0.08)]"
         >
           {options.map((o) => {
             const isSel = o.value === value;
@@ -46,7 +46,7 @@ const Select = ({ value, onChange, options, className = '' }) => {
                 role="option"
                 aria-selected={isSel}
                 onClick={() => { onChange(o.value); setOpen(false); }}
-                className={`flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-md cursor-pointer transition-colors ${isSel ? 'bg-primary/20 text-primary' : 'text-gray-200 hover:bg-gray-800'}`}
+                className={`flex items-center justify-between gap-3 h-9 px-2.5 text-[14px] rounded-md cursor-pointer transition-colors text-ink hover:bg-surface-strong ${isSel ? 'font-medium' : ''}`}
               >
                 <span className="truncate">{o.label}</span>
                 {isSel && <Check className="w-4 h-4 flex-shrink-0" />}

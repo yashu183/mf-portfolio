@@ -16,6 +16,7 @@ export const formatCurrentValue = (amount) => currentValueFormatter.format(amoun
 
 /** Compact headline format: ₹17.01L, ₹2.35Cr, ₹42K */
 export const formatCompact = (amount) => {
+  if (amount < 0) return `−${formatCompact(-amount)}`;
   if (amount >= 10_000_000) return `₹${(amount / 10_000_000).toFixed(2)}Cr`;
   if (amount >= 100_000)    return `₹${(amount / 100_000).toFixed(2)}L`;
   if (amount >= 1_000)      return `₹${(amount / 1_000).toFixed(1)}K`;

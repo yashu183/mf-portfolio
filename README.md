@@ -1,114 +1,123 @@
-# Mutual Fund Portfolio Tracker
+# Vesta
 
-A real-time mutual fund portfolio tracking application with AI-powered investment recommendations powered by AWS Bedrock Claude.
+A private portfolio tracker for mutual funds, fixed deposits, gold, silver and EPF, with AI SIP recommendations from Claude on AWS Bedrock.
 
 ## Features
 
-- 📊 **Real-time Portfolio Tracking** - Track multiple mutual funds with live NAV updates
-- 💰 **Investment Analytics** - View returns, XIRR, and performance metrics
-- 🎯 **AI-Powered Recommendations** - Get personalized investment advice using AWS Bedrock Claude
-- 📈 **Performance Monitoring** - Track fund performance across categories
-- 🗓️ **Investment Timeline** - Visualize your investment journey
-- 🔍 **Smart Filters** - Filter recommendations by search and category (SIP-only funds)
-- 📱 **Responsive Design** - Works seamlessly on desktop and mobile devices
+- **Five asset classes, one dashboard**: mutual funds at today's NAV, fixed deposits across their renewal cycles, gold and silver at live prices, and EPF with its contribution history.
+- **Overview**: total balance, gain and return across every asset, an allocation donut (current value, invested or returns), and invested-vs-current charts.
+- **Mutual funds**: returns, XIRR and status for each fund, grouped by performance; allocation by SIP against Claude's target; a month-by-month investment timeline with SIP revisions.
+- **AI recommendations**: a revised monthly SIP plan with reasons, plus suggested funds to add (Claude Sonnet on AWS Bedrock).
+- **Gold and silver**: holdings grouped into sets, with average buy price per set against the live price, per-gram and overall profit or loss, and how long each holding has been held.
+- **Fixed deposits**: every cycle of each deposit, matured or in progress, with interest earned and maturity value.
+- **EPF**: accounts, contributed vs interest, and each change in monthly contribution.
+- **Hide amounts**: one switch masks every rupee figure in the app (cards, lists, tooltips, chart axes); percentages stay visible. Remembered on the device.
+- **Light and dark themes**: follows the OS until you pick one; the choice is remembered.
+- **Private by default**: a six-digit access code guards the portfolio; a public landing page sits in front of it.
+- **Responsive**: a fixed sidebar from 1024px; a menu bar and slide-in drawer on phones and tablets.
 
-## Tech Stack
+## Tech stack
 
 ### Frontend
-- React.js
-- Tailwind CSS
-- Lucide React (Icons)
+- React 18 and React Router 6, built with Vite
+- Tailwind CSS 4, with the light and dark themes as CSS variables
+- Recharts for charts, Lucide for icons
+- Geist and Geist Mono
+
+The design follows Vercel's design system: hairline cards, mono labels, a dashboard sidebar and in-column scrolling.
 
 ### Backend
-- Node.js
-- Express.js
-- AWS Bedrock (Claude Sonnet 4)
-- Mutual Fund API (https://api.mfapi.in/mf)
+- Node.js 18+ and Express
+- AWS Bedrock (Claude Sonnet 4) for recommendations
+- [MFapi](https://api.mfapi.in/mf) for mutual fund NAVs
+- [bullions.co.in](https://bullions.co.in/) for gold (24K) and silver (999) prices
 
 ## Prerequisites
 
-- Node.js (v14 or higher)
-- npm or yarn
-- AWS Account with Bedrock access (for AI recommendations)
-- AWS CLI configured with appropriate credentials
+- Node.js 18 or higher, and npm
+- An AWS account with Bedrock access (only for AI recommendations)
 
 ## Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd mf_portfolio
-   ```
-
-2. **Install dependencies**
-
-   Backend:
-   ```bash
-   cd server
-   npm install
-   ```
-
-   Frontend:
-   ```bash
-   cd client
-   npm install
-   ```
+```bash
+git clone <repository-url>
+cd mf-portfolio
+npm --prefix server install
+npm --prefix client install
+```
 
 ## Configuration
 
-### Private Access Code
+### 1. Environment
 
-Set `AUTH_ACCESS_CODE` to your own six-digit code in `server/.env` (for example,
-use `server/.env.example` as a setup template). Keep the value as six digits;
-leading zeroes are supported. Do not put it in a `VITE_` variable or commit it.
-Restart the backend after changing the code. Missing or invalid configuration
-denies access rather than disabling authentication.
+Copy `server/.env.example` to `server/.env` and fill it in:
 
-The landing page opens a six-box entry form on Continue. Enter or the submit
-button verifies the code on the backend and opens the existing portfolio.
-Every page reload returns to the landing page. API sessions last one hour,
-expire on server restart, and use an HttpOnly cookie. Attempts are limited to
-10 per IP address every 15 minutes. This is a shared PIN, not an emailed OTP.
+```env
+AUTH_ACCESS_CODE=      # your six-digit code (leading zeroes are fine)
+PORT=3002
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+NODE_ENV=development
+AWS_REGION=us-east-1   # optional, for recommendations
+```
 
-Production requires HTTPS, `NODE_ENV=production`, and an explicit
-`ALLOWED_ORIGINS` value matching the frontend. Host the frontend and API on the
-same site (ideally proxy `/api` under the frontend origin); the session cookie
-uses `SameSite=Strict`. If using a reverse proxy, configure Express's trusted
-proxy setting for that specific deployment so IP rate limits work correctly.
+Optional: `NAV_CACHE_DURATION_MS`, `RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_MS`, and AWS keys (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`) if you don't use an AWS CLI profile.
 
-Run authentication regression tests with `npm --prefix server test` and build
-the frontend with `npm --prefix client run build`.
+The frontend calls the API at `http://localhost:3002` by default. Set `VITE_API_URL` when building or running the client to point it elsewhere.
 
-### Step 1: Set up Portfolio Configuration
+### 2. Portfolio
 
-1. Navigate to the server directory
-2. Copy the example configuration file:
-   ```bash
-   cp portfolioConfig-example.json portfolioConfig.json
-   ```
+Copy the example and replace it with your holdings. `portfolioConfig.json` is git-ignored.
 
-3. Edit `portfolioConfig.json` with your mutual fund investments
+```bash
+cp server/portfolioConfig-example.json server/portfolioConfig.json
+```
 
-### Step 2: Configure Your Funds
-
-The configuration file structure:
+The file has one list per asset, plus the AI settings:
 
 ```json
 {
   "funds": [
     {
       "id": 1,
-      "name": "Fund Name",
-      "shortName": "Short Name",
-      "category": "Category (ELSS, Large Cap, Mid Cap, etc.)",
-      "schemeId": "SCHEME_ID",
-      "lumpsums": [
-        { "amount": 10000, "date": "2024-01-15" }
-      ],
-      "sips": [
-        { "amount": 5000, "startDate": "2024-01-05", "stopDate": null }
-      ],
-      "color": "#hex-color"
+      "name": "Nippon India Growth Mid Cap Fund",
+      "shortName": "Nippon Growth Mid Cap",
+      "category": "Mid Cap",
+      "schemeId": "100377",
+      "lumpsums": [{ "amount": 2000, "date": "2023-02-13" }],
+      "sips": [{ "amount": 2000, "startDate": "2023-04-05", "stopDate": null }],
+      "color": "#FFFFD2"
+    }
+  ],
+  "fixedDeposits": [
+    {
+      "id": 1,
+      "name": "Holder Name",
+      "bank": "Bank Name",
+      "label": "2L - 444 d",
+      "principal": 200000,
+      "startDate": "2025-01-18",
+      "cycles": [
+        { "termDays": 444, "rate": 7.25, "maturityDate": "2026-04-07", "interestBank": 18271 }
+      ]
+    }
+  ],
+  "gold": [
+    { "id": 1, "label": "SGB 2024-I", "set": "SGB 2024", "purchaseDate": "2024-02-05", "quantity": 10, "purchasePrice": 6200 }
+  ],
+  "silver": [
+    { "id": 1, "label": "Silver Coins", "set": "Coins 2023", "purchaseDate": "2023-08-15", "quantity": 500, "purchasePrice": 72 }
+  ],
+  "epf": [
+    {
+      "id": 1,
+      "label": "Current Employer",
+      "startDate": "2021-09-01",
+      "monthlyContribution": 3600,
+      "employeeContribution": 1800,
+      "employerContribution": 1800,
+      "contributionHistory": [
+        { "from": "2026-09", "employeeContribution": 3000, "employerContribution": 3000 }
+      ]
     }
   ],
   "llmConfig": {
@@ -122,144 +131,128 @@ The configuration file structure:
 }
 ```
 
-### Finding Scheme IDs
+**Mutual funds**
+- `schemeId`: the scheme code from [MFapi](https://api.mfapi.in/mf). Search for your fund there and copy its code, e.g. HDFC ELSS Tax Saver Growth is `101979`.
+- `sips`: `amount`, `startDate` and `stopDate` (YYYY-MM-DD; `null` while active). Add a new entry when the SIP amount changes; each one shows as a revision on the timeline.
+- `lumpsums`: `amount` and `date`.
+- `color`: the fund's dot colour in lists.
 
-All scheme IDs are sourced from the Mutual Fund API: **https://api.mfapi.in/mf**
+**Fixed deposits**
+- `cycles`: one entry per term, renewals included, with `termDays`, `rate` (% p.a.), `maturityDate` and the bank's stated `interestBank`.
 
-To find a scheme ID:
-1. Visit https://api.mfapi.in/mf
-2. Search for your mutual fund
-3. Copy the scheme ID from the results
+**Gold and silver**
+- `quantity` in grams and `purchasePrice` per gram.
+- `set` groups holdings, e.g. one purchase spread over several days, for the per-set average-price chart.
 
-Example:
-- HDFC ELSS Tax Saver - Growth Plan: `101979`
-- ICICI Pru Bluechip Fund Regular: `100218`
+**EPF**
+- `contributionHistory`: each change to the monthly contribution, from the month (YYYY-MM) it applies.
 
-### Step 3: AWS Bedrock Configuration
+**AI** (`llmConfig`)
+- `enabled`: turns recommendations on or off.
+- `model`: the Bedrock model ID.
+- `max_tokens`, `temperature`: response length and variability.
+- `cacheValidityHours`: how long a set of recommendations is reused.
 
-1. Ensure you have AWS CLI configured:
-   ```bash
-   aws configure
-   ```
+### 3. AWS Bedrock (optional)
 
-2. Verify Bedrock access in your AWS region (default: us-east-1)
+Run `aws configure`, or set the AWS keys in `server/.env`, and check that the model in `llmConfig.model` is enabled for your region. Everything except recommendations works without it.
 
-3. The application uses AWS Bedrock Claude Sonnet 4 by default. You can modify the model in `portfolioConfig.json` under `llmConfig.model`
+## Running
 
-### Step 4: Environment Variables (Optional)
+### Development
 
-Create a `.env` file in the server directory if you need custom configurations:
-```env
-PORT=5001
-AWS_REGION=us-east-1
+```bash
+npm --prefix server start   # API on http://localhost:3002 (npm --prefix server run dev reloads on change)
+npm --prefix client run dev # app on http://localhost:3000
 ```
 
-## Running the Application
+Open http://localhost:3000. Without a session you land on the public page at `/welcome`; **Open your portfolio** goes to `/unlock` for the access code.
 
-### Development Mode
+### Production
 
-1. **Start the backend server**
-   ```bash
-   cd server
-   npm start
-   ```
-   Server will run on http://localhost:5001
+```bash
+npm --prefix client run build   # outputs client/dist
+```
 
-2. **Start the frontend** (in a new terminal)
-   ```bash
-   cd client
-   npm start
-   ```
-   Frontend will run on http://localhost:3000
+Serve `client/dist` as a single-page app (every route falls back to `index.html`) and run the API with `NODE_ENV=production`. `server/mf-portfolio.service` is a systemd unit for the API.
 
-### Production Build
+## Access
 
-1. Build the frontend:
-   ```bash
-   cd client
-   npm run build
-   ```
+- The code is checked by the API only. Never put it in a `VITE_` variable or commit it. Restart the API after changing it.
+- A missing or invalid code denies access; it never turns authentication off.
+- A session lasts one hour in an HttpOnly cookie and ends when the API restarts. Reloading inside a session keeps you signed in.
+- **Lock** (bottom of the sidebar, or in the phone menu) ends the session on the server at once, clears cached data and returns to the landing page.
+- Signed in, `/welcome` and `/unlock` go straight to Overview; signed out, every app page goes to `/welcome`.
+- Attempts are limited to 10 per IP every 15 minutes.
+- It's a shared PIN, not an emailed one-time code.
 
-2. The backend serves the built frontend from the `client/build` directory
+In production use HTTPS and set `ALLOWED_ORIGINS` to the frontend's origin. Serve the frontend and API from the same site (ideally proxy `/api` under the frontend), since the cookie is `SameSite=Strict`. Behind a reverse proxy, set Express's trusted-proxy setting so the per-IP limit sees real client addresses.
 
-## Usage
+## Using the app
 
-### Dashboard
-- View all your mutual funds with current values
-- See overall portfolio performance
-- Monitor category-wise breakdown
+| Page | What it shows |
+| --- | --- |
+| **Overview** | Total balance, gain and return; each asset's value and share; allocation donut; invested vs current per asset |
+| **Mutual Funds → Dashboard** | Every fund as a list or grid, with search and filters (category, status, SIP or lump sum); top performer, funds needing attention, category split |
+| **Mutual Funds → Performance** | Funds grouped as Excellent, Good, Monitor and Underperforming |
+| **Mutual Funds → Allocation** | Monthly SIP by category, current vs Claude's target |
+| **Mutual Funds → Recommendations** | Claude's revised SIP plan with reasons, and funds to add (SIP funds only) |
+| **Mutual Funds → Timeline** | Monthly SIP and lump-sum investments, SIP commitment over time, every SIP revision |
+| **Gold / Silver** | Live price, sets against the live price, every holding with how long it has been held |
+| **FDs** | Each deposit's cycles, progress, interest and value at maturity; filter by holder |
+| **EPF** | Each account's balance, contributed vs interest, and contribution history |
 
-### Performance
-- Track fund performance by status (Excellent, Good, Monitor, Poor)
-- View detailed metrics for each fund
+The foot of the sidebar (or the phone menu) holds the theme switch, **Hide amounts** and **Lock**.
 
-### Allocation
-- Visualize asset allocation across categories
-- See recommended vs current allocation
+## API
 
-### Recommendations (AI-Powered)
-- Get personalized SIP adjustment recommendations
-- Filter by search and category
-- View AI-suggested new investments
-- See revised monthly SIP plans with reasoning
+Every route except `/api/health`, `/api/auth/verify` and `/api/auth/logout` needs a session.
 
-### Timeline
-- Visualize your investment journey over time
-- Track SIP contributions and lumpsum investments
+| Method | Route | Returns |
+| --- | --- | --- |
+| `POST` | `/api/auth/verify` | Checks the access code and starts a session |
+| `GET` | `/api/auth/session` | Whether the current session is active |
+| `POST` | `/api/auth/logout` | Ends the session and clears the cookie |
+| `GET` | `/api/health` | Service health |
+| `GET` | `/api/portfolio/overview` | Totals across all assets |
+| `GET` | `/api/portfolio/funds` | Mutual funds with NAV, returns and XIRR |
+| `GET` | `/api/portfolio/complete` | Funds with full calculations |
+| `GET` | `/api/portfolio/investment-timeline` | Month-by-month investments |
+| `GET` | `/api/portfolio/fds` | Fixed deposits and their cycles |
+| `GET` | `/api/portfolio/gold` | Gold holdings at the live price |
+| `GET` | `/api/portfolio/silver` | Silver holdings at the live price |
+| `GET` | `/api/portfolio/epf` | EPF accounts |
+| `POST` | `/api/recommendations` | Claude's SIP recommendations |
 
-## Configuration Options
+## Tests
 
-### SIP Configuration
-- **amount**: Monthly SIP amount
-- **startDate**: SIP start date (YYYY-MM-DD)
-- **stopDate**: SIP stop date (null for active SIPs) (YYYY-MM-DD)
-
-### Lumpsum Configuration
-- **amount**: Investment amount
-- **date**: Investment date (YYYY-MM-DD)
-
-### AI Configuration
-- **enabled**: Enable/disable AI recommendations
-- **model**: AWS Bedrock model ID
-- **max_tokens**: Maximum tokens for AI responses
-- **cacheValidityHours**: How long to cache recommendations
-- **temperature**: AI creativity level (0.0-1.0)
-
-## API Endpoints
-
-### Portfolio
-- `GET /api/portfolio/complete` - Get complete portfolio with calculations
-- `GET /api/portfolio/timeline` - Get investment timeline data
-
-### Health
-- `GET /api/health` - Check service health
-
-### Recommendations
-- `POST /api/recommendations` - Generate AI-powered recommendations
+```bash
+npm --prefix server test        # authentication regression tests
+npm --prefix client run build   # frontend build check
+```
 
 ## Troubleshooting
 
-### AWS Bedrock Errors
-- Ensure your AWS credentials have Bedrock access
-- Verify the model ID is correct for your region
-- Check if the model supports on-demand throughput
+**Recommendations fail**
+- Check that your AWS credentials have Bedrock access and that the model ID is enabled in your region.
+- "The security token included in the request is invalid" means the AWS credentials are missing or expired.
 
-### NAV Not Updating
-- Verify internet connection
-- Check if the mutual fund API is accessible
-- Ensure scheme IDs are correct
+**NAV not updating**
+- Check the scheme IDs against [MFapi](https://api.mfapi.in/mf) and that the API is reachable.
 
-### Build Errors
-- Clear node_modules and reinstall: `rm -rf node_modules && npm install`
-- Check Node.js version compatibility
+**Gold or silver shows offline**
+- Prices are read from bullions.co.in; if the site is down or changes its layout, the live price can't be parsed.
 
-## Contributing
+**Can't sign in**
+- Check `AUTH_ACCESS_CODE` in `server/.env` and that the frontend's origin is in `ALLOWED_ORIGINS`.
+- After 10 wrong attempts, wait 15 minutes.
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+**Build errors**
+- Reinstall dependencies (`rm -rf node_modules && npm install`) and check you're on Node 18 or newer.
 
 ## License
 
-This project is licensed under the MIT License.
+MIT
 
 ## Author
 
@@ -267,4 +260,4 @@ Developed by Yashwanth C
 
 ---
 
-**Note**: This application is for informational purposes only. AI-generated recommendations do not constitute financial advice. Please consult with a qualified financial advisor before making investment decisions.
+**Note**: Vesta is for personal tracking and information only. AI-generated recommendations are not financial advice; consult a qualified financial adviser before making investment decisions.

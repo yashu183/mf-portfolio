@@ -1,15 +1,25 @@
 import React, { useMemo, useState } from 'react';
+import { PANE } from './ScrollPane';
+import SummaryPanel from './SummaryPanel';
+import { formatCurrentValue } from '../../utils/formatters';
+import ChartTooltip from './ChartTooltip';
+import { LineChart as FundsIcon, Landmark, PiggyBank, Coins, Gem, ArrowRight } from 'lucide-react';
+import { useTheme, chartPalette } from '../../hooks/useTheme';
+
+const ASSET_ICON = { mutualFunds: FundsIcon, fds: Landmark, epf: PiggyBank, gold: Coins, silver: Gem };
 import {
   PieChart, Pie, Cell, Tooltip, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend,
 } from 'recharts';
 
+// Colours follow the asset, never its rank: the dataviz reference order, light-mode steps, validated with direct labels and the accounts table as the relief
+// (adjacent CVD and normal-vision separation pass in this order, so the list order is part of the palette).
 const ASSET_CFG = [
-  { id: 'mutualFunds', label: 'Mutual Funds',  short: 'MF',     color: '#8b5cf6', gradient: 'from-purple-600 to-purple-400' },
-  { id: 'fds',         label: 'Fixed Deposits', short: 'FDs',    color: '#3b82f6', gradient: 'from-blue-600 to-blue-400' },
-  { id: 'gold',        label: 'Gold',           short: 'Gold',   color: '#fbbf24', gradient: 'from-yellow-500 to-yellow-300' },
-  { id: 'silver',      label: 'Silver',         short: 'Silver', color: '#94a3b8', gradient: 'from-slate-500 to-slate-300' },
-  { id: 'epf',         label: 'EPF',            short: 'EPF',    color: '#10b981', gradient: 'from-emerald-600 to-emerald-400' },
+  { id: 'mutualFunds', label: 'Mutual Funds',   short: 'MF',     slot: 0 },
+  { id: 'fds',         label: 'Fixed Deposits', short: 'FDs',    slot: 1 },
+  { id: 'epf',         label: 'EPF',            short: 'EPF',    slot: 2 },
+  { id: 'gold',        label: 'Gold',           short: 'Gold',   slot: 3 },
+  { id: 'silver',      label: 'Silver',         short: 'Silver', slot: 4 },
 ];
 
 const fmt = (v) =>
@@ -18,7 +28,7 @@ const fmt = (v) =>
   : `₹${v.toLocaleString('en-IN')}`;
 
 const Spinner = () => (
-  <svg className="animate-spin h-3 w-3 text-gray-500 flex-shrink-0" viewBox="0 0 24 24" fill="none">
+  <svg className="animate-spin h-3 w-3 text-slate flex-shrink-0" viewBox="0 0 24 24" fill="none">
     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
   </svg>
@@ -27,13 +37,17 @@ const Spinner = () => (
 export default function OverviewView({
   overviewData, isLoading, error, onNavigate,
 }) {
+  const { theme } = useTheme();
+  const palette = chartPalette(theme);
+  const colorOf = (cfg) => palette.series[cfg.slot];
   const assets = useMemo(() => {
-    if (!overviewData?.assets) return ASSET_CFG.map(cfg => ({ ...cfg, invested: 0, current: 0, hasData: false }));
+    if (!overviewData?.assets) return ASSET_CFG.map(cfg => ({ ...cfg, color: colorOf(cfg), invested: 0, current: 0, hasData: false }));
 
     return ASSET_CFG.map(cfg => {
       const assetData = overviewData.assets.find(a => a.id === cfg.id);
       return {
         ...cfg,
+        color: colorOf(cfg),
         invested: assetData?.invested ?? 0,
         current: assetData?.current ?? 0,
         returns: assetData?.returns ?? 0,
@@ -41,7 +55,7 @@ export default function OverviewView({
         hasData: assetData ? (assetData.invested > 0 || assetData.current > 0) : false,
       };
     });
-  }, [overviewData]);
+  }, [overviewData, theme]);
 
   const loadedAssets = useMemo(() => assets.filter(a => a.hasData), [assets]);
 
@@ -95,17 +109,8 @@ export default function OverviewView({
     if (!active || !payload?.length) return null;
     const { name, value, color } = payload[0].payload;
     const pct = pieTotal > 0 ? ((value / pieTotal) * 100).toFixed(1) : '0';
-    const modeLabel = pieMode === 'currentValue' ? 'Current' : pieMode === 'invested' ? 'Invested' : 'Gain';
-    return (
-      <div className="bg-gray-900 border border-gray-700/80 rounded-xl px-4 py-3 text-sm shadow-2xl">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-          <p className="font-semibold text-white">{name}</p>
-        </div>
-        <p className="text-emerald-400 font-bold">{modeLabel}: {fmt(value)}</p>
-        <p className="text-gray-400 text-xs mt-0.5">{pct}% of total</p>
-      </div>
-    );
+    const modeLabel = pieMode === 'currentValue' ? 'Current value' : pieMode === 'invested' ? 'Invested' : 'Gain';
+    return <ChartTooltip title={modeLabel} rows={[{ color, label: name, value: fmt(value) }]} footer={{ label: 'Share', value: `${pct}%` }} />;
   };
 
   const BarTooltipContent = ({ active, payload, label }) => {
@@ -113,209 +118,159 @@ export default function OverviewView({
     const inv = payload.find(p => p.dataKey === 'Invested')?.value ?? 0;
     const cur = payload.find(p => p.dataKey === 'Current')?.value ?? 0;
     const gain = cur - inv;
-    const gainPct = inv > 0 ? ((gain / inv) * 100).toFixed(1) : '0';
+    const gainPct = inv > 0 ? Math.abs((gain / inv) * 100).toFixed(1) : '0';
     return (
-      <div className="bg-gray-900 border border-gray-700/80 rounded-xl px-4 py-3 text-sm shadow-2xl">
-        <p className="font-semibold text-white mb-2">{label}</p>
-        <p className="text-gray-400">Invested: {fmt(inv)}</p>
-        <p className="text-gray-400">Current: <strong className="text-primary">{fmt(cur)}</strong></p>
-        <p className={gain >= 0 ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>
-          {gain >= 0 ? '' : '-'}{fmt(Math.abs(gain))} ({gainPct}%)
-        </p>
-      </div>
+      <ChartTooltip
+        title={label}
+        rows={[
+          { color: palette.muted, label: 'Invested', value: fmt(inv) },
+          { color: palette.primary, label: 'Current', value: fmt(cur) },
+        ]}
+        footer={{ label: gain >= 0 ? 'Gain' : 'Loss', value: `${gain >= 0 ? '↑' : '↓'} ${fmt(Math.abs(gain))} (${gainPct}%)`, tone: gain >= 0 ? 'gain' : 'loss' }}
+      />
     );
   };
 
   const loadedCount = loadedAssets.length;
 
-  return (
-    <div className="space-y-6">
-      {/* ── Grand Totals ─────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-gray-900/90 to-black/60 border border-gray-700/50 rounded-2xl p-5">
-          <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Total Invested</p>
-          <p className="text-2xl font-bold text-white">{fmt(grand.invested)}</p>
-          <p className="text-xs text-gray-600 mt-1">{loadedCount} of {assets.length} assets loaded</p>
-        </div>
-        <div className="bg-gradient-to-br from-emerald-900/30 to-black/40 border border-emerald-700/30 rounded-2xl p-5">
-          <p className="text-xs text-emerald-400 uppercase tracking-wide mb-2">Current Value</p>
-          <p className="text-2xl font-bold text-emerald-400">{fmt(grand.current)}</p>
-          <p className="text-xs text-emerald-800 mt-1">across all assets</p>
-        </div>
-        <div className={`bg-gradient-to-br border rounded-2xl p-5 ${grand.gain >= 0 ? 'from-emerald-900/20 to-black/40 border-emerald-700/20' : 'from-red-900/20 to-black/40 border-red-700/20'}`}>
-          <p className={`text-xs uppercase tracking-wide mb-2 ${grand.gain >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>Total Gain</p>
-          <p className={`text-2xl font-bold ${grand.gain >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {grand.gain >= 0 ? '' : '-'}{fmt(Math.abs(grand.gain))}
-          </p>
-          <p className={`text-xs mt-1 ${grand.gain >= 0 ? 'text-emerald-800' : 'text-red-800'}`}>
-            {grand.gain >= 0 ? 'unrealised profit' : 'unrealised loss'}
-          </p>
-        </div>
-        <div className="bg-gray-900/90 border border-primary/40 rounded-2xl p-5">
-          <p className="text-xs text-primary uppercase tracking-wide mb-2">Overall Return</p>
-          <p className={`text-2xl font-bold ${grand.gainPct >= 0 ? 'text-primary' : 'text-red-400'}`}>
-            {grand.gainPct >= 0 ? '' : '-'}{grand.gainPct.toFixed(2)}%
-          </p>
-          <p className="text-xs text-gray-600 mt-1">blended across assets</p>
+  const allocation = (
+    <section className="card overflow-hidden" aria-labelledby="alloc-h">
+      <div className="flex items-center justify-between gap-3 px-5 pt-5">
+        <p id="alloc-h" className="eyebrow">Allocation</p>
+      </div>
+      <div className="px-5 pt-3">
+        <div className="flex p-0.5 rounded-md bg-surface-strong" role="group" aria-label="Allocation by">
+          {PIE_MODES.map(m => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => setPieMode(m.id)}
+              aria-pressed={pieMode === m.id}
+              className={`flex-1 h-7 rounded-[5px] text-[12px] transition-colors cursor-pointer ${pieMode === m.id ? 'bg-surface text-ink shadow-[0_0_0_1px_var(--c-ring),0_1px_2px_rgb(0_0_0/0.06)]' : 'text-body hover:text-ink'}`}
+            >
+              {m.label}
+            </button>
+          ))}
         </div>
       </div>
-
-      {/* ── Donut Pie + Asset Table ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Pie – flat solid + mode switcher */}
-        <div className="lg:col-span-2 bg-gray-900/70 border border-gray-700/50 rounded-2xl p-6">
-          {/* Header + mode dropdown */}
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-200 uppercase tracking-wide">Portfolio Allocation</h3>
-              <p className="text-xs text-gray-500 mt-0.5">by {PIE_MODES.find(m => m.id === pieMode)?.label.toLowerCase()}</p>
-            </div>
-            <select
-              value={pieMode}
-              onChange={e => setPieMode(e.target.value)}
-              className="text-xs bg-gray-800 border border-gray-700 text-gray-300 rounded-lg px-2.5 py-1.5 cursor-pointer focus:outline-none focus:border-primary"
-            >
-              {PIE_MODES.map(m => (
-                <option key={m.id} value={m.id}>{m.label}</option>
-              ))}
-            </select>
+      {pieData.length > 0 ? (
+        <>
+          <div className="h-[180px] px-5">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={pieData} cx="50%" cy="50%" innerRadius={52} outerRadius={76} paddingAngle={1} dataKey="value" stroke={palette.surface} strokeWidth={2}>
+                  {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                </Pie>
+                <Tooltip content={<PieTooltipContent />} />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
+          <ul className="border-t border-line divide-y divide-line">
+            {pieData.map((entry, i) => (
+              <li key={i} className="flex items-center gap-2 px-5 h-10 text-[13px]">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: entry.color }} aria-hidden="true" />
+                <span className="flex-1 text-ink">{entry.name}</span>
+                <span className="num text-body">{pieTotal > 0 ? ((entry.value / pieTotal) * 100).toFixed(1) : 0}%</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <div className="h-[180px] grid place-items-center font-mono text-[12px] text-muted">loading assets…</div>
+      )}
+    </section>
+  );
 
-          {pieData.length > 0 ? (
-            <>
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    paddingAngle={2}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {pieData.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<PieTooltipContent />} />
-                </PieChart>
-              </ResponsiveContainer>
+  return (
+    <div className="grid lg:grid-cols-[300px_minmax(0,1fr)] gap-6 lg:gap-8 items-start">
+      {/* Left column: totals and allocation, as Vercel keeps usage beside the projects */}
+      <aside className="space-y-4 lg:sticky lg:top-[calc(var(--head-h,0px)+32px)] lg:max-h-[calc(100vh-var(--head-h,0px)-64px)] lg:overflow-y-auto [scrollbar-width:none] lg:p-px lg:-m-px">
+        <SummaryPanel
+          label="Total balance"
+          value={formatCurrentValue(grand.current)}
+          change={`${fmt(Math.abs(grand.gain))} (${Math.abs(grand.gainPct).toFixed(2)}%) all time`}
+          changeTone={grand.gain >= 0 ? 'gain' : 'loss'}
+          rows={[
+            { label: 'Invested', value: fmt(grand.invested) },
+            { label: 'Unrealised gain', value: `${grand.gain >= 0 ? '' : '−'}${fmt(Math.abs(grand.gain))}`, tone: grand.gain >= 0 ? 'gain' : 'loss' },
+            { label: 'Overall return', value: `${grand.gainPct >= 0 ? '' : '−'}${Math.abs(grand.gainPct).toFixed(2)}%`, tone: grand.gainPct >= 0 ? 'gain' : 'loss' },
+            { label: 'Assets with holdings', value: `${loadedCount} of ${assets.length}` },
+          ]}
+        />
+        {allocation}
+      </aside>
 
-              {/* Legend */}
-              <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 mt-3">
-                {pieData.map((entry, i) => (
-                  <div key={i} className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color }} />
-                    <span className="text-xs text-gray-300">{entry.name}</span>
-                    <span className="text-xs text-gray-500">{pieTotal > 0 ? ((entry.value / pieTotal) * 100).toFixed(1) : 0}%</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="h-[290px] flex flex-col items-center justify-center text-gray-500 gap-3">
-              <svg className="animate-spin h-6 w-6 text-primary" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-              </svg>
-              <p className="text-sm">Loading assets…</p>
-            </div>
-          )}
-        </div>
-
-        {/* Asset Breakdown Table */}
-        <div className="lg:col-span-3 bg-gray-900/70 border border-gray-700/50 rounded-2xl p-6">
-          <h3 className="text-sm font-semibold text-gray-200 uppercase tracking-wide">Asset Breakdown</h3>
-          <p className="text-xs text-gray-500 mt-0.5 mb-4">click any row to view details</p>
-          <div>
-            {/* Header */}
-            <div className="grid grid-cols-12 text-xs text-gray-500 uppercase tracking-wide pb-3 border-b border-gray-800/80">
-              <span className="col-span-4">Asset</span>
-              <span className="col-span-3 text-right">Invested</span>
-              <span className="col-span-3 text-right">Current</span>
-              <span className="col-span-2 text-right">Return</span>
-            </div>
-            {/* Rows */}
+      <div className={`min-w-0 space-y-10 ${PANE}`}>
+        {/* Assets: Vercel's project cards, each opening its page */}
+        <section aria-labelledby="accounts-h">
+          <div className="flex items-baseline justify-between mb-3">
+            <h2 id="accounts-h" className="text-[20px] leading-[28px] text-ink">Assets</h2>
+            <span className="font-mono text-[12px] text-muted">{loadedCount} of {assets.length} with holdings</span>
+          </div>
+          <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {assets.map(a => {
+              const Icon = ASSET_ICON[a.id];
+              const share = grand.current > 0 && a.hasData ? (a.current / grand.current) * 100 : 0;
+              const up = a.returnPercent >= 0;
               return (
                 <button
                   key={a.id}
+                  type="button"
                   onClick={() => onNavigate(a.id)}
-                  className="grid grid-cols-12 w-full text-left items-center py-3.5 px-2 -mx-2 rounded-xl hover:bg-gray-800/50 active:bg-gray-700/50 transition-colors cursor-pointer"
+                  className="card group p-5 text-left flex flex-col gap-4 cursor-pointer transition-shadow hover:shadow-[0_0_0_1px_var(--c-line-strong),var(--c-shadow-float)]"
                 >
-                  <span className="col-span-4 flex items-center gap-2 text-sm font-medium text-white">
-                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color }} />
-                    <span className="truncate">{a.label}</span>
+                  <span className="flex items-center gap-3">
+                    <span className="asset-plate" aria-hidden="true"><Icon className="w-4 h-4" style={{ color: a.color }} strokeWidth={2} /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14px] font-medium text-ink">{a.label}</span>
+                      <span className="block font-mono text-[12px] text-muted">{a.hasData ? `${share.toFixed(1)}% of portfolio` : (isLoading ? 'loading…' : 'no holdings')}</span>
+                    </span>
                     {isLoading && <Spinner />}
                   </span>
-                  <span className="col-span-3 text-right text-sm text-gray-300">
-                    {a.hasData ? fmt(a.invested) : <span className="text-gray-600">{isLoading ? '…' : '—'}</span>}
+                  <span>
+                    <span className="block text-[24px] font-semibold tracking-[-0.03em] text-ink num">{a.hasData ? fmt(a.current) : '—'}</span>
+                    {a.hasData && (
+                      <span className="block mt-0.5 text-[13px] text-body"><span className={`num ${up ? 'text-gain' : 'text-loss'}`}>{up ? '+' : '−'}{Math.abs(a.returnPercent).toFixed(1)}%</span> on <span className="num">{fmt(a.invested)}</span></span>
+                    )}
                   </span>
-                  <span className="col-span-3 text-right text-sm font-medium text-primary">
-                    {a.hasData ? fmt(a.current) : <span className="text-gray-600">{isLoading ? '…' : '—'}</span>}
-                  </span>
-                  <span className={`col-span-2 text-right text-sm font-bold ${a.hasData ? (a.returnPercent >= 0 ? 'text-emerald-400' : 'text-red-400') : 'text-gray-600'}`}>
-                    {a.hasData
-                      ? `${a.returnPercent >= 0 ? '' : '-'}${Math.abs(a.returnPercent).toFixed(1)}%`
-                      : (isLoading ? '…' : '—')
-                    }
+                  <span className="mt-auto pt-4 border-t border-line flex items-center justify-between">
+                    <span className="h-1 flex-1 mr-4 rounded-full bg-surface-strong overflow-hidden"><span className="block h-full rounded-full" style={{ width: `${share}%`, backgroundColor: a.color }} /></span>
+                    <span className="inline-flex items-center gap-1 font-mono text-[12px] text-muted group-hover:text-ink transition-colors">Open <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={1.75} aria-hidden="true" /></span>
                   </span>
                 </button>
               );
             })}
-            {/* Total row */}
-            {loadedCount > 0 && (
-              <div className="grid grid-cols-12 items-center pt-3 mt-1 border-t border-gray-700/80">
-                <span className="col-span-4 text-xs text-gray-400 uppercase tracking-wide font-semibold pl-2">Total</span>
-                <span className="col-span-3 text-right text-sm font-bold text-white">{fmt(grand.invested)}</span>
-                <span className="col-span-3 text-right text-sm font-bold text-primary">{fmt(grand.current)}</span>
-                <span className={`col-span-2 text-right text-sm font-bold ${grand.gainPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {grand.gainPct >= 0 ? '' : '-'}{Math.abs(grand.gainPct).toFixed(1)}%
-                </span>
-              </div>
-            )}
           </div>
-        </div>
-      </div>
+        </section>
 
-      {/* ── Invested vs Current Bar Chart ─────────────────────────────────────── */}
-      {barData.length > 0 && (
-        <div className="bg-gray-900/70 border border-gray-700/50 rounded-2xl p-6">
-          <h3 className="text-sm font-semibold text-gray-200 uppercase tracking-wide">Invested vs Current Value</h3>
-          <p className="text-xs text-gray-500 mt-0.5 mb-6">per asset class</p>
-          <ResponsiveContainer width="100%" height={230}>
-            <BarChart data={barData} barGap={4} barCategoryGap="35%">
-              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
-              <XAxis
-                dataKey="name"
-                tick={{ fill: '#9ca3af', fontSize: 12 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tickFormatter={(v) =>
-                  v >= 1e5 ? `${(v / 1e5).toFixed(0)}L`
-                  : v >= 1000 ? `${(v / 1000).toFixed(0)}K`
-                  : v
-                }
-                tick={{ fill: '#9ca3af', fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-                width={45}
-              />
-              <Tooltip content={<BarTooltipContent />} cursor={{ fill: 'rgba(255,255,255,0.02)' }} />
-              <Legend
-                iconType="rect"
-                iconSize={10}
-                formatter={(v) => <span className="text-xs text-gray-400">{v}</span>}
-              />
-              <Bar dataKey="Invested" fill="#4b5563" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="Current" fill="#10b981" radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+        {barData.length > 0 && (
+          <section aria-labelledby="growth-h">
+            <div className="flex items-baseline justify-between mb-3">
+              <h2 id="growth-h" className="text-[20px] leading-[28px] text-ink">Invested and current value</h2>
+              <span className="font-mono text-[12px] text-muted">per asset class</span>
+            </div>
+            <div className="card p-5 md:p-6">
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={barData} barGap={4} barCategoryGap="38%">
+                  <CartesianGrid stroke={palette.grid} vertical={false} />
+                  <XAxis dataKey="name" tick={{ fill: palette.tick, fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <YAxis
+                    tickFormatter={(v) => v >= 1e5 ? `${(v / 1e5).toFixed(0)}L` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v}
+                    tick={{ fill: palette.tick, fontSize: 12, fontFamily: "Geist Mono, monospace" }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={44}
+                  />
+                  <Tooltip content={<BarTooltipContent />} cursor={{ fill: 'color-mix(in oklab, var(--c-ink) 5%, transparent)' }} />
+                  <Legend iconType="circle" iconSize={8} formatter={(v) => <span className="text-[13px] text-body">{v}</span>} />
+                  <Bar dataKey="Invested" fill={palette.muted} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Current" fill={palette.primary} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+        )}
+      </div>
     </div>
   );
 }

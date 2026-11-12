@@ -1,3 +1,7 @@
+import { useTheme, chartPalette } from '../../hooks/useTheme';
+import { PANE } from './ScrollPane';
+import SummaryPanel from './SummaryPanel';
+import ChartTooltip from './ChartTooltip';
 import React, { useMemo, useRef, useEffect } from 'react';
 import { AlertCircle } from 'lucide-react';
 import {
@@ -15,46 +19,30 @@ import {
 
 // Width (px) allotted to each month in the scrollable bar chart
 const MONTH_SLOT_PX = 92;
-// ─── Custom Tooltip for Bar Chart ─────────────────────────────────────────────
-const BarTooltip = ({ active, payload, label }) => {
+// ─── Tooltips (shared ChartTooltip) ───────────────────────────────────────────
+const BarTooltip = ({ active, payload, label, colors }) => {
   if (!active || !payload?.length) return null;
   const sip = payload.find((p) => p.dataKey === 'sipAmount')?.value ?? 0;
   const ls = payload.find((p) => p.dataKey === 'lumpsumAmount')?.value ?? 0;
-  return (
-    <div className="bg-gray-900 border border-gray-700 rounded-lg p-3 text-sm shadow-xl">
-      <p className="font-semibold text-white mb-2">{label}</p>
-      {sip > 0 && (
-        <p className="text-emerald-400">
-          SIP: ₹{sip.toLocaleString('en-IN')}
-        </p>
-      )}
-      {ls > 0 && (
-        <p className="text-primary">
-          Lumpsum: ₹{ls.toLocaleString('en-IN')}
-        </p>
-      )}
-      <p className="text-white mt-1 border-t border-gray-700 pt-1">
-        Total: ₹{(sip + ls).toLocaleString('en-IN')}
-      </p>
-    </div>
-  );
+  const rows = [];
+  if (sip > 0) rows.push({ color: colors?.series[0], label: 'SIP', value: `₹${sip.toLocaleString('en-IN')}` });
+  if (ls > 0) rows.push({ color: colors?.series[1], label: 'Lump sum', value: `₹${ls.toLocaleString('en-IN')}` });
+  return <ChartTooltip title={label} rows={rows} footer={rows.length > 1 ? { label: 'Total', value: `₹${(sip + ls).toLocaleString('en-IN')}` } : null} />;
 };
 
-// ─── Custom Tooltip for Line Chart ────────────────────────────────────────────
-const LineTooltip = ({ active, payload, label }) => {
+const LineTooltip = ({ active, payload, label, colors }) => {
   if (!active || !payload?.length) return null;
-  const commitment = payload[0]?.value ?? 0;
+  const point = payload[0]?.payload ?? {};
+  const value = payload[0]?.value ?? 0;
   return (
-    <div className="bg-gray-900 border border-gray-700 rounded-lg p-3 text-sm shadow-xl">
-      <p className="font-semibold text-white mb-1">{label}</p>
-      <p className="text-emerald-400">
-        Monthly SIP: ₹{commitment.toLocaleString('en-IN')}
-      </p>
-    </div>
+    <ChartTooltip
+      title={label}
+      subtitle={point.isRevision ? 'SIP revised this month' : null}
+      rows={[{ color: colors?.series[0], label: 'Monthly SIP', value: `₹${value.toLocaleString('en-IN')}` }]}
+    />
   );
 };
 
-// ─── Y-axis tick formatter ─────────────────────────────────────────────────────
 const formatY = (v) =>
   v >= 1000 ? `₹${(v / 1000).toFixed(0)}K` : `₹${v}`;
 
@@ -68,8 +56,8 @@ const RevisionDot = (props) => {
       cx={cx}
       cy={cy}
       r={5}
-      fill="oklch(76.5% 0.177 163.223)"
-      stroke="#1f2937"
+      fill={props.color}
+      stroke={props.ring}
       strokeWidth={2}
     />
   );
@@ -85,7 +73,7 @@ const RoundedBar = (props) => {
   const isBothPresent = hasLumpsum && hasSIP;
 
   // Determine which bar this is based on fill color
-  const isSIP = fill === 'oklch(76.5% 0.177 163.223)';
+  const isSIP = Boolean(props.isSIP);
 
   let radius = 4;
   let topLeftRadius = 0, topRightRadius = 0, bottomLeftRadius = 0, bottomRightRadius = 0;
@@ -131,6 +119,8 @@ const RoundedBar = (props) => {
 };
 
 const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) => {
+  const { theme } = useTheme();
+  const pal = chartPalette(theme);
   const scrollRef = useRef(null);
 
   // ── Derived data ───────────────────────────────────────────────────────────
@@ -181,7 +171,7 @@ const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) =
   // ── Loading / error states ─────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-24 text-gray-400">
+      <div className="flex items-center justify-center py-24 text-ink-2">
         <svg className="animate-spin h-6 w-6 mr-3 text-primary" viewBox="0 0 24 24" fill="none">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
@@ -194,11 +184,11 @@ const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) =
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-4">
-        <AlertCircle className="w-10 h-10 text-red-400" />
-        <p className="text-red-400">{error}</p>
+        <AlertCircle className="w-10 h-10 text-loss" />
+        <p className="text-loss">{error}</p>
         <button
           onClick={onRefresh}
-          className="px-4 py-2 bg-primary hover:bg-primary/80 text-white rounded-lg transition-colors cursor-pointer"
+          className="pill pill-primary"
         >
           Retry
         </button>
@@ -208,45 +198,41 @@ const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) =
 
   if (!months.length) {
     return (
-      <div className="text-center py-24 text-gray-500">
+      <div className="text-center py-24 text-slate">
         No investment data available.
       </div>
     );
   }
 
+  const revisions = commitmentData.filter((p) => p.isRevision);
+
   return (
-    <div className="space-y-8">
-      <h2 className="text-2xl font-bold text-primary">Investment Timeline</h2>
+    <div className="grid lg:grid-cols-[300px_minmax(0,1fr)] gap-6 lg:gap-8 items-start">
+      <aside className="lg:sticky lg:top-[calc(var(--head-h,0px)+32px)] lg:max-h-[calc(100vh-var(--head-h,0px)-64px)] lg:overflow-y-auto [scrollbar-width:none] lg:p-px lg:-m-px">
+        <SummaryPanel
+          label="Total invested"
+          value={`₹${Math.round(totalInvested).toLocaleString('en-IN')}`}
+          rows={[
+            { label: 'Via SIP', value: `₹${(totalSIP / 100000).toFixed(2)}L` },
+            { label: 'Via lump sum', value: `₹${(totalLumpsum / 100000).toFixed(2)}L` },
+            { label: 'Monthly SIP now', value: `₹${Math.round(currentMonthlyCommitment).toLocaleString('en-IN')}` },
+            { label: 'Months tracked', value: `${months.length}` },
+          ]}
+        />
+      </aside>
 
-      {/* ── Summary Cards ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Total Invested', value: `₹${(totalInvested / 100000).toFixed(2)}L`, color: 'text-primary' },
-          { label: 'Via SIP', value: `₹${(totalSIP / 100000).toFixed(2)}L`, color: 'text-emerald-400' },
-          { label: 'Via Lumpsum', value: `₹${(totalLumpsum / 100000).toFixed(2)}L`, color: 'text-blue-400' },
-          { label: 'Monthly SIP Now', value: `₹${(currentMonthlyCommitment / 1000).toFixed(1).toLocaleString('en-IN')}K`, color: 'text-amber-400' },
-        ].map(({ label, value, color }) => (
-          <div
-            key={label}
-            className="bg-gray-900/70 backdrop-blur-xl border border-gray-700/50 rounded-xl p-4"
-          >
-            <p className="text-xs text-slate-500 mb-1">{label}</p>
-            <p className={`text-xl font-bold ${color}`}>{value}</p>
-          </div>
-        ))}
-      </div>
-
+      <div className={`min-w-0 space-y-10 ${PANE}`}>
       {/* ── Stacked Bar Chart ──────────────────────────────────────────────── */}
-      <div className="bg-gray-900/70 backdrop-blur-xl border border-gray-700/50 rounded-xl p-4 sm:p-6">
-        <div className="flex items-center justify-between gap-3 mb-4 sm:mb-6">
-          <div>
-            <h3 className="text-lg font-semibold text-primary">Monthly Investments</h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {months.length} months · scroll sideways for earlier history
-            </p>
-          </div>
-
-        </div>
+      <section aria-labelledby="monthly-h">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 mb-3">
+        <h2 id="monthly-h" className="text-[20px] leading-[28px] text-ink">Monthly investments</h2>
+        <span className="flex items-center gap-4 font-mono text-[12px] text-muted">
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px]" style={{ background: pal.series[0] }} aria-hidden="true" />sip</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px]" style={{ background: pal.series[1] }} aria-hidden="true" />lump sum</span>
+          <span>{months.length} months · scroll for history</span>
+        </span>
+      </div>
+      <div className="card p-4 sm:p-5">
 
         <div ref={scrollRef} className="overflow-x-auto pb-2">
         <div style={{ minWidth: Math.max(months.length * MONTH_SLOT_PX, 320), height: 300 }}>
@@ -256,32 +242,32 @@ const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) =
             margin={{ top: 4, right: 8, left: 0, bottom: 4 }}
             maxBarSize={48}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke={pal.grid} vertical={false} />
             <XAxis
               dataKey="label"
-              tick={{ fill: '#9ca3af', fontSize: 11 }}
+              tick={{ fill: pal.tick, fontSize: 11 }}
               axisLine={false}
               tickLine={false}
             />
             <YAxis
               tickFormatter={formatY}
-              tick={{ fill: '#9ca3af', fontSize: 11 }}
+              tick={{ fill: pal.tick, fontSize: 11 }}
               axisLine={false}
               tickLine={false}
               width={48}
             />
-            <Tooltip content={<BarTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+            <Tooltip content={<BarTooltip colors={pal} />} cursor={{ fill: 'color-mix(in oklab, var(--c-ink) 5%, transparent)' }} />
             <Bar
               dataKey="sipAmount"
               stackId="a"
-              fill="oklch(76.5% 0.177 163.223)"
-              shape={<RoundedBar />}
+              fill={pal.series[0]}
+              shape={<RoundedBar isSIP />}
               name="sipAmount"
             />
             <Bar
               dataKey="lumpsumAmount"
               stackId="a"
-              fill="#644ff0"
+              fill={pal.series[1]}
               shape={<RoundedBar />}
               name="lumpsumAmount"
             />
@@ -290,80 +276,84 @@ const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) =
         </div>
         </div>
 
-        <div className="flex gap-4 mt-3 text-xs text-slate-500">
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm inline-block" style={{ background: "oklch(76.5% 0.177 163.223)" }} /> SIP payments
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-primary inline-block" /> Lumpsum investments
-          </span>
-        </div>
       </div>
+      </section>
 
       {/* ── SIP Commitment Line Chart ──────────────────────────────────────── */}
-      <div className="bg-gray-900/70 backdrop-blur-xl border border-gray-700/50 rounded-xl p-6">
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold text-primary">Monthly SIP Commitment Over Time</h3>
-          <p className="text-xs text-slate-500 mt-0.5">
-            How much you committed to invest each month — dots mark revisions when new SIPs were added
-          </p>
-        </div>
+      <section aria-labelledby="commit-h">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 mb-3">
+        <h2 id="commit-h" className="text-[20px] leading-[28px] text-ink">SIP commitment</h2>
+        <span className="font-mono text-[12px] text-muted">monthly · dots mark revisions</span>
+      </div>
+      <div className="card p-4 sm:p-5">
 
         <ResponsiveContainer width="100%" height={280}>
           <LineChart
             data={commitmentRevisionData}
             margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke={pal.grid} vertical={false} />
             <XAxis
               dataKey="label"
-              tick={{ fill: '#9ca3af', fontSize: 10 }}
+              tick={{ fill: pal.tick, fontSize: 10 }}
               axisLine={false}
               tickLine={false}
               interval={0}
+              padding={{ left: 28, right: 28 }}
             />
             <YAxis
               tickFormatter={formatY}
-              tick={{ fill: '#9ca3af', fontSize: 11 }}
+              tick={{ fill: pal.tick, fontSize: 11 }}
               axisLine={false}
               tickLine={false}
               width={56}
             />
-            <Tooltip content={<LineTooltip />} cursor={{ stroke: '#6b7280', strokeWidth: 1 }} />
+            <Tooltip content={<LineTooltip colors={pal} />} cursor={{ stroke: pal.muted, strokeWidth: 1, strokeDasharray: '4 4' }} />
             <Line
               type="monotone"
               dataKey="monthlyCommitment"
-              stroke="#10b981"
+              stroke={pal.series[0]}
               strokeWidth={2}
-              dot={<RevisionDot />}
-              activeDot={{ r: 5, fill: '#10b981', stroke: '#1f2937', strokeWidth: 2 }}
+              dot={<RevisionDot color={pal.series[0]} ring={pal.surface} />}
+              activeDot={{ r: 5, fill: pal.series[0], stroke: pal.surface, strokeWidth: 2 }}
               name="Monthly SIP Commitment"
             />
           </LineChart>
         </ResponsiveContainer>
 
-        {/* Revision annotations */}
-        {commitmentData.filter((p) => p.isRevision).length > 0 && (
-          <div className="mt-4 pt-4 border-t border-gray-700/50">
-            <p className="text-xs text-slate-500 mb-2">Revisions (SIP changes)</p>
-            <div className="flex flex-wrap gap-3">
-              {commitmentData
-                .filter((p) => p.isRevision)
-                .map((p) => (
-                  <div
-                    key={p.month}
-                    className="flex items-center gap-2 text-xs bg-gray-800 rounded-lg px-3 py-1.5 border border-gray-700"
-                  >
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block flex-shrink-0" />
-                    <span className="text-slate-300">{p.label}</span>
-                    <span className="text-emerald-400 font-semibold">
-                      ₹{p.monthlyCommitment.toLocaleString('en-IN')}/mo
-                    </span>
-                  </div>
-                ))}
-            </div>
+      </div>
+      </section>
+
+      {revisions.length > 0 && (
+        <section aria-labelledby="rev-h">
+          <div className="flex items-baseline justify-between mb-3">
+            <h2 id="rev-h" className="text-[20px] leading-[28px] text-ink">SIP revisions</h2>
+            <span className="font-mono text-[12px] text-muted">{revisions.length} changes</span>
           </div>
-        )}
+          <ul className="card overflow-hidden divide-y divide-line">
+            {revisions.slice().reverse().map((p, i, list) => {
+              const prev = list[i + 1]?.monthlyCommitment ?? 0;
+              const diff = p.monthlyCommitment - prev;
+              const pctChange = prev > 0 ? (diff / prev) * 100 : null;
+              return (
+                <li key={p.month} className="flex items-center gap-3 px-4 md:px-5 h-12">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${diff >= 0 ? 'bg-gain' : 'bg-loss'}`} aria-hidden="true" />
+                  <span className="flex-1 font-mono text-[13px] text-body">{p.label}</span>
+                  {pctChange == null ? (
+                    <span className="text-[13px] text-muted whitespace-nowrap">First SIP</span>
+                  ) : (
+                    <span className={`flex items-center gap-2 num text-[13px] whitespace-nowrap ${diff >= 0 ? 'text-gain' : 'text-loss'}`}>
+                      <span>{diff >= 0 ? '+' : '−'}₹{Math.abs(diff).toLocaleString('en-IN')}</span>
+                      <span className="opacity-80">({diff >= 0 ? "↑" : "↓"} {Math.abs(pctChange).toFixed(1)}%)</span>
+                    </span>
+                  )}
+                  <span className="w-28 text-right num text-[14px] text-ink">₹{p.monthlyCommitment.toLocaleString('en-IN')}<span className="text-muted text-[12px] font-normal">/mo</span></span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
       </div>
     </div>
   );

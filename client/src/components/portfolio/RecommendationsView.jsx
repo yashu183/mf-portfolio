@@ -1,5 +1,33 @@
 import React, { useState } from 'react';
-import { CheckCircle, Target, RefreshCw, AlertCircle, Settings, Info } from 'lucide-react';
+import { RefreshCw, AlertCircle, Sparkles, ChevronRight } from 'lucide-react';
+import SummaryPanel from './SummaryPanel';
+import ToArrow from './ToArrow';
+import ScrollPane from './ScrollPane';
+
+const inr = (v) => `₹${(v ?? 0).toLocaleString('en-IN')}`;
+const shortName = (name) => (name || 'Unknown fund')
+  .replace('Fund', '').replace('Aditya Birla Sun Life', 'Aditya Birla').replace('ICICI Prudential', 'ICICI').replace('Nippon India', 'Nippon')
+  .split('-')[0].trim();
+
+// The plan's verdict for one fund, as Vercel shows a state: a dot and a word.
+const verdictOf = (plan) => {
+  const stop = plan.stop || plan.change === 'STOP';
+  const add = plan.add || plan.change === 'ADD';
+  const diff = (plan.revised || 0) - (plan.current || 0);
+  if (stop) return { label: 'Stop', dot: 'bg-loss', tone: 'text-loss', revised: 0 };
+  if (add) return { label: 'Add', dot: 'bg-gain', tone: 'text-gain', revised: plan.revised || 0 };
+  if (plan.change === 'Monitor') return { label: 'Monitor', dot: 'bg-link', tone: 'text-ink', revised: plan.revised || 0 };
+  if (diff > 0) return { label: `+${inr(diff)}`, dot: 'bg-gain', tone: 'text-gain', revised: plan.revised || 0 };
+  if (diff < 0) return { label: `−${inr(-diff)}`, dot: 'bg-warn', tone: 'text-warn', revised: plan.revised || 0 };
+  return { label: 'Keep', dot: 'bg-muted', tone: 'text-ink', revised: plan.revised || 0 };
+};
+
+const Note = ({ tone = 'warn', children }) => (
+  <div className={`flex items-start gap-2 rounded-md px-3 py-2.5 text-[13px] shadow-[inset_0_0_0_1px_currentColor] ${tone === 'error' ? 'text-loss bg-loss/[0.06]' : tone === 'info' ? 'text-link bg-link/[0.06]' : 'text-warn bg-warn/[0.06]'}`}>
+    <AlertCircle className="w-4 h-4 mt-px shrink-0" aria-hidden="true" />
+    <span>{children}</span>
+  </div>
+);
 
 const RecommendationsView = ({
   recommendations,
@@ -9,357 +37,177 @@ const RecommendationsView = ({
   recommendationError,
   serviceAvailable,
   onRefreshRecommendations,
-  onCheckHealth
+  onCheckHealth,
+  toolbar = null,
 }) => {
-  const [hoveredReason, setHoveredReason] = useState(null);
+  const [openIdx, setOpenIdx] = useState(null);
 
-  // Filter recommendations based on filtered funds
-  const getFilteredRecommendations = () => {
-    if (!recommendations || !filteredFunds || !allFunds || filteredFunds.length === allFunds.length) {
-      return recommendations;
-    }
+  // Narrow the revised plan to the funds the toolbar filters leave
+  const filtersApplied = filteredFunds && allFunds && filteredFunds.length < allFunds.length;
+  const names = new Set((filteredFunds || []).flatMap((f) => [f.name, f.shortName]));
+  const plan = (recommendations?.revisedPlan || []).filter((p) => !filtersApplied || names.has(p.name));
+  const newInvestments = recommendations?.newInvestments || [];
 
-    // Create a set of filtered fund names for quick lookup
-    const filteredFundNames = new Set(
-      filteredFunds.flatMap(f => [f.name, f.shortName])
-    );
-
-    return {
-      ...recommendations,
-      revisedPlan: recommendations.revisedPlan?.filter(plan => {
-        // Check if plan name matches any filtered fund name or short name
-        return filteredFundNames.has(plan.name);
-      }),
-    };
-  };
-
-  const filteredRecommendations = getFilteredRecommendations();
-  const hasFiltersApplied = filteredFunds && allFunds && filteredFunds.length < allFunds.length;
+  const currentTotal = (recommendations?.revisedPlan || []).reduce((t, p) => t + (p.current || 0), 0);
+  const revisedTotal = (recommendations?.revisedPlan || []).reduce((t, p) => t + verdictOf(p).revised, 0);
+  const delta = revisedTotal - currentTotal;
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Header - Responsive */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <h2 className="text-xl sm:text-2xl font-bold text-primary">
-          AI-Powered Investment Recommendations
-        </h2>
-        <div className="flex items-center gap-3">
-          <div className={`flex items-center gap-1 text-xs ml-auto ${serviceAvailable ? 'text-green-400' : 'text-red-400'}`}>
-            <div className={`w-2 h-2 rounded-full ${serviceAvailable ? 'bg-green-400' : 'bg-red-400'}`}></div>
-            <span className="sm:inline">{serviceAvailable ? 'Service Online' : 'Service Offline'}</span>
-          </div>
-          <button
-            onClick={onRefreshRecommendations}
-            disabled={isLoadingRecommendations || !serviceAvailable}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg hover:opacity-80 transition-colors text-sm disabled:opacity-50 cursor-pointer bg-primary/[0.12] border border-primary/30 text-primary"
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoadingRecommendations ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">{isLoadingRecommendations ? 'Generating...' : 'Refresh Analysis'}</span>
-            <span className="sm:hidden">Refresh</span>
-          </button>
-        </div>
-      </div>
+    <div className="grid lg:grid-cols-[300px_minmax(0,1fr)] gap-6 lg:gap-8 items-start">
+      <aside className="space-y-4 lg:sticky lg:top-[calc(var(--head-h,0px)+32px)] lg:max-h-[calc(100vh-var(--head-h,0px)-64px)] lg:overflow-y-auto [scrollbar-width:none] lg:p-px lg:-m-px">
+        <SummaryPanel
+          label="Revised monthly SIP"
+          value={recommendations ? inr(revisedTotal) : '—'}
+          change={recommendations && delta !== 0 ? `${inr(Math.abs(delta))} vs today` : null}
+          changeTone={delta >= 0 ? 'gain' : 'loss'}
+          rows={[
+            { label: 'Current SIP', value: recommendations ? inr(currentTotal) : '—' },
+            { label: 'Funds in plan', value: `${plan.length}` },
+            { label: 'New funds', value: `${newInvestments.length}` },
+          ]}
+        />
 
-      {/* Service Status */}
-      {!serviceAvailable && (
-        <div className="p-4 bg-orange-900/20 border border-orange-500/30 rounded-lg">
-          <div className="flex items-center gap-2 text-orange-400">
-            <AlertCircle className="w-4 h-4" />
-            <span className="text-sm font-medium">Recommendation Service Offline</span>
+        <section className="card p-5 space-y-3" aria-labelledby="claude-h">
+          <div className="flex items-center justify-between">
+            <p id="claude-h" className="eyebrow flex items-center gap-2"><Sparkles className="w-3.5 h-3.5" aria-hidden="true" /> Claude</p>
+            <span className="inline-flex items-center gap-1.5 text-[12px] text-body">
+              <span className={`w-2 h-2 rounded-full ${serviceAvailable ? 'bg-gain' : 'bg-loss'}`} aria-hidden="true" />
+              {serviceAvailable ? 'Online' : 'Offline'}
+            </span>
           </div>
-          <p className="text-xs text-orange-300 mt-1">
-            The AI recommendation service is currently unavailable. Your portfolio data is still accessible in other tabs.
-          </p>
-        </div>
-      )}
-
-      {/* Loading State */}
-      {isLoadingRecommendations && (
-        <div className="flex items-center justify-center py-12">
-          <div className="flex items-center gap-3 text-primary">
-            <RefreshCw className="w-6 h-6 animate-spin" />
-            <span className="text-lg">Analyzing your portfolio with AI...</span>
-          </div>
-        </div>
-      )}
-
-      {/* Error State */}
-      {recommendationError && (
-        <div className="p-4 bg-red-900/20 border border-red-500/30 rounded-lg">
-          <div className="flex items-center gap-2 text-red-400">
-            <AlertCircle className="w-5 h-5" />
-            <span>{recommendationError}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Service Unavailable Full State */}
-      {!serviceAvailable && !isLoadingRecommendations && (
-        <div className="text-center py-12">
-          <div className="text-gray-400">
-            <Settings className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <h3 className="text-xl font-bold mb-2">Service Temporarily Unavailable</h3>
-            <p className="mb-4">AI recommendation service is currently offline</p>
-            <button
-              onClick={onCheckHealth}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors cursor-pointer"
-            >
-              Check Service Status
+          {isLoadingRecommendations ? (
+            <p className="flex items-center gap-2 text-[14px] text-body"><RefreshCw className="w-4 h-4 animate-spin" aria-hidden="true" /> Analysing your portfolio…</p>
+          ) : recommendations?.resultMessage ? (
+            <p className="text-[14px] leading-[22px] text-body">{recommendations.resultMessage}</p>
+          ) : null}
+          {recommendationError && <Note tone="error">{recommendationError}</Note>}
+          {serviceAvailable ? (
+            <button type="button" onClick={onRefreshRecommendations} disabled={isLoadingRecommendations} className="pill pill-secondary w-full">
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoadingRecommendations ? 'animate-spin' : ''}`} aria-hidden="true" />
+              {isLoadingRecommendations ? 'Analysing' : 'Refresh analysis'}
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Show dynamic recommendations when available */}
-      {filteredRecommendations && !isLoadingRecommendations && (
-        <div className="space-y-4 sm:space-y-6">
-          {/* New Investments */}
-          {filteredRecommendations.newInvestments && filteredRecommendations.newInvestments.length > 0 && (
-            <div className="bg-gradient-to-br from-emerald-900/30 to-emerald-800/10 backdrop-blur-xl border border-emerald-700/30 rounded-xl p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400" />
-                  <h3 className="text-lg sm:text-xl font-bold text-emerald-400">AI Recommended New Investments</h3>
-                </div>
-              </div>
-              <div className="space-y-4">
-                {filteredRecommendations.newInvestments.map((investment, idx) => (
-                  <div key={idx} className="bg-slate-800/30 border border-emerald-700/20 rounded-lg p-3 sm:p-4">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
-                      <div>
-                        <h4 className="font-bold text-white mb-1">{investment.name}</h4>
-                        <p className="text-sm text-slate-400">{investment.category}</p>
-                      </div>
-                      <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-xs sm:text-sm ml-auto font-semibold w-fit">
-                        AI Recommended
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-3">
-                      <div>
-                        <p className="text-xs sm:text-sm text-slate-400">Suggested SIP</p>
-                        <p className="text-base sm:text-lg font-bold text-emerald-400">₹{investment.suggestedSip?.toLocaleString('en-IN') || 'N/A'}/mo</p>
-                      </div>
-                      <div>
-                        <p className="text-xs sm:text-sm text-slate-400">Expected Returns</p>
-                        <p className="text-base sm:text-lg font-bold text-primary">{investment.expectedReturns || 'N/A'}</p>
-                      </div>
-                    </div>
-                    <p className="text-xs sm:text-sm text-slate-300 mb-2">
-                      <strong>Why:</strong> {investment.reason}
-                    </p>
-                    {investment.alternatives && (
-                      <p className="text-xs text-slate-500">Alternatives: {investment.alternatives}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+          ) : (
+            <button type="button" onClick={onCheckHealth} className="pill pill-secondary w-full">Check service</button>
           )}
+        </section>
 
-          {/* Revised Plan for Existing Funds */}
-          {filteredRecommendations.revisedPlan && filteredRecommendations.revisedPlan.length > 0 && (
-            <>
-              {/* Filter notice - only shown above Revised Plan */}
-              {hasFiltersApplied && (
-                <div className="p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg mb-4">
-                  <div className="flex items-center gap-2 text-blue-400">
-                    <Info className="w-4 h-4" />
-                    <span className="text-sm font-medium">
-                      Showing recommendations for {filteredFunds.length} of {allFunds.length} funds based on active filters
-                    </span>
-                  </div>
-                </div>
-              )}
+        <p className="px-1 text-[12px] leading-[18px] text-muted">
+          AI-generated suggestions for information only, not financial advice. Past performance does not guarantee future results.
+        </p>
+      </aside>
 
-              <div className="bg-gradient-to-br from-slate-900/50 to-slate-800/30 backdrop-blur-xl border border-slate-700/50 rounded-xl overflow-hidden">
-              {/* Header */}
-              <div className="border-b border-primary/30 px-4 sm:px-6 py-3 sm:py-4">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <Target className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
-                  <h3 className="text-base sm:text-xl font-bold text-primary">
-                    Revised Monthly SIP: ₹{
-                      filteredRecommendations.revisedPlan
-                        .reduce((total, plan) => {
-                          return total + (plan.stop || plan.change === 'STOP' ? 0 : plan.revised || 0);
-                        }, 0).toLocaleString('en-IN')
-                    }
-                  </h3>
-                </div>
+      <ScrollPane toolbar={toolbar}>
+      <div className="space-y-10">
+        {!serviceAvailable && !isLoadingRecommendations && (
+          <Note>The recommendation service is offline. Your portfolio data is still available in the other tabs.</Note>
+        )}
+
+        {/* Revised plan: Vercel's list, the reason opens in place */}
+        {plan.length > 0 && !isLoadingRecommendations && (
+          <section aria-labelledby="plan-h">
+            <div className="flex items-baseline justify-between mb-3">
+              <h2 id="plan-h" className="text-[20px] leading-[28px] text-ink">Revised SIP plan</h2>
+              <span className="font-mono text-[12px] text-muted">{inr(currentTotal)}<ToArrow />{inr(revisedTotal)}</span>
+            </div>
+            {filtersApplied && <div className="mb-3"><Note tone="info">Showing {plan.length} of {recommendations.revisedPlan.length} funds for the active filters.</Note></div>}
+            <div className="card overflow-hidden">
+              <div className="hidden md:grid grid-cols-[minmax(0,1fr)_100px_100px_120px_16px] gap-3 px-5 h-10 items-center border-b border-line bg-surface-strong/40" aria-hidden="true">
+                <span className="eyebrow">Fund</span>
+                <span className="eyebrow text-right">Current</span>
+                <span className="eyebrow text-right">Revised</span>
+                <span className="eyebrow">Change</span>
+                <span />
               </div>
-
-              {/* Table */}
-              <div className="px-4 sm:px-6 py-2">
-                {/* Table Header - Hidden on mobile */}
-                <div className="hidden sm:grid grid-cols-3 gap-4 p-3 border-b border-slate-600/30">
-                  <div className="text-sm text-white">Fund</div>
-                  <div className="text-sm text-slate-400">Current</div>
-                  <div className="text-sm font-semibold">Revised</div>
-                </div>
-
-                {/* Table Rows - Responsive */}
-                <div className="space-y-2 sm:space-y-1 text-sm">
-                  {filteredRecommendations.revisedPlan.map((plan, idx) => {
-                    const isIncrease = plan.change && (plan.change.includes('+') || typeof plan.change === 'string' && plan.change.match(/^\+/));
-                    const isDecrease = plan.change && (plan.change.includes('-') || typeof plan.change === 'string' && plan.change.match(/^-/));
-                    const shouldStop = plan.stop || plan.change === 'STOP';
-                    const shouldAdd = plan.add || plan.change === 'ADD';
-
-                    // Calculate change amount for display
-                    // let changeAmount = 0;
-                    // if (shouldStop) {
-                    //   changeAmount = plan.current;
-                    // } else if (shouldAdd) {
-                    //   changeAmount = plan.revised;
-                    // } else if (typeof plan.change === 'string' && (isIncrease || isDecrease)) {
-                    //   const match = plan.change.match(/[+-]?(\d+)/);
-                    //   changeAmount = match ? parseInt(match[1]) : Math.abs(plan.revised - plan.current);
-                    // } else {
-                      
-                    // }
-                    const changeAmount = Math.abs(plan.revised - plan.current);
-
-                    return (
-                      <div key={idx} className={`p-3 mb-2 sm:mb-3 rounded-lg border sm:grid sm:grid-cols-3 sm:gap-4 ${shouldStop ? 'bg-red-900/20 border-red-700/30' :
-                          shouldAdd ? 'bg-emerald-900/20 border-emerald-700/30' :
-                            'hover:bg-slate-800/30 border-transparent'
-                        }`}>
-                        {/* Mobile: Stacked layout, Desktop: Grid */}
-
-                        {/* Fund Name with Info Icon */}
-                        <div className="text-white flex items-center justify-between sm:justify-start gap-2 mb-2 sm:mb-0">
-                          <span className="font-medium">
-                            {plan.name?.replace('Fund', '').replace('Aditya Birla Sun Life', 'Aditya Birla').replace('ICICI Prudential', 'ICICI').replace('Nippon India', 'Nippon').split("-")[0] || 'Unknown Fund'}
-                          </span>
-                          {plan.reason && (
-                            <div className="relative inline-block">
-                              <Info
-                                className="w-4 h-4 text-slate-400 hover:text-primary cursor-help transition-colors flex-shrink-0"
-                                onMouseEnter={() => setHoveredReason(idx)}
-                                onMouseLeave={() => setHoveredReason(null)}
-                              />
-                              {hoveredReason === idx && (
-                                <div className="absolute left-0 sm:left-auto sm:right-0 top-6 z-50 w-72 p-3 bg-slate-900 border border-primary/30 rounded-lg shadow-xl text-xs text-slate-200 leading-relaxed">
-                                  <div className="text-primary font-semibold mb-1">Reason:</div>
-                                  {plan.reason}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Mobile: Stacked, Desktop: Grid cells */}
-                        <div className="space-y-1 sm:space-y-0 sm:contents">
-                          {/* Current */}
-                          <div className="sm:col-start-2">
-                            <span className="text-xs text-slate-400 sm:hidden">Current: </span>
-                            <span className={`${plan.current > 0 ? 'text-slate-300' : 'text-gray-500'}`}>
-                              {plan.current > 0 ? `₹${plan.current.toLocaleString('en-IN')}` : '—'}
-                            </span>
-                          </div>
-
-                          {/* Revised with change indicator */}
-                          <div className="sm:col-start-3 flex items-center gap-2">
-                            <span className="text-xs text-slate-400 sm:hidden">Revised: </span>
-                            <span className={`${shouldStop ? 'text-red-400' :
-                                shouldAdd ? 'text-emerald-400' :
-                                  isIncrease ? 'text-emerald-400' :
-                                    isDecrease ? 'text-orange-400' :
-                                      'text-slate-300'
-                              }`}>
-                              {shouldStop ? '₹0' : `₹${plan.revised?.toLocaleString('en-IN') || 0}`}
-                            </span>
-
-                            {shouldStop && changeAmount > 0 && (
-                              <span className="text-xs text-red-400">STOP</span>
-                            )}
-
-                            {shouldAdd && changeAmount > 0 && (
-                              <span className="text-xs text-emerald-400">ADD</span>
-                            )}
-
-                            {isIncrease && changeAmount > 0 && (
-                              <span className="text-xs text-emerald-400">
-                                (+₹{changeAmount.toLocaleString('en-IN')})
-                              </span>
-                            )}
-
-                            {isDecrease && changeAmount > 0 && (
-                              <span className="text-xs text-orange-400">
-                                (-₹{changeAmount.toLocaleString('en-IN')})
-                              </span>
-                            )}
-
-                            {plan.change === 'Monitor' && (
-                              <span className="text-xs text-blue-400">Monitor</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Total Row */}
-                <div className="mt-4 pt-4 border-t border-slate-600/50">
-                  <div className="flex justify-between sm:grid sm:grid-cols-3 sm:gap-4 px-3 mb-2 rounded-lg">
-                    <div className="font-bold text-primary">TOTAL</div>
-                    <div className="flex items-center gap-2 sm:contents">
-                      <span className="text-slate-300 font-bold">
-                        ₹{recommendations.revisedPlan.reduce((total, plan) => total + (plan.current || 0), 0).toLocaleString('en-IN')}
-                      </span>
-                      <span className="text-slate-500 text-xs sm:hidden">→</span>
-                      <span className="font-bold text-primary sm:col-start-3">
-                        ₹{recommendations.revisedPlan
-                          .reduce((total, plan) => {
-                            return total + (plan.stop || plan.change === 'STOP' ? 0 : plan.revised || 0);
-                          }, 0).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Result Summary */}
-                {recommendations.resultMessage && (
-                  <div className="my-4 p-3 sm:p-4 rounded-lg bg-primary/[0.06] border border-primary/20">
-                    <div className="flex items-start gap-2 sm:gap-3">
-                      <div className="flex-shrink-0 mt-0.5">
-                        <Target className="w-4 h-4 text-primary" />
-                      </div>
-                      <div className="text-xs sm:text-sm text-slate-200 leading-relaxed">
-                        {recommendations.resultMessage}
-                      </div>
-                    </div>
-                  </div>
-                )}
+              <ul className="divide-y divide-line">
+                {plan.map((p, idx) => {
+                  const v = verdictOf(p);
+                  const open = openIdx === idx;
+                  return (
+                    <li key={idx}>
+                      <button
+                        type="button"
+                        onClick={() => p.reason && setOpenIdx(open ? null : idx)}
+                        aria-expanded={p.reason ? open : undefined}
+                        className={`w-full text-left grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_100px_100px_120px_16px] gap-x-3 gap-y-1 items-center px-4 md:px-5 py-3.5 transition-colors ${p.reason ? 'cursor-pointer hover:bg-surface-strong/40' : ''} ${open ? 'bg-surface-strong/40' : ''}`}
+                      >
+                        <span className="min-w-0">
+                          <span className="block text-[14px] font-medium text-ink truncate">{shortName(p.name)}</span>
+                          {p.reason && <span className="block font-mono text-[12px] text-muted truncate">{open ? 'reason below' : p.reason.toLowerCase()}</span>}
+                        </span>
+                        <span className="md:hidden text-right">
+                          <span className="block num text-[14px] text-ink">{inr(p.current)}<ToArrow />{inr(v.revised)}</span>
+                          <span className="inline-flex items-center gap-1.5 text-[12px] text-body"><span className={`w-2 h-2 rounded-full ${v.dot}`} />{v.label}</span>
+                        </span>
+                        <span className="hidden md:block text-right num text-[14px] text-body">{p.current > 0 ? inr(p.current) : '—'}</span>
+                        <span className={`hidden md:block text-right num text-[14px] ${v.tone}`}>{inr(v.revised)}</span>
+                        <span className="hidden md:inline-flex items-center gap-1.5 text-[13px] text-body"><span className={`w-2 h-2 rounded-full ${v.dot}`} aria-hidden="true" /><span className="num">{v.label}</span></span>
+                        {p.reason ? <ChevronRight className={`hidden md:block w-4 h-4 text-muted transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden="true" /> : <span className="hidden md:block" />}
+                      </button>
+                      {open && <p className="px-4 md:px-5 py-4 bg-surface-strong/40 border-t border-line text-[14px] leading-[22px] text-body">{p.reason}</p>}
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="flex items-center justify-between gap-3 px-4 md:px-5 h-12 border-t border-line bg-surface-strong/40">
+                <span className="text-[14px] font-medium text-ink">Total</span>
+                <span className="num text-[14px] text-ink">{inr(currentTotal)}<ToArrow className="w-3.5 h-3.5" />{inr(revisedTotal)}</span>
               </div>
             </div>
-            </>
-          )}
+          </section>
+        )}
 
-          {/* Disclaimer - Responsive */}
-          <div className="p-3 sm:p-4 bg-amber-900/10 border border-amber-500/20 rounded-lg">
-            <div className="flex items-center gap-2 text-amber-400 mb-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span className="font-semibold text-sm sm:text-base">Important Disclaimer</span>
+        {/* New funds: Vercel cards */}
+        {newInvestments.length > 0 && !isLoadingRecommendations && (
+          <section aria-labelledby="new-h">
+            <div className="flex items-baseline justify-between mb-3">
+              <h2 id="new-h" className="text-[20px] leading-[28px] text-ink">Funds to add</h2>
+              <span className="font-mono text-[12px] text-muted">{newInvestments.length} suggested</span>
             </div>
-            <p className="text-xs sm:text-sm text-amber-300">
-              These AI-generated recommendations are for informational purposes only and do not constitute financial advice.
-              Please consult with a qualified financial advisor before making investment decisions. Past performance does not guarantee future results.
-            </p>
-          </div>
-        </div>
-      )}
+            <div className="grid sm:grid-cols-2 gap-4">
+              {newInvestments.map((inv, idx) => (
+                <article key={idx} className="card flex flex-col overflow-hidden">
+                  <div className="p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="text-[14px] font-medium text-ink">{inv.name}</h3>
+                        <p className="font-mono text-[12px] text-muted">{(inv.category || '').toLowerCase()}</p>
+                      </div>
+                      <span className="inline-flex items-center gap-1.5 text-[12px] text-body whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-gain" aria-hidden="true" />New</span>
+                    </div>
+                    <p className="mt-4 text-[24px] leading-none font-semibold tracking-[-0.03em] text-ink num">{inv.suggestedSip ? inr(inv.suggestedSip) : '—'}<span className="text-[13px] font-normal tracking-normal text-muted">/mo</span></p>
+                    {inv.reason && <p className="mt-3 text-[14px] leading-[22px] text-body">{inv.reason}</p>}
+                  </div>
+                  <dl className="mt-auto border-t border-line divide-y divide-line text-[13px]">
+                    <div className="flex justify-between gap-3 px-5 h-10 items-center"><dt className="text-body">Expected returns</dt><dd className="num text-ink">{inv.expectedReturns || '—'}</dd></div>
+                    {inv.alternatives && <div className="flex justify-between gap-3 px-5 py-2.5"><dt className="text-body shrink-0">Alternatives</dt><dd className="text-ink text-right">{inv.alternatives}</dd></div>}
+                  </dl>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
 
-      {/* No recommendations available */}
-      {!recommendations && !isLoadingRecommendations && serviceAvailable && (
-        <div className="text-center py-12">
-          <div className="text-gray-400">
-            <Target className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <h3 className="text-xl font-bold mb-2">No Recommendations Available</h3>
-            <p className="mb-4">Dynamic recommendations will appear here once generated</p>
+        {!recommendations && !isLoadingRecommendations && serviceAvailable && (
+          <div className="rounded-xl border border-dashed border-line-strong p-12 text-center">
+            <Sparkles className="w-6 h-6 mx-auto mb-3 text-muted" aria-hidden="true" />
+            <p className="text-[14px] font-medium text-ink">{recommendationError ? 'Claude could not run the analysis' : 'No recommendations yet'}</p>
+            <p className="mt-1 mb-5 text-[14px] text-body">{recommendationError ? 'The details are on the left. Try again in a moment.' : 'Ask Claude to review your SIPs and suggest changes.'}</p>
+            <button type="button" onClick={onRefreshRecommendations} className="pill pill-primary">{recommendationError ? 'Try again' : 'Run analysis'}</button>
           </div>
-        </div>
-      )}
+        )}
+
+        {isLoadingRecommendations && (
+          <div className="card divide-y divide-line overflow-hidden" aria-label="Loading recommendations">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center gap-4 px-5 h-[60px]">
+                <span className="h-3 w-40 rounded bg-surface-strong animate-pulse" />
+                <span className="ml-auto h-3 w-20 rounded bg-surface-strong animate-pulse" />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      </ScrollPane>
     </div>
   );
 };

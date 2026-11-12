@@ -1,24 +1,27 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { RefreshCw, WifiOff } from 'lucide-react';
+import { WRAP } from './Navbar';
 import { usePortfolioData } from '../hooks/usePortfolioData';
 import { ASSET_PATHS, MUTUAL_FUND_VIEWS, mutualFundViewPath } from '../utils/assetRoutes';
-import PortfolioSummary from './portfolio/PortfolioSummary';
-import FundCard from './portfolio/FundCard';
+import FundsTable, { ViewToggle } from './portfolio/FundsTable';
+import SummaryPanel from './portfolio/SummaryPanel';
+import { formatCurrentValue } from '../utils/formatters';
 import CategoryBreakdown from './portfolio/CategoryBreakdown';
 import AllocationView from './portfolio/AllocationView';
 import PerformanceView from './portfolio/PerformanceView';
 import RecommendationsView from './portfolio/RecommendationsView';
 import InvestmentTimelineView from './portfolio/InvestmentTimelineView';
 import FilterBar from './portfolio/FilterBar';
-import FixedDepositsView, { AssetPlaceholder } from './portfolio/FixedDepositsView';
+import FixedDepositsView from './portfolio/FixedDepositsView';
 import GoldSilverView from './portfolio/GoldSilverView';
 import EPFView from './portfolio/EPFView';
 import OverviewView from './portfolio/OverviewView';
+import ScrollPane from './portfolio/ScrollPane';
 
 const ASSET_HEADER_CONTENT = {
   overview: {
-    title: 'Overview',
+    title: 'Welcome, Yashwanth',
     subtitle: 'Your complete portfolio at a glance — all assets, one view',
   },
   mutualFunds: {
@@ -50,7 +53,8 @@ const PortfolioTracker = ({ activeAsset }) => {
   const activeView = MUTUAL_FUND_VIEWS.some(v => v.id === viewParam) ? viewParam : 'dashboard';
   const goToView = (viewId) => navigate(mutualFundViewPath(viewId));
   const goToAsset = (assetId) => navigate(ASSET_PATHS[assetId] ?? '/');
-  const [selectedFund, setSelectedFund] = useState(null);
+  const [fundView, setFundViewState] = useState(() => { try { return localStorage.getItem('vesta-fund-view') || 'list'; } catch { return 'list'; } });
+  const setFundView = (v) => { setFundViewState(v); try { localStorage.setItem('vesta-fund-view', v); } catch {} };
   const [filters, setFilters] = useState({
     search: '',
     category: '',
@@ -220,197 +224,213 @@ const PortfolioTracker = ({ activeAsset }) => {
   };
 
   // ── Main render ────────────────────────────────────────────────────────────
-  return (
-    <div className="min-h-screen bg-black text-white p-4 md:p-8">
-      {/* Header */}
-      <div className="max-w-7xl mx-auto mb-8">
-        <div className="flex items-center justify-between mb-2">
-          <div>
-            <h3 className="text-2xl md:text-3xl mb-2 text-primary">
-              {activeAssetHeader.title}
-            </h3>
-            <p className="text-gray-400 text-sm">{activeAssetHeader.subtitle}</p>
-          </div>
+  // What stays pinned at the top while the page scrolls (the page head on desktop, the menu bar below
+  // 1024px), published as --head-h so the filter bar and the left column can sit just under it.
+  const headRef = useRef(null);
+  useEffect(() => {
+    const el = headRef.current;
+    if (!el) return undefined;
+    const desktop = window.matchMedia('(min-width: 1024px)');
+    const publish = () => document.documentElement.style.setProperty('--head-h', `${desktop.matches ? el.offsetHeight : 56}px`);
+    const ro = new ResizeObserver(publish);
+    ro.observe(el);
+    desktop.addEventListener('change', publish);
+    publish();
+    return () => { ro.disconnect(); desktop.removeEventListener('change', publish); };
+  }, []);
 
-          {/* Status + date – reflects current active asset */}
-          {(() => {
-            const isFdView    = activeAsset === 'fds';
-            const isGoldView  = activeAsset === 'gold';
-            const isSilverView = activeAsset === 'silver';
-            const isLoading =
-              activeAsset === 'overview' ? (isLoadingPortfolio || isLoadingFDs || isLoadingGold || isLoadingSilver || isLoadingEPF) :
-              isGoldView ? isLoadingGold :
-              isSilverView ? isLoadingSilver :
-              isFdView ? isLoadingFDs :
-              activeAsset === 'epf' ? isLoadingEPF :
-              isLoadingPortfolio;
-            const hasError =
-              isGoldView ? !!goldError :
-              isSilverView ? !!silverError :
-              isFdView ? !!fdError :
-              activeAsset === 'epf' ? !!epfError :
-              !!portfolioError;
-            const updated =
-              isGoldView ? lastGoldUpdate :
-              isSilverView ? lastSilverUpdate :
-              isFdView ? lastFdUpdate :
-              activeAsset === 'epf' ? lastEPFUpdate :
-              lastUpdate;
-            const hasApi = activeAsset === 'mutualFunds' || activeAsset === 'fds'
-              || activeAsset === 'gold' || activeAsset === 'silver' || activeAsset === 'epf';
-            const refreshLabel =
-              isGoldView ? 'gold' :
-              isSilverView ? 'silver' :
-              isFdView ? 'fixed deposits' : 'mutual funds';
-            return (
-              <div className="hidden md:block text-left">
-                <div className="flex items-center gap-2 mb-1">
-                  {isLoading ? (
-                    <RefreshCw className="w-4 h-4 animate-spin text-primary" />
-                  ) : hasError ? (
-                    <WifiOff className="w-4 h-4 text-red-400" />
-                  ) : (
-                    <Wifi className="w-4 h-4 text-emerald-400" />
-                  )}
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">
-                    {isLoading ? 'Updating...' : hasError ? 'Offline Mode' : 'Live Data'}
-                  </p>
-                  {hasApi && !isLoading && (
-                    <button
-                      onClick={handleManualRefresh}
-                      className="p-1 hover:bg-gray-500/10 rounded transition-colors ml-2 cursor-pointer text-primary"
-                      title={`Refresh ${refreshLabel}`}
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-                <p className="text-lg font-semibold text-primary">
-                  {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </p>
-                {updated && (
-                  <p className="text-xs text-gray-600 mt-1">
-                    Updated: {updated.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                  </p>
+  const isFdView = activeAsset === 'fds';
+  const isGoldView = activeAsset === 'gold';
+  const isSilverView = activeAsset === 'silver';
+  const isEpfView = activeAsset === 'epf';
+  const statusLoading =
+    activeAsset === 'overview' ? (isLoadingPortfolio || isLoadingFDs || isLoadingGold || isLoadingSilver || isLoadingEPF) :
+    isGoldView ? isLoadingGold :
+    isSilverView ? isLoadingSilver :
+    isFdView ? isLoadingFDs :
+    isEpfView ? isLoadingEPF :
+    isLoadingPortfolio;
+  const statusError =
+    isGoldView ? !!goldError :
+    isSilverView ? !!silverError :
+    isFdView ? !!fdError :
+    isEpfView ? !!epfError :
+    !!portfolioError;
+  const statusUpdated =
+    isGoldView ? lastGoldUpdate :
+    isSilverView ? lastSilverUpdate :
+    isFdView ? lastFdUpdate :
+    isEpfView ? lastEPFUpdate :
+    activeAsset === 'overview' ? lastOverviewUpdate :
+    lastUpdate;
+  const canRefresh = activeAsset !== 'overview';
+  const refreshLabel =
+    isGoldView ? 'gold' : isSilverView ? 'silver' : isFdView ? 'fixed deposits' : isEpfView ? 'EPF' : 'mutual funds';
+
+  return (
+    <div className="min-h-screen bg-canvas text-ink">
+      {/* Page head: Vercel's project header band, title left, actions right, Mutual Funds' sections as tabs */}
+      <div ref={headRef} className="bg-surface border-b border-line lg:sticky lg:top-0 lg:z-30">
+        <div className={`${WRAP} pt-8 md:pt-10 lg:pt-6 ${activeAsset === 'mutualFunds' ? 'pb-0' : 'pb-8 lg:pb-6'}`}>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="max-w-2xl">
+              <h1 className="text-[28px] md:text-[32px] leading-[1.25] text-ink">{activeAssetHeader.title}</h1>
+              <p className="mt-1 text-[14px] leading-[20px] text-body">{activeAssetHeader.subtitle}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-2 h-8 px-3 rounded-md bg-surface shadow-[0_0_0_1px_var(--c-line-strong)] text-[13px] font-medium text-ink" role="status">
+                {statusLoading ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" aria-hidden="true" />
+                ) : statusError ? (
+                  <WifiOff className="w-3.5 h-3.5 text-loss" aria-hidden="true" />
+                ) : (
+                  <span className="w-1.5 h-1.5 rounded-full bg-gain" aria-hidden="true" />
                 )}
-              </div>
-            );
-          })()}
+                {statusLoading ? 'Updating' : statusError ? 'Offline' : 'Live'}
+                {statusUpdated && !statusLoading && (
+                  <span className="font-mono text-[12px] text-muted font-normal">{statusUpdated.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                )}
+              </span>
+              {canRefresh && (
+                <button
+                  type="button"
+                  onClick={handleManualRefresh}
+                  disabled={statusLoading}
+                  className="pill pill-sm pill-secondary"
+                  aria-label={`Refresh ${refreshLabel}`}
+                >
+                  <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" /> Refresh
+                </button>
+              )}
+            </div>
+          </div>
+          {/* Mutual Funds' sections, as Vercel's project tabs; they sit in the pinned head, so they stay in view */}
+          {activeAsset === 'mutualFunds' && (
+            <nav aria-label="Mutual fund sections" className="mt-5 -mb-px flex gap-1 overflow-x-auto [scrollbar-width:none]">
+              {MUTUAL_FUND_VIEWS.map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => goToView(tab.id)}
+                  aria-current={activeView === tab.id ? 'page' : undefined}
+                  className={`relative shrink-0 inline-flex items-center gap-2 h-11 px-3 text-[14px] transition-colors cursor-pointer border-b-2 ${activeView === tab.id ? 'text-ink border-ink' : 'text-body hover:text-ink border-transparent'}`}
+                >
+                  <tab.icon className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+          )}
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto">
+      <div className={`${WRAP} pt-8`}>
         {activeAsset === 'mutualFunds' && (
           <>
-            <div className="mb-6">
-              <PortfolioSummary
-                totals={totals}
-                activeFundsCount={portfolioData.filter(f => f.currentMonthlySIP > 0).length}
-              />
-            </div>
-
-            <div className="mb-6">
-              <div className="flex gap-2 bg-gray-900/70 backdrop-blur-xl p-1 rounded-xl border border-gray-700/50 overflow-x-auto">
-                {MUTUAL_FUND_VIEWS.map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => goToView(tab.id)}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 cursor-pointer whitespace-nowrap ${activeView === tab.id
-                      ? 'text-white shadow-lg bg-primary'
-                      : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-                      }`}
-                  >
-                    <tab.icon className="w-4 h-4" />
-                    <span>{tab.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {isLoadingPortfolio ? (
-              <div className="min-h-[320px] bg-gray-900/70 border border-gray-700/50 rounded-2xl flex items-center justify-center">
+              <div className="min-h-[320px] card flex items-center justify-center">
                 <div className="text-center">
                   <RefreshCw className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
-                  <p className="text-xl text-gray-400">Loading portfolio...</p>
+                  <p className="text-xl text-ink-2">Loading portfolio</p>
                 </div>
               </div>
             ) : portfolioError ? (
-              <div className="min-h-[320px] bg-gray-900/70 border border-gray-700/50 rounded-2xl flex items-center justify-center">
+              <div className="min-h-[320px] card flex items-center justify-center">
                 <div className="text-center max-w-md px-6">
-                  <div className="text-red-400 mb-4">
+                  <div className="text-loss mb-4">
                     <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                   </div>
-                  <h2 className="text-2xl font-bold mb-2">Failed to Load Portfolio</h2>
-                  <p className="text-gray-400 mb-6">{portfolioError}</p>
+                  <h2 className="text-2xl font-medium mb-2">The portfolio did not load</h2>
+                  <p className="text-ink-2 mb-6">{portfolioError}</p>
                   <button
                     onClick={fetchPortfolio}
-                    className="px-6 py-3 bg-primary hover:bg-primary/80 text-white rounded-lg transition-colors cursor-pointer"
-                  >
-                    Retry
-                  </button>
+                    className="pill pill-primary"
+                  >Try again</button>
                 </div>
               </div>
             ) : (
               <>
                 {activeView === 'dashboard' && (
-                  <>
-                    <FilterBar
-                      filters={filters}
-                      onFilterChange={handleFilterChange}
-                      onClearFilters={handleClearFilters}
-                      fundCategories={fundCategories}
-                    />
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                      <div className="lg:col-span-2 space-y-4">
-                        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-                          <span className="text-primary">Your Funds</span>
-                          <span className="text-sm text-gray-500">
-                            ({filteredPortfolioData.length}{filteredPortfolioData.length !== portfolioData.length && ` of ${portfolioData.length}`})
-                          </span>
-                        </h2>
-                        {filteredPortfolioData.length > 0 ? (
-                          filteredPortfolioData.map(fund => (
-                            <FundCard
-                              key={fund.id}
-                              fund={fund}
-                              selectedFund={selectedFund}
-                              onSelectFund={setSelectedFund}
-                            />
-                          ))
-                        ) : (
-                          <div className="bg-gray-900/70 backdrop-blur-xl border border-gray-700/50 rounded-xl p-8 text-center">
-                            <p className="text-gray-400">No funds match the selected filters.</p>
-                            <button
-                              onClick={handleClearFilters}
-                              className="mt-4 px-4 py-2 bg-primary hover:bg-primary/80 text-white rounded-lg transition-colors cursor-pointer"
-                            >
-                              Clear Filters
-                            </button>
-                          </div>
-                        )}
+                  <div className="grid lg:grid-cols-[300px_minmax(0,1fr)] gap-6 lg:gap-8 items-start">
+                    {/* Left column: the summary and insights, as Vercel's overview keeps usage beside the list */}
+                    <aside className="space-y-4 lg:sticky lg:top-[calc(var(--head-h,0px)+32px)] lg:max-h-[calc(100vh-var(--head-h,0px)-64px)] lg:overflow-y-auto [scrollbar-width:none] lg:p-px lg:-m-px">
+                      <SummaryPanel
+                        label="Mutual funds balance"
+                        value={formatCurrentValue(totals.totalCurrentValue)}
+                        change={`₹${Math.round(Math.abs(totals.totalCurrentValue - totals.totalInvested)).toLocaleString('en-IN')} (${totals.totalReturns.toFixed(2)}%)`}
+                        changeTone={totals.totalCurrentValue >= totals.totalInvested ? 'gain' : 'loss'}
+                        rows={[
+                          { label: 'Invested', value: `₹${(totals.totalInvested / 100000).toFixed(2)}L` },
+                          { label: 'Gain', value: `₹${(Math.abs(totals.totalCurrentValue - totals.totalInvested) / 100000).toFixed(2)}L`, tone: totals.totalCurrentValue >= totals.totalInvested ? 'gain' : 'loss' },
+                          { label: 'Monthly SIP', value: `₹${totals.monthlySIP.toLocaleString('en-IN')}` },
+                          { label: 'Active SIPs', value: `${portfolioData.filter(f => f.currentMonthlySIP > 0).length} funds` },
+                        ]}
+                      />
+                      <div className="hidden lg:block space-y-4">
+                        <CategoryBreakdown
+                          categoryBreakdown={unfilteredCategoryBreakdown}
+                          totals={totals}
+                          performanceGroups={unfilteredPerformanceGroups}
+                        />
                       </div>
+                    </aside>
+
+                    <section aria-labelledby="funds-h" className="min-w-0">
+                      <h2 id="funds-h" className="sr-only">Your funds</h2>
+                      <ScrollPane
+                        toolbar={
+                          <>
+                            <FilterBar
+                              filters={filters}
+                              onFilterChange={handleFilterChange}
+                              onClearFilters={handleClearFilters}
+                              fundCategories={fundCategories}
+                              right={<ViewToggle view={fundView} onChange={setFundView} />}
+                            />
+                            <p className="-mt-3 mb-3 font-mono text-[12px] text-muted">
+                              {filteredPortfolioData.length}{filteredPortfolioData.length !== portfolioData.length && ` of ${portfolioData.length}`} funds
+                            </p>
+                          </>
+                        }
+                      >
+                      {filteredPortfolioData.length > 0 ? (
+                        <FundsTable funds={filteredPortfolioData} view={fundView} />
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-line-strong p-12 text-center">
+                          <p className="text-[14px] text-body mb-4">No funds match these filters.</p>
+                          <button type="button" onClick={handleClearFilters} className="pill pill-primary">Clear filters</button>
+                        </div>
+                      )}
+                      </ScrollPane>
+                    </section>
+
+                    {/* Phone and tablet: the insights follow the list instead of pushing it down */}
+                    <div className="lg:hidden space-y-4">
                       <CategoryBreakdown
                         categoryBreakdown={unfilteredCategoryBreakdown}
                         totals={totals}
                         performanceGroups={unfilteredPerformanceGroups}
                       />
                     </div>
-                  </>
+                  </div>
                 )}
 
                 {activeView === 'performance' && (
-                  <>
-                    <FilterBar
-                      filters={filters}
-                      onFilterChange={handleFilterChange}
-                      onClearFilters={handleClearFilters}
-                      fundCategories={fundCategories}
-                    />
+                  <ScrollPane
+                    toolbar={
+                      <FilterBar
+                        filters={filters}
+                        onFilterChange={handleFilterChange}
+                        onClearFilters={handleClearFilters}
+                        fundCategories={fundCategories}
+                      />
+                    }
+                  >
                     <PerformanceView performanceGroups={filteredPerformanceGroups} />
-                  </>
+                  </ScrollPane>
                 )}
 
                 {activeView === 'allocation' && (
@@ -427,15 +447,17 @@ const PortfolioTracker = ({ activeAsset }) => {
 
                 {activeView === 'recommendations' && (
                   <>
-                    <FilterBar
-                      filters={recommendationFilters}
-                      onFilterChange={handleRecommendationFilterChange}
-                      onClearFilters={handleClearRecommendationFilters}
-                      fundCategories={fundCategories}
-                      hiddenFilters={['status', 'investmentType']}
-                      staticFilters={[{ label: 'Type: SIP Only' }]}
-                    />
                     <RecommendationsView
+                      toolbar={
+                        <FilterBar
+                          filters={recommendationFilters}
+                          onFilterChange={handleRecommendationFilterChange}
+                          onClearFilters={handleClearRecommendationFilters}
+                          fundCategories={fundCategories}
+                          hiddenFilters={['status', 'investmentType']}
+                          staticFilters={[{ label: 'Type: SIP Only' }]}
+                        />
+                      }
                       recommendations={recommendations}
                       filteredFunds={filteredRecommendationData}
                       allFunds={portfolioData}
@@ -484,40 +506,24 @@ const PortfolioTracker = ({ activeAsset }) => {
       </div>
 
       {/* Footer */}
-      <div className="max-w-7xl mx-auto mt-12 pt-8 border-t border-slate-700/50">
-        <div className="text-center text-slate-500 text-sm space-y-2">
-          <p>Personal Asset Tracker</p>
-          {activeAsset === 'mutualFunds' ? (
-            <>
-              <p>
-                Total: ₹{(totals.totalCurrentValue / 100000).toFixed(2)}L · {totals.totalReturns.toFixed(2)}% Returns
-              </p>
-              <p className="text-xs text-slate-600">
-                All SIP months, XIRR, and returns auto-calculated from investment start dates
-              </p>
-            </>
-          ) : activeAsset === 'fds' ? (
-            <p className="text-xs text-slate-600">
-              FD projections shown with rollover calculations for both 444-day booking cycles.
-            </p>
-          ) : activeAsset === 'gold' || activeAsset === 'silver' ? (
-            <p className="text-xs text-slate-600">
-              Live {activeAsset === 'gold' ? 'gold (24K)' : 'silver (999)'} prices sourced from bullions.co.in · INR/gram
-            </p>
-          ) : activeAsset === 'epf' ? (
-            <p className="text-xs text-slate-600">
-              EPF interest compounded monthly · EPFO declared rates · contributions lag adjusted
-            </p>
-          ) : (
-            <p className="text-xs text-slate-600">
-              Asset sections can be filled incrementally as you add more holdings.
-            </p>
-          )}
-          <div className="mt-6 pt-4 border-t border-slate-800/50">
-            <p className="text-xs text-slate-600">© 2026 Developed by Yashwanth C</p>
-          </div>
+      {/* From 1024px every view fills the window exactly and scrolls inside its own column, so the
+          footer steps aside there; otherwise scrolling the page would slide the content under the head */}
+      <footer className={`${WRAP} mt-20 lg:hidden`}>
+        <div className="py-8 border-t border-line flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-[12px] leading-[1.4] tracking-[0.02em] text-slate">
+        <span>
+          {activeAsset === 'mutualFunds'
+            ? `₹${(totals.totalCurrentValue / 100000).toFixed(2)}L at ${totals.totalReturns.toFixed(2)}% returns · XIRR and SIP months worked out from each start date`
+            : activeAsset === 'fds'
+              ? 'Projections roll each deposit over for both 444-day cycles'
+              : activeAsset === 'gold' || activeAsset === 'silver'
+                ? `${activeAsset === 'gold' ? 'Gold (24K)' : 'Silver (999)'} prices from bullions.co.in, per gram in INR`
+                : activeAsset === 'epf'
+                  ? 'Interest compounded monthly at EPFO declared rates'
+                  : 'Each asset fills in as you add holdings'}
+        </span>
+        <span>© 2026 Vesta · Yashwanth C</span>
         </div>
-      </div>
+      </footer>
     </div>
   );
 };

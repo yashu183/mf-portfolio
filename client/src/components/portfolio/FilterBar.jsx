@@ -1,161 +1,78 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import Select from './Select';
-import { Search, Filter, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 
-const FilterBar = ({ filters, onFilterChange, onClearFilters, fundCategories, hiddenFilters = [], staticFilters = [] }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const hasActiveFilters = filters.category || filters.status || filters.investmentType || filters.search;
+const statusOptions = [
+  { value: '', label: 'All statuses' },
+  { value: 'excellent', label: 'Excellent' },
+  { value: 'good', label: 'Good' },
+  { value: 'monitor', label: 'Monitor' },
+  { value: 'poor', label: 'Poor' },
+];
 
-  const statusOptions = [
-    { value: '', label: 'All Status' },
-    { value: 'excellent', label: 'Excellent' },
-    { value: 'good', label: 'Good' },
-    { value: 'monitor', label: 'Monitor' },
-    { value: 'poor', label: 'Poor' },
-  ];
+const investmentTypeOptions = [
+  { value: '', label: 'All types' },
+  { value: 'sip', label: 'SIP only' },
+  { value: 'lumpsum', label: 'Lump sum only' },
+  { value: 'both', label: 'Both' },
+];
 
-  const investmentTypeOptions = [
-    { value: '', label: 'All Types' },
-    { value: 'sip', label: 'SIP Only' },
-    { value: 'lumpsum', label: 'Lumpsum Only' },
-    { value: 'both', label: 'Both' },
-  ];
+// Vercel's list toolbar: one row, the search field first (with its "/" shortcut), compact filters
+// beside it, a clear action when anything is set, and room on the right for a view switch.
+const FilterBar = ({ filters, onFilterChange, onClearFilters, fundCategories, hiddenFilters = [], staticFilters = [], right = null }) => {
+  const searchRef = useRef(null);
+  const hasActiveFilters = Boolean(filters.category || filters.status || filters.investmentType || filters.search);
+
+  useEffect(() => {
+    if (hiddenFilters.includes('search')) return undefined;
+    const onKey = (event) => {
+      const typing = /input|textarea|select/i.test(document.activeElement?.tagName || '');
+      if (event.key === '/' && !typing) { event.preventDefault(); searchRef.current?.focus(); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [hiddenFilters]);
 
   return (
-    <div className="relative z-30 bg-gray-900/70 backdrop-blur-xl border border-gray-700/50 rounded-xl p-4 pb-0 mb-6">
-      {/* Header with Toggle */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-primary" />
-          <h3 className="font-semibold text-white">Filters</h3>
-          {hasActiveFilters && !isExpanded && (
-            <span className="ml-2 px-2 py-0.5 bg-primary/20 text-primary text-xs rounded-full">
-              {[filters.search, filters.category, filters.status, filters.investmentType].filter(Boolean).length}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {hasActiveFilters && (
-            <button
-              onClick={onClearFilters}
-              className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors cursor-pointer"
-            >
-              <X className="w-3 h-3" />
-              <span className="hidden sm:inline">Clear All</span>
-            </button>
-          )}
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="p-1 hover:bg-gray-800/50 rounded transition-colors cursor-pointer"
-            aria-label={isExpanded ? 'Collapse filters' : 'Expand filters'}
-          >
-            {isExpanded ? (
-              <ChevronUp className="w-4 h-4 text-gray-400" />
-            ) : (
-              <ChevronDown className="w-4 h-4 text-gray-400" />
-            )}
-          </button>
-        </div>
-      </div>
+    // below 1024px it pins under the menu bar while the page scrolls; from 1024px it sits at the
+    // top of a ScrollPane, which keeps it in place and scrolls the list inside the column instead
+    <div className="sticky lg:static z-20 bg-canvas py-3 -mt-3 mb-3 flex flex-col sm:flex-row sm:items-center gap-2" style={{ top: 'var(--head-h, 0px)' }}>
+      {!hiddenFilters.includes('search') && (
+        <label className="relative flex-1 min-w-0">
+          <span className="sr-only">Search funds</span>
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" aria-hidden="true" />
+          <input
+            ref={searchRef}
+            type="text"
+            placeholder="Search funds…"
+            value={filters.search || ''}
+            onChange={(e) => onFilterChange('search', e.target.value)}
+            className="w-full h-10 bg-surface rounded-md pl-9 pr-10 text-[14px] text-ink placeholder:text-muted shadow-[0_0_0_1px_var(--c-line-strong)] focus:outline-none focus:shadow-[0_0_0_1px_var(--c-ink),0_0_0_4px_var(--c-line)] transition-shadow"
+          />
+          <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 h-5 min-w-5 px-1.5 grid place-items-center rounded border border-line bg-surface-strong font-mono text-[11px] text-muted">/</kbd>
+        </label>
+      )}
 
-      {/* Collapsible Content */}
-      {isExpanded && (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        {/* Search */}
-        {!hiddenFilters.includes('search') && (
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-            <input
-              type="text"
-              placeholder="Search funds..."
-              value={filters.search || ''}
-              onChange={(e) => onFilterChange('search', e.target.value)}
-              className="w-full bg-gray-800/50 border border-gray-700/50 rounded-lg pl-10 pr-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary transition-colors"
-            />
-          </div>
-        )}
-
-        {/* Category Filter */}
+      <div className="flex flex-wrap items-center gap-2">
         {!hiddenFilters.includes('category') && (
-          <Select value={filters.category || ''} onChange={(v) => onFilterChange('category', v)} options={[{ value: '', label: 'All Categories' }, ...fundCategories.map((c) => ({ value: c, label: c }))]} />
+          <Select className="w-[170px]" value={filters.category || ''} onChange={(v) => onFilterChange('category', v)} options={[{ value: '', label: 'All categories' }, ...fundCategories.map((c) => ({ value: c, label: c }))]} />
         )}
-
-        {/* Status Filter */}
         {!hiddenFilters.includes('status') && (
-          <Select value={filters.status || ''} onChange={(v) => onFilterChange('status', v)} options={statusOptions} />
+          <Select className="w-[150px]" value={filters.status || ''} onChange={(v) => onFilterChange('status', v)} options={statusOptions} />
         )}
-
-        {/* Investment Type Filter */}
         {!hiddenFilters.includes('investmentType') && (
-          <Select value={filters.investmentType || ''} onChange={(v) => onFilterChange('investmentType', v)} options={investmentTypeOptions} />
+          <Select className="w-[150px]" value={filters.investmentType || ''} onChange={(v) => onFilterChange('investmentType', v)} options={investmentTypeOptions} />
         )}
+        {staticFilters.map((filter) => (
+          <span key={filter.label} className="inline-flex items-center h-10 px-3 rounded-md bg-surface-strong text-[13px] text-body">{filter.label}</span>
+        ))}
+        {hasActiveFilters && (
+          <button type="button" onClick={onClearFilters} className="pill pill-secondary h-10">
+            <X className="w-3.5 h-3.5" aria-hidden="true" /> Clear
+          </button>
+        )}
+        {right}
       </div>
-
-      {/* Static Filters Display */}
-      {staticFilters.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-700/50 mb-3">
-          <span className="text-xs text-gray-400 my-auto">Always active:</span>
-          {staticFilters.map((filter, idx) => (
-            <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-500/10 text-emerald-400 text-xs rounded-full border border-emerald-500/30">
-              {filter.label}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Active Filters Display */}
-      {hasActiveFilters && (
-        <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-700/50 mb-3">
-          <span className="text-xs text-gray-400 my-auto">Active filters:</span>
-          {!hiddenFilters.includes('search') && filters.search && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary text-xs rounded-full">
-              Search: "{filters.search}"
-              <button
-                onClick={() => onFilterChange('search', '')}
-                className="hover:text-white transition-colors cursor-pointer"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          )}
-          {!hiddenFilters.includes('category') && filters.category && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary text-xs rounded-full">
-              {filters.category}
-              <button
-                onClick={() => onFilterChange('category', '')}
-                className="hover:text-white transition-colors cursor-pointer"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          )}
-          {!hiddenFilters.includes('status') && filters.status && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary text-xs rounded-full">
-              {statusOptions.find(s => s.value === filters.status)?.label}
-              <button
-                onClick={() => onFilterChange('status', '')}
-                className="hover:text-white transition-colors cursor-pointer"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          )}
-          {!hiddenFilters.includes('investmentType') && filters.investmentType && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary text-xs rounded-full">
-              {investmentTypeOptions.find(t => t.value === filters.investmentType)?.label}
-              <button
-                onClick={() => onFilterChange('investmentType', '')}
-                className="hover:text-white transition-colors cursor-pointer"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          )}
-        </div>
-      )}
-        </>
-      )}
     </div>
   );
 };
