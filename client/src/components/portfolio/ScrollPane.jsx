@@ -1,4 +1,55 @@
-import React, { useLayoutEffect, useRef } from 'react';
+import React, { useCallback, useLayoutEffect, useRef } from 'react';
+
+// A ref for a table's column-header row (.pin-cols), whose rows are its next sibling (a list).
+// - publishes its section heading's height as --ph-h, so the row pins just under that heading;
+// - makes the header, and the heading with it, stop pinning when only the last row is left: a sticky box
+//   stops where its margin box meets its container's end, so each gets a bottom margin as tall as what
+//   should stay visible under it, and the box after it the same margin taken back (the two collapse, so
+//   nothing moves). They then sit as a closed card: heading, header row, last row, one hairline between.
+export const usePinCols = () => {
+  const stop = useRef(null);
+  return useCallback((el) => {
+    stop.current?.();
+    stop.current = null;
+    const rows = el?.nextElementSibling;
+    if (!rows) return;
+    const head = el.closest('section')?.querySelector(':scope > .pin-head');
+    const afterHead = head?.nextElementSibling;
+    const reset = () => {
+      el.style.marginBottom = ''; rows.style.marginTop = '';
+      if (head) head.style.marginBottom = '';
+      if (afterHead) afterHead.style.marginTop = '';
+    };
+    reset();
+    // margins the layout already gives these (space-y and the like), kept under ours
+    const base = (node, side) => (node ? parseFloat(getComputedStyle(node)[side]) || 0 : 0);
+    const headMb = base(head, 'marginBottom');
+    const afterMt = base(afterHead, 'marginTop');
+    let last = null;
+    const publish = () => {
+      const now = rows.lastElementChild;
+      if (now !== last) { if (last) ro.unobserve(last); if (now) ro.observe(now); last = now; }
+      const colsH = el.getBoundingClientRect().height;
+      if (head) el.style.setProperty('--ph-h', `${head.getBoundingClientRect().height}px`);
+      if (!now || colsH === 0) { reset(); return; } // no rows, or the header is hidden at this width
+      // the last row without its top hairline: the header's own bottom line lands on that hairline
+      const lastH = now.getBoundingClientRect().height - (parseFloat(getComputedStyle(now).borderTopWidth) || 0);
+      el.style.marginBottom = `${lastH}px`;
+      rows.style.marginTop = `${-lastH}px`;
+      if (head && afterHead) {
+        head.style.marginBottom = `${headMb + colsH + lastH}px`;
+        afterHead.style.marginTop = `${afterMt - colsH - lastH}px`;
+      }
+    };
+    const ro = new ResizeObserver(publish);
+    ro.observe(el);
+    if (head) ro.observe(head);
+    const mo = new MutationObserver(publish); // rows added, removed or filtered
+    mo.observe(rows, { childList: true });
+    publish();
+    stop.current = () => { ro.disconnect(); mo.disconnect(); reset(); };
+  }, []);
+};
 
 // From 1024px the main column is exactly as tall as the window under the page head: its toolbar
 // (search, filters, the count) stays put and only the content below it scrolls, inside the column.

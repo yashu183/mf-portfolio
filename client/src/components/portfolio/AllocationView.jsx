@@ -1,5 +1,5 @@
 import React from 'react';
-import { PANE } from './ScrollPane';
+import { PANE, usePinCols } from './ScrollPane';
 import { RefreshCw, AlertCircle, Sparkles } from 'lucide-react';
 import SummaryPanel from './SummaryPanel';
 import ToArrow from './ToArrow';
@@ -20,6 +20,7 @@ const AllocationView = ({
   serviceAvailable,
   onRefreshRecommendations,
 }) => {
+  const colsRef = usePinCols();
   // Current split of the monthly SIP by category
   const current = {};
   let totalSIP = 0;
@@ -84,14 +85,14 @@ const AllocationView = ({
             {hasTargets && <span className="flex items-center gap-1.5"><span className="w-2.5 h-1 rounded-full bg-link" aria-hidden="true" />target</span>}
           </span>
         </div>
-        <div className="card overflow-hidden">
-          <div className="hidden @xl:grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_96px_80px] gap-4 px-5 h-10 items-center border-b border-line bg-surface-strong/40" aria-hidden="true">
+        <div className="card">
+          <div ref={colsRef} className="pin-cols hidden @xl:grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_96px_80px] gap-4 px-5 h-10 items-center" aria-hidden="true">
             <span className="eyebrow">Category</span>
             <span className="eyebrow">Current vs target</span>
             <span className="eyebrow text-right">SIP</span>
             <span className="eyebrow text-right">Change</span>
           </div>
-          <ul className="divide-y divide-line">
+          <ul className="divide-y divide-line overflow-clip rounded-[12px] @xl:rounded-t-none">
             {rows.map((r) => {
               const delta = r.targetPct != null ? r.targetPct - r.pct : null;
               return (

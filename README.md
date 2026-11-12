@@ -24,7 +24,7 @@ A private portfolio tracker for mutual funds, fixed deposits, gold, silver and E
 - Recharts for charts, Lucide for icons
 - Geist and Geist Mono
 
-The design follows Vercel's design system: hairline cards, mono labels, a dashboard sidebar and in-column scrolling.
+The design follows Vercel's design system: hairline cards, mono labels, a dashboard sidebar and in-column scrolling, with table column heads that stay pinned while their rows scroll.
 
 ### Backend
 - Node.js 18+ and Express

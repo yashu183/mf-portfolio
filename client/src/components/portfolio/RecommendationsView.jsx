@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { RefreshCw, AlertCircle, Sparkles, ChevronRight } from 'lucide-react';
 import SummaryPanel from './SummaryPanel';
 import ToArrow from './ToArrow';
-import ScrollPane from './ScrollPane';
+import ScrollPane, { usePinCols } from './ScrollPane';
 
 const inr = (v) => `₹${(v ?? 0).toLocaleString('en-IN')}`;
 const shortName = (name) => (name || 'Unknown fund')
@@ -41,6 +41,7 @@ const RecommendationsView = ({
   toolbar = null,
 }) => {
   const [openIdx, setOpenIdx] = useState(null);
+  const colsRef = usePinCols();
 
   // Narrow the revised plan to the funds the toolbar filters leave
   const filtersApplied = filteredFunds && allFunds && filteredFunds.length < allFunds.length;
@@ -110,15 +111,15 @@ const RecommendationsView = ({
               <span className="font-mono text-[12px] text-muted">{inr(currentTotal)}<ToArrow />{inr(revisedTotal)}</span>
             </div>
             {filtersApplied && <div className="mb-3"><Note tone="info">Showing {plan.length} of {recommendations.revisedPlan.length} funds for the active filters.</Note></div>}
-            <div className="card overflow-hidden">
-              <div className="hidden @xl:grid grid-cols-[minmax(0,1fr)_100px_100px_120px_16px] gap-3 px-5 h-10 items-center border-b border-line bg-surface-strong/40" aria-hidden="true">
+            <div className="card">
+              <div ref={colsRef} className="pin-cols hidden @xl:grid grid-cols-[minmax(0,1fr)_100px_100px_120px_16px] gap-3 px-5 h-10 items-center" aria-hidden="true">
                 <span className="eyebrow">Fund</span>
                 <span className="eyebrow text-right">Current</span>
                 <span className="eyebrow text-right">Revised</span>
                 <span className="eyebrow">Change</span>
                 <span />
               </div>
-              <ul className="divide-y divide-line">
+              <ul className="divide-y divide-line overflow-clip rounded-[12px] @xl:rounded-t-none">
                 {plan.map((p, idx) => {
                   const v = verdictOf(p);
                   const open = openIdx === idx;

@@ -270,9 +270,6 @@ const Landing = () => {
           <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-[-120px] -translate-x-1/2 w-[1100px] h-[620px] opacity-[0.22] [[data-theme=dark]_&]:opacity-[0.30] blur-[90px]"
             style={{ background: 'radial-gradient(closest-side at 22% 55%, #007cf0, transparent), radial-gradient(closest-side at 40% 35%, #00dfd8, transparent), radial-gradient(closest-side at 60% 40%, #7928ca, transparent), radial-gradient(closest-side at 72% 60%, #ff0080, transparent), radial-gradient(closest-side at 85% 45%, #f9cb28, transparent)' }} />
           <div className={`${WRAP} relative text-center`}>
-            <span className="inline-flex items-center gap-2 h-7 px-3 rounded-full bg-surface shadow-[0_0_0_1px_var(--c-line-strong)] font-mono text-[12px] text-body">
-              <span className="w-1.5 h-1.5 rounded-full bg-gain" aria-hidden="true" /> 5 asset classes · one access code
-            </span>
             <h1 className="mt-6 mx-auto max-w-[15ch] text-[40px] sm:text-[52px] md:text-[64px] leading-[1.05] tracking-[-0.05em] text-ink">Vesta, a private portfolio tracker.</h1>
             <p className="mx-auto mt-6 max-w-[56ch] text-[17px] md:text-[18px] leading-[28px] text-body">
               Mutual funds at today's NAV, fixed deposits, gold, silver and EPF: 5 asset classes on one dashboard, with XIRR and a year-by-year timeline.

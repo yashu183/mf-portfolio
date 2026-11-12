@@ -18,8 +18,8 @@ Source of truth: `client/src/index.css` (tokens and shared classes). This docume
 2. **Hairlines, not borders.** Cards are held by a 1px ring and a soft shadow, never a heavy drop or a thick
    border.
 3. **One big number per view.** The left column's balance is the headline. Everything else stays small.
-4. **The frame stays put.** The page head, toolbars and section headings stay pinned while only the content
-   scrolls, on every screen size.
+4. **The frame stays put.** The page head, toolbars, section headings and table column heads stay pinned
+   while only the content scrolls, on every screen size.
 5. **Layout follows the space, not the window.** Lists and grids lay themselves out by the width of their own
    column (container queries), so they never break beside a sidebar.
 6. **Light and dark are equals.** Every colour is a role that flips with `<html data-theme>`. Dark is its own
@@ -174,8 +174,11 @@ Rules:
 ### Cards
 - **Summary panel** (left column): eyebrow → headline balance → change line (↑/↓, gain/loss colour) →
   hairline-divided label/figure rows.
-- **List card**: one `.card overflow-hidden`, a mono column-head row on `surface-strong/40`, rows divided by
-  `divide-line`, and the row opens in place to a detail band on `surface-strong/50`.
+- **List card**: one `.card` (it doesn't clip), a pinned mono column-head row (`.pin-cols`), then the rows as a
+  `<ul className="divide-y divide-line overflow-clip rounded-[12px] @…:rounded-t-none">`, so the rows clip
+  their own hover and detail bands. A row opens in place to a detail band on `surface-strong/50`. Every table
+  is built this way, including Gold/Silver holdings (a CSS grid with `role="table"`, not a `<table>`, because
+  a sticky header can't stop early inside a `<table>`).
 - **Grid card** (fund cards): initials plate → name + mono meta → 24px figure → footer with status and XIRR
   above a hairline.
 
@@ -222,6 +225,9 @@ From top to bottom, every pinned layer sits exactly under the one above it:
    static (above the scrolling list) from 1024px.
 5. **Section heading** (`.pin-head`): it pins while its section scrolls past, then leaves with the section's
    end so the next heading takes its place.
+6. **Column head** (`.pin-cols`): a table's column-head row pins under its section heading (or under the
+   toolbar when there is no heading). When only the table's last row is left, the heading and column head stop
+   and leave together with it, as a closed card: heading, column head, last row, one hairline between.
 
 `PortfolioTracker` publishes `--head-h`, where the next pinned layer starts:
 - **Laptop:** the head's height.
@@ -231,6 +237,14 @@ From top to bottom, every pinned layer sits exactly under the one above it:
 `ScrollPane` publishes `--tb-h` (its toolbar's height). `.pin-head` sits at `--head-h + --tb-h` below
 1024px, and at `top: -1px` inside its scrolling column from 1024px.
 
+`usePinCols()` (in `ScrollPane.jsx`) is the ref for a `.pin-cols` row. It:
+- publishes `--ph-h`, the section heading's height. The row pins at that height, but never less than 1px below
+  what's above it, so its own top ring (drawn 1px above it) is never cut off.
+- makes the row and its heading stop at the last row. A sticky box stops where its margin box meets its
+  container's end, so the row gets a bottom margin as tall as the last row, and the heading one as tall as the
+  column head plus the last row. The next element takes the same margin back, so the two collapse and nothing
+  moves. It re-measures on resize and when rows are added, removed or filtered.
+
 ### Building a view
 
 - **Main column with a toolbar:** wrap it in `<ScrollPane toolbar={…}>`.
@@ -238,6 +252,9 @@ From top to bottom, every pinned layer sits exactly under the one above it:
 - **Left column:** `<aside>` with `lg:sticky lg:top-[calc(var(--head-h)+32px)]` and its own hidden-scrollbar
   overflow.
 - **Two-column grid:** `grid lg:grid-cols-[300px_minmax(0,1fr)] gap-6 lg:gap-8 items-start`.
+- **Table column heads:** `<div ref={usePinCols()} className="pin-cols grid … h-10 items-center">` as the
+  card's first child, with the rows (a `<ul>`) right after it, inside the same `<section>` as the heading. Put
+  the hook in the component, not inline.
 - **Section headings:** `<div className="pin-head flex items-baseline justify-between pb-3">` as the first
   child of the `<section>`. Use `pb-3` (padding, not margin), so the pinned band covers the space under the
   title.
@@ -253,8 +270,18 @@ From top to bottom, every pinned layer sits exactly under the one above it:
     ring edges of cards scrolling underneath are covered.
   - `.pin-head` paints everything **except its last pixel**, so the ring of the card directly under it stays
     visible.
+  - A pinned `.pin-cols` is the card's top: it draws the 12px top corners and the ring itself (`::after`,
+    opaque), and `::before` paints the page colour behind it (1px past each side and above) so rows don't
+    show past the rounded corners. It covers its full height, not just the corners: the ring is translucent,
+    and the card's own ring beside it would stack into a brighter, doubled line. This is why its card must not
+    clip (`overflow-hidden`/`overflow-clip` would cut both off).
 - **No uncovered strips.** Every pinned layer starts exactly where the one above ends: band → toolbar →
-  heading. A 1px gap shows rows scrolling through it.
+  heading → column head. A 1px gap shows rows scrolling through it.
+- **A scrolling column's `pt-px` counts.** Sticky offsets are measured inside the scroller's padding, so
+  `top: 0` in a `pt-px` column leaves a 1px strip. That's why `.pin-head` uses `-1px` from 1024px.
+- **No scroll box between a pinned row and its column.** `overflow-x-auto` around a table stops its head
+  pinning, so wide tables only scroll sideways below the width they need (`overflow-x-auto
+  @[760px]:overflow-x-visible`).
 - **Solid bands use `flow-root`**, so a child's bottom margin stays inside the band's background.
 - On laptops the footer is hidden, because the page never scrolls there. On phones and tablets the footer
   text is centred.
@@ -370,6 +397,8 @@ When the app's look changes, update the landing page in the same change.
 - [ ] Labels use `.eyebrow` or mono meta. Headings are 600 with negative tracking.
 - [ ] Main-column layouts use `@container` variants, not viewport breakpoints.
 - [ ] The view sits in `ScrollPane`/`PANE`, and section headings use `.pin-head` with `pb-3`.
+- [ ] Table column heads use `.pin-cols` with `usePinCols()`, the card doesn't clip, and the rows clip
+      themselves. Scrolled to a section's end, heading + column head + last row sit as one closed card.
 - [ ] Card top, left and right edges are visible at rest, while scrolling and under pinned layers, on phone,
       tablet and laptop.
 - [ ] Charts use `chartPalette`, keep asset colours fixed, and have hover, a legend or list, and an
@@ -383,12 +412,12 @@ When the app's look changes, update the landing page in the same change.
 
 | File | What it holds |
 |---|---|
-| `client/src/index.css` | Tokens (both themes), `@theme` mapping, `.card`, `.pill`, `.eyebrow`, `.num`, `.pin-head`, `.amount-mask` |
+| `client/src/index.css` | Tokens (both themes), `@theme` mapping, `.card`, `.pill`, `.eyebrow`, `.num`, `.pin-head`, `.pin-cols`, `.amount-mask` |
 | `client/src/hooks/useTheme.js` | Theme switching, `chartPalette` |
 | `client/src/hooks/usePrivacy.js` | Hide amounts, `PrivacyMask` |
 | `client/src/components/Navbar.jsx` | Sidebar, menu bar, drawer, `WRAP`, toggles |
 | `client/src/components/PortfolioTracker.jsx` | Page head, tabs, `--head-h`, footer |
-| `client/src/components/portfolio/ScrollPane.jsx` | `ScrollPane`, `PANE`, `--tb-h` |
+| `client/src/components/portfolio/ScrollPane.jsx` | `ScrollPane`, `PANE`, `--tb-h`, `usePinCols` |
 | `client/src/components/portfolio/FilterBar.jsx` | Search and filter toolbar |
 | `client/src/components/portfolio/FundsTable.jsx` | Fund list/grid, `StatusBadge`, `ViewToggle` |
 | `client/src/components/portfolio/SummaryPanel.jsx`, `BigAmount.jsx` | The headline balance card |

@@ -1,10 +1,13 @@
 import SummaryPanel from './SummaryPanel';
-import { PANE } from './ScrollPane';
+import { PANE, usePinCols } from './ScrollPane';
 import { useMemo } from 'react';
 import MetalSetsSection from './MetalSetsSection';
 import { formatCurrency, formatCurrentValue, formatCompact } from '../../utils/formatters';
 
 // "2 yrs 3 mo 10 days" from the purchase date to today, dropping the parts that are zero.
+// Holding, Quantity, Bought at, Invested, Current, Gain
+const HOLDING_COLS = 'grid-cols-[minmax(0,1.6fr)_minmax(0,0.7fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,0.9fr)]';
+
 const heldFor = (from) => {
     const start = new Date(from);
     const now = new Date();
@@ -23,6 +26,7 @@ const heldFor = (from) => {
 
 
 export default function GoldSilverView({ metal, data, isLoading, error }) {
+    const colsRef = usePinCols();
     const enrichedHoldings = useMemo(() => {
         if (!data?.holdings) return [];
         return data.holdings.map(h => ({ ...h, currentPricePerGram: data.pricePerGram }));
@@ -92,44 +96,44 @@ export default function GoldSilverView({ metal, data, isLoading, error }) {
                     <p className="text-sm">Add entries under <code className="text-xs bg-ink/5 px-1.5 py-0.5 rounded text-primary">"{metal}"</code> in portfolioConfig.json</p>
                 </div>
             ) : (
-                <div className="card overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full min-w-[760px] text-left">
-                            <thead>
-                                <tr className="border-b border-line">
-                                    <th scope="col" className="eyebrow py-4 pl-4 md:pl-6 pr-3 font-medium">Holding</th>
-                                    <th scope="col" className="eyebrow py-4 px-3 text-right font-medium">Quantity</th>
-                                    <th scope="col" className="eyebrow py-4 px-3 text-right font-medium">Bought at</th>
-                                    <th scope="col" className="eyebrow py-4 px-3 text-right font-medium">Invested</th>
-                                    <th scope="col" className="eyebrow py-4 px-3 text-right font-medium">Current</th>
-                                    <th scope="col" className="eyebrow py-4 pl-3 pr-4 md:pr-6 text-right font-medium">Gain</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                <div className="card">
+                    {/* the same grid list as the other tables (a sticky header can't stop early inside a <table>);
+                        sideways scroll only when it doesn't fit, since a scroll box would stop the header pinning */}
+                    <div role="table" aria-label={`${metalLabel} holdings`} className="overflow-x-auto rounded-[12px] @[760px]:overflow-x-visible">
+                        <div className="min-w-[760px]">
+                            <div ref={colsRef} role="row" className={`pin-cols grid ${HOLDING_COLS} items-center h-[52px]`}>
+                                <span role="columnheader" className="eyebrow pl-4 md:pl-6 pr-3">Holding</span>
+                                <span role="columnheader" className="eyebrow px-3 text-right">Quantity</span>
+                                <span role="columnheader" className="eyebrow px-3 text-right">Bought at</span>
+                                <span role="columnheader" className="eyebrow px-3 text-right">Invested</span>
+                                <span role="columnheader" className="eyebrow px-3 text-right">Current</span>
+                                <span role="columnheader" className="eyebrow pl-3 pr-4 md:pr-6 text-right">Gain</span>
+                            </div>
+                            <ul role="rowgroup" className="divide-y divide-line overflow-clip rounded-b-[12px]">
                                 {enrichedHoldings.map((h) => {
                                     const up = h.gain >= 0;
                                     return (
-                                        <tr key={h.id} className="border-b border-line last:border-0 hover:bg-ink/[0.02] transition-colors">
-                                            <td className="py-4 pl-4 md:pl-6 pr-3">
+                                        <li key={h.id} role="row" className={`grid ${HOLDING_COLS} items-center py-4 hover:bg-ink/[0.02] transition-colors`}>
+                                            <div role="cell" className="pl-4 md:pl-6 pr-3 min-w-0">
                                                 <p className="text-[15px] text-ink" style={{ fontWeight: 600 }}>{h.label}</p>
                                                 <p className="text-[13px] text-slate">
                                                     {new Date(h.purchaseDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                                                     {h.holdingDays != null ? ` · ${heldFor(h.purchaseDate)} held` : ''}
                                                 </p>
-                                            </td>
-                                            <td className="py-4 px-3 text-right text-[15px] text-ink-2 tabular-nums">{h.quantity} g</td>
-                                            <td className="py-4 px-3 text-right text-[15px] text-ink-2 tabular-nums">{formatCurrency(h.purchasePrice)}<span className="text-slate">/g</span></td>
-                                            <td className="py-4 px-3 text-right text-[15px] text-ink-2 tabular-nums">{formatCurrency(h.totalInvested)}</td>
-                                            <td className="py-4 px-3 text-right text-[15px] text-ink tabular-nums">{formatCurrentValue(h.currentValue)}</td>
-                                            <td className={`py-4 pl-3 pr-4 md:pr-6 text-right tabular-nums ${up ? 'text-gain' : 'text-loss'}`}>
+                                            </div>
+                                            <div role="cell" className="px-3 text-right text-[15px] text-ink-2 tabular-nums">{h.quantity} g</div>
+                                            <div role="cell" className="px-3 text-right text-[15px] text-ink-2 tabular-nums">{formatCurrency(h.purchasePrice)}<span className="text-slate">/g</span></div>
+                                            <div role="cell" className="px-3 text-right text-[15px] text-ink-2 tabular-nums">{formatCurrency(h.totalInvested)}</div>
+                                            <div role="cell" className="px-3 text-right text-[15px] text-ink tabular-nums">{formatCurrentValue(h.currentValue)}</div>
+                                            <div role="cell" className={`pl-3 pr-4 md:pr-6 text-right tabular-nums ${up ? 'text-gain' : 'text-loss'}`}>
                                                 <p className="text-[15px]">{up ? '+' : '−'}{formatCurrency(Math.abs(h.gain))}</p>
                                                 <p className="text-[13px]">{up ? '' : '−'}{Math.abs(h.gainPercent ?? 0).toFixed(2)}%</p>
-                                            </td>
-                                        </tr>
+                                            </div>
+                                        </li>
                                     );
                                 })}
-                            </tbody>
-                        </table>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             )}

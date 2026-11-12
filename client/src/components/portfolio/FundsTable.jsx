@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronRight, LayoutGrid, List } from 'lucide-react';
+import { usePinCols } from './ScrollPane';
 
 // Status as Vercel shows deployment state: a small dot and a word, the colour on the dot only.
 const STATUS = {
@@ -84,9 +85,10 @@ const COLS = '@2xl:grid-cols-[minmax(0,1fr)_120px_84px_72px_118px_16px] @2xl:gap
 // Vercel's deployment list: one bordered container, a row per item, hairlines between, the row opens in place.
 const FundList = ({ funds }) => {
   const [openId, setOpenId] = useState(null);
+  const colsRef = usePinCols();
   return (
-    <div className="card overflow-hidden">
-      <div className={`hidden @2xl:grid ${COLS} gap-4 px-5 h-10 items-center border-b border-line bg-surface-strong/40`} aria-hidden="true">
+    <div className="card">
+      <div ref={colsRef} className={`pin-cols hidden @2xl:grid ${COLS} gap-4 px-5 h-10 items-center`} aria-hidden="true">
         <span className="eyebrow">Fund</span>
         <span className="eyebrow text-right">Current</span>
         <span className="eyebrow text-right">Returns</span>
@@ -94,7 +96,7 @@ const FundList = ({ funds }) => {
         <span className="eyebrow">Status</span>
         <span />
       </div>
-      <ul className="divide-y divide-line">
+      <ul className="divide-y divide-line overflow-clip rounded-[12px] @2xl:rounded-t-none">
         {funds.map((fund) => {
           const open = openId === fund.id;
           const up = (fund.returns ?? 0) >= 0;
