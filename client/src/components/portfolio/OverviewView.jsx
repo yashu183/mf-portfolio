@@ -5,6 +5,7 @@ import { formatCurrentValue } from '../../utils/formatters';
 import ChartTooltip from './ChartTooltip';
 import AllocationChart, { StyleSwitch, useAllocationStyle } from './AllocationChart';
 import Insights from './Insights';
+import NavNotice from './NavNotice';
 import { Bone, PageGhost, SummaryGhost, PieGhost, HeadingGhost, CardsGhost, ChartGhost } from './Ghost';
 import { assetInsights } from '../../utils/insights';
 import { LineChart as FundsIcon, Landmark, PiggyBank, Coins, Gem, ArrowRight } from 'lucide-react';
@@ -192,7 +193,11 @@ export default function OverviewView({
     );
   }
 
+  const mfAsset = overviewData?.assets?.find((a) => a.id === 'mutualFunds');
+
   return (
+    <>
+    <NavNotice staleFunds={mfAsset?.staleFunds} missingFunds={mfAsset?.missingFunds} className="mb-6" />
     <div className="grid lg:grid-cols-[300px_minmax(0,1fr)] gap-6 lg:gap-8 items-start">
       {/* Left column: totals and allocation, as Vercel keeps usage beside the projects */}
       <aside className="space-y-4 lg:sticky lg:top-[calc(var(--head-h,0px)+32px)] lg:max-h-[calc(100vh-var(--head-h,0px)-64px)] lg:overflow-y-auto [scrollbar-width:none] lg:p-px lg:-m-px">
@@ -282,5 +287,6 @@ export default function OverviewView({
         )}
       </div>
     </div>
+    </>
   );
 }

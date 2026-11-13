@@ -287,6 +287,71 @@ const NAV_CACHE_DURATION = parseInt(
     10,
 );
 
+// MFapi rate-limits bursts (HTTP 429), so requests go out a few at a time, a scheme already
+// being fetched is shared rather than requested twice, and 429s/5xx are retried with backoff.
+// The last good history is kept on disk, so a failed fetch (even right after a restart)
+// falls back to slightly old NAVs instead of counting the fund as ₹0.
+const NAV_CONCURRENCY = Math.max(1, parseInt(process.env.MF_API_CONCURRENCY || '4', 10));
+const NAV_MAX_RETRIES = 3;
+const NAV_DISK_CACHE_DIR = path.join(__dirname, '.nav-cache');
+const _navInFlight = new Map();
+// schemes whose last fetch failed: 'stale' (served from a saved copy) or 'missing' (nothing saved)
+const _navProblem = new Map();
+let _navActive = 0;
+const _navQueue = [];
+
+async function withNavSlot(task) {
+    if (_navActive >= NAV_CONCURRENCY) await new Promise((resolve) => _navQueue.push(resolve));
+    _navActive++;
+    try {
+        return await task();
+    } finally {
+        _navActive--;
+        _navQueue.shift()?.();
+    }
+}
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function requestNAVHistory(schemeCode) {
+    for (let attempt = 0; ; attempt++) {
+        let status = 0;
+        let retryAfterMs = 0;
+        try {
+            const response = await withNavSlot(() => fetch(`${MF_API_BASE_URL}/${schemeCode}`));
+            if (response.ok) {
+                const navData = await response.json();
+                if (!navData?.data?.length) throw new Error('empty NAV history');
+                return navData;
+            }
+            status = response.status;
+            retryAfterMs = (parseInt(response.headers.get('retry-after') || '0', 10) || 0) * 1000;
+            if (status !== 429 && status < 500) throw new Error(`HTTP error ${status}`);
+            if (attempt >= NAV_MAX_RETRIES) throw new Error(`HTTP error ${status}`);
+        } catch (err) {
+            if (status && (status !== 429 && status < 500)) throw err;
+            if (attempt >= NAV_MAX_RETRIES) throw err;
+        }
+        // 1s, 2s, 4s (or what the server asks for), with jitter so retries don't arrive together
+        await wait(Math.min(Math.max(retryAfterMs, 1000 * 2 ** attempt), 10000) + Math.random() * 500);
+    }
+}
+
+async function readNAVDiskCache(schemeCode) {
+    try {
+        return JSON.parse(await fs.readFile(path.join(NAV_DISK_CACHE_DIR, `${schemeCode}.json`), 'utf8'));
+    } catch {
+        return null;
+    }
+}
+
+function writeNAVDiskCache(schemeCode, navData) {
+    fs
+        .mkdir(NAV_DISK_CACHE_DIR, { recursive: true })
+        .then(() => fs.writeFile(path.join(NAV_DISK_CACHE_DIR, `${schemeCode}.json`), JSON.stringify(navData)))
+        .catch((err) => console.error(`NAV disk cache write failed for ${schemeCode}:`, err.message));
+}
+
 async function fetchCompleteNAVHistory(schemeCode) {
     const now = Date.now();
     if (
@@ -296,17 +361,34 @@ async function fetchCompleteNAVHistory(schemeCode) {
     ) {
         return _navCache[schemeCode];
     }
-    try {
-        const response = await fetch(`${MF_API_BASE_URL}/${schemeCode}`);
-        if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-        const navData = await response.json();
-        _navCache[schemeCode] = navData;
-        _navCacheTs[schemeCode] = now;
-        return navData;
-    } catch (err) {
-        console.error(`NAV fetch failed for ${schemeCode}:`, err.message);
-        return null;
-    }
+    if (_navInFlight.has(schemeCode)) return _navInFlight.get(schemeCode);
+
+    const pending = (async () => {
+        try {
+            const navData = await requestNAVHistory(schemeCode);
+            _navCache[schemeCode] = navData;
+            _navCacheTs[schemeCode] = Date.now();
+            _navProblem.delete(schemeCode);
+            writeNAVDiskCache(schemeCode, navData);
+            return navData;
+        } catch (err) {
+            const stale = _navCache[schemeCode] ?? (await readNAVDiskCache(schemeCode));
+            if (stale) {
+                // keep it in memory but leave the timestamp, so the next request tries the network again
+                _navCache[schemeCode] = stale;
+                _navProblem.set(schemeCode, 'stale');
+                console.warn(`NAV fetch failed for ${schemeCode} (${err.message}); using cached NAV from ${stale.data[0]?.date}`);
+                return stale;
+            }
+            console.error(`NAV fetch failed for ${schemeCode}:`, err.message);
+            _navProblem.set(schemeCode, 'missing');
+            return null;
+        } finally {
+            _navInFlight.delete(schemeCode);
+        }
+    })();
+    _navInFlight.set(schemeCode, pending);
+    return pending;
 }
 
 function getNAVByDate(navHistory, targetDate) {
@@ -335,7 +417,7 @@ function getNAVByDate(navHistory, targetDate) {
 }
 
 async function calculateFundValue(fund) {
-    const empty = { totalUnits: 0, totalInvested: 0, currentValue: 0, latestNAV: 0, latestDate: null };
+    const empty = { totalUnits: 0, totalInvested: 0, currentValue: 0, latestNAV: 0, latestDate: null, navStatus: fund.schemeId ? 'missing' : 'live' };
     if (!fund.schemeId) return empty;
 
     const navHistory = await fetchCompleteNAVHistory(fund.schemeId);
@@ -374,7 +456,9 @@ async function calculateFundValue(fund) {
         }
     }
 
-    return { totalUnits, totalInvested, currentValue: totalUnits * latestNAV, latestNAV, latestDate };
+    // 'stale' when MFapi could not be reached and the last saved NAVs were used instead
+    const navStatus = _navProblem.get(fund.schemeId) === 'stale' ? 'stale' : 'live';
+    return { totalUnits, totalInvested, currentValue: totalUnits * latestNAV, latestNAV, latestDate, navStatus };
 }
 
 // ─── Shared XIRR builder ───────────────────────────────────────────────────────
@@ -484,7 +568,7 @@ async function computeMFData(config) {
 
     const calculatedFunds = await Promise.all(
         config.funds.map(async (fund) => {
-            const { totalUnits, totalInvested, currentValue, latestNAV, latestDate } =
+            const { totalUnits, totalInvested, currentValue, latestNAV, latestDate, navStatus } =
                 await calculateFundValue(fund);
 
             let totalSIPInvested = 0;
@@ -522,7 +606,9 @@ async function computeMFData(config) {
             cashFlows.push({ date: currentDate, amount: currentValue });
 
             const cacheKey = latestDate ? `${fund.id}_${latestDate}_xirr` : null;
-            const xirr = cashFlows.length > 1 ? calculateXIRR(cashFlows, 0.1, cacheKey) : 0;
+            // no NAV means no value to measure against, and a diverged solve is not a return either
+            const rawXirr = navStatus !== 'missing' && cashFlows.length > 1 ? calculateXIRR(cashFlows, 0.1, cacheKey) : 0;
+            const xirr = Number.isFinite(rawXirr) ? rawXirr : 0;
             const returns = totalInvested > 0 ? ((currentValue - totalInvested) / totalInvested) * 100 : 0;
 
             return {
@@ -532,6 +618,7 @@ async function computeMFData(config) {
                 currentValue,
                 latestNAV,
                 latestDate,
+                navStatus,
                 sipMonths,
                 totalSIPInvested,
                 totalLumpsum,
@@ -553,6 +640,9 @@ async function computeMFData(config) {
         },
         { totalInvested: 0, totalCurrentValue: 0, monthlySIP: 0 },
     );
+    // funds priced from a saved NAV, or with no NAV at all (counted as ₹0), so the UI can say so
+    totals.staleFunds = calculatedFunds.filter((f) => f.navStatus === 'stale').length;
+    totals.missingFunds = calculatedFunds.filter((f) => f.navStatus === 'missing').length;
     totals.totalReturns =
         totals.totalInvested > 0
             ? ((totals.totalCurrentValue - totals.totalInvested) / totals.totalInvested) * 100
@@ -1303,6 +1393,8 @@ app.get('/api/portfolio/overview', async (_req, res) => {
                 returnPercent: mfTotals.totalInvested > 0
                     ? parseFloat(((mfTotals.totalCurrentValue - mfTotals.totalInvested) / mfTotals.totalInvested * 100).toFixed(2))
                     : 0,
+                staleFunds: mfTotals.staleFunds,
+                missingFunds: mfTotals.missingFunds,
             },
             {
                 id: 'fds',

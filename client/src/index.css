@@ -228,6 +228,14 @@
 }
 }
 @keyframes ghost-sheen { to { transform: translateX(100%); } }
+/* "taking longer than usual" pill: rises in once, its dot breathes, each new line fades in */
+.slow-notice { animation: slow-in 240ms ease-out; }
+.slow-text { animation: slow-fade 240ms ease-out; }
+.slow-dot { animation: slow-pulse 1.6s ease-in-out infinite; }
+@keyframes slow-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes slow-fade { from { opacity: 0; } }
+@keyframes slow-pulse { 50% { opacity: 0.35; } }
 @media (prefers-reduced-motion: reduce) {
   .ghost::after { animation: none; }
+  .slow-notice, .slow-text, .slow-dot { animation: none; }
 }

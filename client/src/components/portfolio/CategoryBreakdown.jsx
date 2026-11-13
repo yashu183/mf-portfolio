@@ -8,7 +8,7 @@ import { formatCompact } from '../../utils/formatters';
 
 // Insights for the left column, as stacked Vercel cards: a mono label, then the facts.
 const CategoryBreakdown = ({ categoryBreakdown, totals, performanceGroups, funds = [] }) => {
-  const topFund = [...performanceGroups.excellent].sort((a, b) => b.xirr - a.xirr)[0];
+  const topFund = performanceGroups.excellent.filter((f) => Number.isFinite(f.xirr)).sort((a, b) => b.xirr - a.xirr)[0];
   const categories = Object.entries(categoryBreakdown)
     .map(([category, data]) => ({ category, ...data, pct: totals.totalCurrentValue > 0 ? (data.current / totals.totalCurrentValue) * 100 : 0 }))
     .sort((a, b) => b.pct - a.pct);

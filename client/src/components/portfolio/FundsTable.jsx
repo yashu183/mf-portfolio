@@ -70,11 +70,11 @@ const Details = ({ fund }) => (
         <p className="mt-3 pt-3 border-t border-line flex justify-between"><span className="text-body">Total</span><span className="num">{inr(fund.totalLumpsum)}</span></p>
       </div>
     )}
-    {fund.navInfo?.nav && (
+    {fund.latestNAV > 0 && (
       <div>
         <p className="eyebrow mb-3">NAV</p>
-        <p className="text-[24px] font-semibold tracking-[-0.03em] num">₹{fund.navInfo.nav.toFixed(2)}</p>
-        <p className="mt-1 font-mono text-[12px] text-muted">as of {fund.navInfo.date}</p>
+        <p className="text-[24px] font-semibold tracking-[-0.03em] num">₹{fund.latestNAV.toFixed(2)}</p>
+        <p className={`mt-1 font-mono text-[12px] ${fund.navStatus === 'stale' ? 'text-warn' : 'text-muted'}`}>as of {fund.latestDate}{fund.navStatus === 'stale' && ' · last saved'}</p>
       </div>
     )}
   </div>
@@ -112,7 +112,7 @@ const FundList = ({ funds }) => {
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: fund.color }} aria-hidden="true" />
                   <span className="min-w-0">
                     <span className="block text-[14px] font-medium text-ink truncate">{fund.shortName}</span>
-                    <span className="block font-mono text-[12px] text-muted truncate">{fund.category.toLowerCase()} · {fund.investmentAge}mo</span>
+                    <span className="block font-mono text-[12px] text-muted truncate">{fund.category.toLowerCase()} · {fund.investmentAge}mo{fund.navStatus === 'stale' && <span className="text-warn"> · NAV from {fund.latestDate}</span>}{fund.navStatus === 'missing' && <span className="text-warn"> · no price yet</span>}</span>
                   </span>
                 </span>
                 <span className="@2xl:hidden text-right">
@@ -150,7 +150,7 @@ const FundGrid = ({ funds }) => (
             </span>
             <div className="min-w-0">
               <h3 className="text-[14px] font-medium text-ink truncate">{fund.shortName}</h3>
-              <p className="font-mono text-[12px] text-muted truncate">{fund.category.toLowerCase()} · {fund.investmentAge}mo</p>
+              <p className="font-mono text-[12px] text-muted truncate">{fund.category.toLowerCase()} · {fund.investmentAge}mo{fund.navStatus === 'stale' && <span className="text-warn"> · NAV from {fund.latestDate}</span>}{fund.navStatus === 'missing' && <span className="text-warn"> · no price yet</span>}</p>
             </div>
           </header>
           <div>

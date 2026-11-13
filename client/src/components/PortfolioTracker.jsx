@@ -7,6 +7,7 @@ import { usePortfolioData } from '../hooks/usePortfolioData';
 import { ASSET_PATHS, MUTUAL_FUND_VIEWS, mutualFundViewPath } from '../utils/assetRoutes';
 import FundsTable, { ViewToggle } from './portfolio/FundsTable';
 import SummaryPanel from './portfolio/SummaryPanel';
+import NavNotice from './portfolio/NavNotice';
 import { formatCurrentValue } from '../utils/formatters';
 import CategoryBreakdown from './portfolio/CategoryBreakdown';
 import AllocationView from './portfolio/AllocationView';
@@ -375,6 +376,7 @@ const PortfolioTracker = ({ activeAsset }) => {
               </div>
             ) : (
               <>
+                <NavNotice staleFunds={totals.staleFunds} missingFunds={totals.missingFunds} className="mb-6" />
                 {activeView === 'dashboard' && (
                   <div className="grid lg:grid-cols-[300px_minmax(0,1fr)] gap-6 lg:gap-8 items-start">
                     {/* Left column: the summary and insights, as Vercel's overview keeps usage beside the list */}

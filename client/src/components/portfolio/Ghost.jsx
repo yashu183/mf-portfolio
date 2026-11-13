@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 // Ghost loading: every page shows the shape of what is coming (the summary card on the left, then the
 // lists, cards and charts it will hold) as grey blocks with a slow sheen, instead of a spinner.
@@ -98,8 +98,32 @@ export const PageGhost = ({ label, aside, children }) => (
     <span className="sr-only">{label}</span>
     <aside className="space-y-4">{aside ?? <SummaryGhost />}</aside>
     <div className="@container min-w-0 space-y-10">{children}</div>
+    <SlowNotice />
   </div>
 );
+
+// When a load runs long (a price source rate-limiting us, a cold server), say so instead of leaving
+// the ghost blocks to look stuck. A small pill floats at the bottom of the content area (beside the 240px sidebar on desktop), so the ghost layout never moves.
+const SLOW_STEPS = [
+  [4000, 'Hmm… hold on. It’s taking longer than usual.'],
+  [12000, 'Still on it. Prices are slow to come in right now, so we’re retrying.'],
+  [25000, 'This one’s being stubborn. Hang tight, or refresh in a minute.'],
+];
+
+export const SlowNotice = () => {
+  const [step, setStep] = useState(-1);
+  useEffect(() => {
+    const timers = SLOW_STEPS.map(([ms], i) => setTimeout(() => setStep(i), ms));
+    return () => timers.forEach(clearTimeout);
+  }, []);
+  if (step < 0) return null;
+  return (
+    <p className="slow-notice fixed z-40 bottom-6 left-1/2 lg:left-[calc(50%+120px)] -translate-x-1/2 w-max max-w-[calc(100vw-32px)] card px-4 py-2.5 flex items-center gap-2.5 text-[13px] text-body shadow-[0_0_0_1px_var(--c-line-strong),var(--c-shadow-float)]">
+      <span className="slow-dot w-1.5 h-1.5 rounded-full bg-warn shrink-0" aria-hidden="true" />
+      <span key={step} className="slow-text">{SLOW_STEPS[step][1]}</span>
+    </p>
+  );
+};
 
 // The allocation card: eyebrow and switch, the round chart, then its key
 export const PieGhost = ({ rows = 5 }) => (
