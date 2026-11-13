@@ -343,13 +343,14 @@ const Landing = () => {
             </button>
           </div>
         </div>
-        {open && (
-          <nav id="landing-menu" aria-label="Main" className="md:hidden fixed inset-x-0 top-16 bottom-0 bg-canvas px-4 py-4 flex flex-col gap-1">
-            {NAV.map(n => <a key={n.href} href={n.href} onClick={() => setOpen(false)} className="flex items-center h-14 px-4 rounded-2xl text-[17px] font-medium text-ink hover:bg-surface-strong">{n.label}</a>)}
-            <Link to={UNLOCK} className="pill pill-round pill-primary mt-4">Open your portfolio</Link>
-          </nav>
-        )}
       </header>
+      {/* Outside the header: its backdrop-blur would make it the containing block for this fixed panel */}
+      {open && (
+        <nav id="landing-menu" aria-label="Main" className="md:hidden fixed inset-x-0 top-16 bottom-0 z-40 overflow-y-auto bg-canvas px-4 py-4 flex flex-col gap-1">
+          {NAV.map(n => <a key={n.href} href={n.href} onClick={() => setOpen(false)} className="flex items-center h-14 px-4 rounded-2xl text-[17px] font-medium text-ink hover:bg-surface-strong">{n.label}</a>)}
+          <Link to={UNLOCK} className="pill pill-round pill-primary mt-4">Open your portfolio</Link>
+        </nav>
+      )}
 
       <main id="top">
         {/* Hero */}
@@ -375,7 +376,7 @@ const Landing = () => {
         {/* Assets */}
         <Section id="assets" className="bg-surface border-y border-line">
           <Heading id="assets-h" sub="Each keeps its own page and maths.">5 asset classes on one dashboard.</Heading>
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {features.map(f => (
               <article key={f.id} id={f.id} className={`card p-6 md:p-8 flex flex-col gap-6 scroll-mt-20 ${f.wide ? 'md:col-span-2 lg:grid lg:grid-cols-[1fr_1.25fr] lg:items-center lg:gap-10' : ''}`}>
                 <div>

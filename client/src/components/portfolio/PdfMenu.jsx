@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Download, RefreshCw, Eye, EyeOff, ChevronDown } from 'lucide-react';
 import { usePrivacy } from '../../hooks/usePrivacy';
 
@@ -10,6 +10,21 @@ const PdfMenu = ({ scope, owner, label, disabled }) => {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState('idle'); // idle | busy | failed
   const rootRef = useRef(null);
+  const menuRef = useRef(null);
+  const [shift, setShift] = useState(0);
+
+  // The menu hangs from the button's right edge; on a narrow screen that can push it past the
+  // left edge, so nudge it back inside a 16px gutter.
+  useLayoutEffect(() => {
+    if (!open || !menuRef.current) { setShift(0); return; }
+    const r = menuRef.current.getBoundingClientRect();
+    const natLeft = r.left - shift;
+    const vw = document.documentElement.clientWidth;
+    let next = 0;
+    if (natLeft < 16) next = 16 - natLeft;
+    else if (natLeft + r.width > vw - 16) next = vw - 16 - (natLeft + r.width);
+    if (next !== shift) setShift(next);
+  }, [open, shift]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -58,7 +73,7 @@ const PdfMenu = ({ scope, owner, label, disabled }) => {
         <ChevronDown className={`w-3.5 h-3.5 text-muted transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 top-full mt-2 z-40 w-[280px] p-1 rounded-lg bg-surface shadow-[0_0_0_1px_var(--c-line-strong),var(--c-shadow-float)]">
+        <div ref={menuRef} role="menu" style={{ transform: shift ? `translateX(${shift}px)` : undefined }} className="absolute right-0 top-full mt-2 z-40 w-[min(280px,calc(100vw-32px))] p-1 rounded-lg bg-surface shadow-[0_0_0_1px_var(--c-line-strong),var(--c-shadow-float)]">
           {options.map(({ masked, icon: Icon, title, note }) => (
             <button
               key={title}
