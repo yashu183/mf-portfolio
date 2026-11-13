@@ -3,28 +3,20 @@ import SummaryPanel from './SummaryPanel';
 import { PANE, usePinCols } from './ScrollPane';
 import { useMemo } from 'react';
 import MetalSetsSection from './MetalSetsSection';
-import { formatCurrency, formatCurrentValue, formatCompact } from '../../utils/formatters';
+import { SortHead, useSort } from './Sort';
 
-// "2 yrs 3 mo 10 days" from the purchase date to today, dropping the parts that are zero.
+const SORT_BY = {
+    holding: (h) => h.label,
+    quantity: (h) => h.quantity,
+    price: (h) => h.purchasePrice,
+    invested: (h) => h.totalInvested,
+    current: (h) => h.currentValue,
+    gain: (h) => h.gain,
+};
+import { formatCurrency, formatCurrentValue, formatCompact, heldFor } from '../../utils/formatters';
+
 // Holding, Quantity, Bought at, Invested, Current, Gain
 const HOLDING_COLS = 'grid-cols-[minmax(0,1.6fr)_minmax(0,0.7fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,0.9fr)]';
-
-const heldFor = (from) => {
-    const start = new Date(from);
-    const now = new Date();
-    let years = now.getFullYear() - start.getFullYear();
-    let months = now.getMonth() - start.getMonth();
-    let days = now.getDate() - start.getDate();
-    if (days < 0) { months -= 1; days += new Date(now.getFullYear(), now.getMonth(), 0).getDate(); }
-    if (months < 0) { years -= 1; months += 12; }
-    const parts = [
-        years && `${years} ${years === 1 ? 'yr' : 'yrs'}`,
-        months && `${months} mo`,
-        days && `${days} ${days === 1 ? 'day' : 'days'}`,
-    ].filter(Boolean);
-    return parts.length ? parts.join(' ') : 'under a day';
-};
-
 
 export default function GoldSilverView({ metal, data, isLoading, error }) {
     const colsRef = usePinCols();
@@ -32,6 +24,8 @@ export default function GoldSilverView({ metal, data, isLoading, error }) {
         if (!data?.holdings) return [];
         return data.holdings.map(h => ({ ...h, currentPricePerGram: data.pricePerGram }));
     }, [data]);
+    const sorted = useSort(enrichedHoldings, SORT_BY);
+    const head = { sort: sorted.sort, onSort: sorted.toggle };
 
     if (isLoading) return (
             <PageGhost label={`Loading ${metal}`} aside={<><SummaryGhost /><NoteGhost /></>}>
@@ -99,15 +93,15 @@ export default function GoldSilverView({ metal, data, isLoading, error }) {
                     <div role="table" aria-label={`${metalLabel} holdings`} className="overflow-x-auto rounded-[12px] @[760px]:overflow-x-visible">
                         <div className="min-w-[760px]">
                             <div ref={colsRef} role="row" className={`pin-cols grid ${HOLDING_COLS} items-center h-[52px]`}>
-                                <span role="columnheader" className="eyebrow pl-4 md:pl-6 pr-3">Holding</span>
-                                <span role="columnheader" className="eyebrow px-3 text-right">Quantity</span>
-                                <span role="columnheader" className="eyebrow px-3 text-right">Bought at</span>
-                                <span role="columnheader" className="eyebrow px-3 text-right">Invested</span>
-                                <span role="columnheader" className="eyebrow px-3 text-right">Current</span>
-                                <span role="columnheader" className="eyebrow pl-3 pr-4 md:pr-6 text-right">Gain/Loss</span>
+                                <SortHead label="Holding" k="holding" className="pl-4 md:pl-6 pr-3" {...head} />
+                                <SortHead label="Quantity" k="quantity" align="right" className="px-3" {...head} />
+                                <SortHead label="Bought at" k="price" align="right" className="px-3" {...head} />
+                                <SortHead label="Invested" k="invested" align="right" className="px-3" {...head} />
+                                <SortHead label="Current" k="current" align="right" className="px-3" {...head} />
+                                <SortHead label="Gain/Loss" k="gain" align="right" className="pl-3 pr-4 md:pr-6" {...head} />
                             </div>
                             <ul role="rowgroup" className="divide-y divide-line overflow-clip rounded-b-[12px]">
-                                {enrichedHoldings.map((h) => {
+                                {sorted.rows.map((h) => {
                                     const up = h.gain >= 0;
                                     return (
                                         <li key={h.id} role="row" className={`grid ${HOLDING_COLS} items-center py-4 hover:bg-ink/[0.02] transition-colors`}>

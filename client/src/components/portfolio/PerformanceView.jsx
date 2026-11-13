@@ -9,11 +9,12 @@ const GROUPS = [
   { id: 'poor', title: 'Underperforming', note: 'Candidates to pause or exit' },
 ];
 
-const PerformanceView = ({ performanceGroups }) => (
+const PerformanceView = ({ performanceGroups, view = 'list' }) => (
   <div className="space-y-10">
     <h2 className="sr-only">Performance</h2>
     {GROUPS.map(({ id, title, note }) => {
-      const funds = performanceGroups[id] ?? [];
+      // ranked by XIRR as their own order, so a column sort can always come back to it
+      const funds = [...(performanceGroups[id] ?? [])].sort((a, b) => (b.xirr ?? 0) - (a.xirr ?? 0));
       if (funds.length === 0) return null;
       return (
         <section key={id} aria-labelledby={`perf-${id}`}>
@@ -24,7 +25,7 @@ const PerformanceView = ({ performanceGroups }) => (
             </div>
             <p className="text-[15px] text-ink-2">{note}</p>
           </div>
-          <FundsTable funds={[...funds].sort((a, b) => (b.xirr ?? 0) - (a.xirr ?? 0))} />
+          <FundsTable funds={funds} view={view} />
         </section>
       );
     })}

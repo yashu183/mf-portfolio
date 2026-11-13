@@ -3,6 +3,15 @@ import { PANE, usePinCols } from './ScrollPane';
 import { RefreshCw, AlertCircle, Sparkles } from 'lucide-react';
 import SummaryPanel from './SummaryPanel';
 import ToArrow from './ToArrow';
+import { SortHead, useSort } from './Sort';
+
+const deltaOf = (r) => (r.targetPct != null ? r.targetPct - r.pct : null);
+const SORT_BY = {
+  category: (r) => r.category,
+  share: (r) => r.pct,
+  sip: (r) => r.amount,
+  change: deltaOf,
+};
 import { TextGhost } from './Ghost';
 
 // Vercel's note: a bordered strip with an icon, for service state and errors.
@@ -43,6 +52,8 @@ const AllocationView = ({
     })
     .sort((a, b) => b.pct - a.pct);
   const hasTargets = rows.some((r) => r.targetPct != null);
+  const sorted = useSort(rows, SORT_BY);
+  const head = { sort: sorted.sort, onSort: sorted.toggle };
 
   return (
     <div className="grid lg:grid-cols-[300px_minmax(0,1fr)] gap-6 lg:gap-8 items-start">
@@ -87,15 +98,15 @@ const AllocationView = ({
           </span>
         </div>
         <div className="card">
-          <div ref={colsRef} className="pin-cols hidden @xl:grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_96px_80px] gap-4 px-5 h-10 items-center" aria-hidden="true">
-            <span className="eyebrow">Category</span>
-            <span className="eyebrow">Current vs target</span>
-            <span className="eyebrow text-right">SIP</span>
-            <span className="eyebrow text-right">Change</span>
+          <div ref={colsRef} className="pin-cols hidden @xl:grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_96px_80px] gap-4 px-5 h-10 items-center" role="row">
+            <SortHead label="Category" k="category" {...head} />
+            <SortHead label="Current vs target" k="share" {...head} />
+            <SortHead label="SIP" k="sip" align="right" {...head} />
+            <SortHead label="Change" k="change" align="right" {...head} />
           </div>
           <ul className="divide-y divide-line overflow-clip rounded-[12px] @xl:rounded-t-none">
-            {rows.map((r) => {
-              const delta = r.targetPct != null ? r.targetPct - r.pct : null;
+            {sorted.rows.map((r) => {
+              const delta = deltaOf(r);
               return (
                 <li key={r.category} className="px-4 md:px-5 py-3.5 grid grid-cols-[minmax(0,1fr)_auto] @xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_96px_80px] gap-x-4 gap-y-2 items-center">
                   <div className="min-w-0">

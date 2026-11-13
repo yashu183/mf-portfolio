@@ -112,20 +112,20 @@ const NavMock = ({ palette }) => {
 };
 
 // Mirrors the app's FD list: deployment-style rows with a progress bar.
-const FdMock = () => (
+const FdMock = ({ palette }) => (
   <div className="card divide-y divide-line" aria-hidden="true">
     {[
-      { n: 'SBI · 2L - 444 d', m: 'cycle 2 of 2 · matures jun 27', v: '₹2,26,845', g: '+₹26,845', p: 75 },
-      { n: 'SBI · 3L - 444 d', m: 'cycle 2 of 2 · matures jul 27', v: '₹3,38,890', g: '+₹38,890', p: 72 },
-      { n: 'Suryoday SF · 2L', m: 'cycle 1 of 1 · matures nov 28', v: '₹2,07,592', g: '+₹7,592', p: 18 },
+      { b: 'SBI', c: 0, h: 'mom', k: 2, t: '444 d', m: "jan'25 → jun'27 · cycle 2", v: '₹2,26,845', g: '+₹26,845', p: 75 },
+      { b: 'SBI', c: 0, h: 'dad', k: 7, t: '444 d', m: "feb'25 → jul'27 · cycle 2", v: '₹3,38,890', g: '+₹38,890', p: 72 },
+      { b: 'Suryoday SF', c: 1, h: 'me', k: 4, t: '2 yr 6 mo', m: "may'26 → nov'28 · cycle 1", v: '₹2,07,592', g: '+₹7,592', p: 18 },
     ].map(r => (
-      <div key={r.n} className="flex items-center gap-3 px-4 py-3">
-        <span className="w-2 h-2 rounded-full bg-link shrink-0" />
+      <div key={r.m} className="flex items-center gap-3 px-4 py-3">
+        <span className="w-7 h-7 rounded-full grid place-items-center shrink-0 text-[10px] font-semibold text-ink shadow-[inset_0_0_0_1px_var(--c-line-strong)]" style={{ background: `color-mix(in oklab, ${palette.series[r.c]} 40%, var(--c-surface))` }}>{r.b.length <= 3 ? r.b : r.b.split(/\s+/).slice(0, 2).map(w => w[0]).join('')}</span>
         <div className="flex-1 min-w-0">
-          <p className="text-[13px] font-medium text-ink truncate">{r.n}</p>
-          <p className="font-mono text-[11px] text-muted truncate">{r.m}</p>
+          <p className="flex items-center gap-1.5 min-w-0"><span className="text-[13px] font-medium text-ink truncate">{r.b}</span><span className="shrink-0 inline-flex items-center h-4 px-1.5 rounded-full font-mono text-[10px]" style={{ color: palette.series[r.k], background: `color-mix(in oklab, ${palette.series[r.k]} 14%, transparent)`, boxShadow: `inset 0 0 0 1px color-mix(in oklab, ${palette.series[r.k]} 35%, transparent)` }}>{r.h}</span></p>
+          <p className="mt-0.5 font-mono text-[11px] text-muted truncate">{r.m}</p>
         </div>
-        <span className="hidden sm:block w-16 h-1 rounded-full bg-surface-strong overflow-hidden"><span className="block h-full rounded-full bg-ink" style={{ width: `${r.p}%` }} /></span>
+        <span className="hidden sm:block w-16 h-1 rounded-full bg-surface-strong overflow-hidden"><span className="block h-full rounded-full bg-link" style={{ width: `${r.p}%` }} /></span>
         <div className="text-right">
           <p className="num text-[13px] text-ink">{r.v}</p>
           <p className="num text-[11px] text-gain">{r.g}</p>
@@ -318,7 +318,7 @@ const Landing = () => {
 
   const features = [
     { id: 'funds', title: "Values every fund at today's NAV", body: 'Replays each SIP and lump sum against the daily NAV from mfapi.in for its XIRR.', mock: <NavMock palette={palette} /> },
-    { id: 'deposits', title: "Counts down to each FD's maturity", body: 'Each renewal keeps its own rate, term and the interest it paid.', mock: <FdMock /> },
+    { id: 'deposits', title: "Counts down to each FD's maturity", body: 'Each renewal keeps its own rate, term and the interest it paid.', mock: <FdMock palette={palette} /> },
     { id: 'metals', title: 'Averages gold and silver cost by set', body: 'Every purchase joins a set: average price per gram by set, year or total.', mock: <MetalsMock /> },
     { id: 'total', title: 'Adds five classes into one total', body: 'Funds, deposits, metals and EPF meet on one overview, with a timeline.', mock: <TotalMock palette={palette} /> },
     { id: 'reports', wide: true, title: 'Downloads a PDF report', body: 'The whole portfolio or one asset, with charts and insights. A masked copy hides every amount and keeps the percentages, so it is safe to share.', mock: <PdfMock /> },

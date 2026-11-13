@@ -4,6 +4,7 @@ import SummaryPanel from './SummaryPanel';
 import ToArrow from './ToArrow';
 import ScrollPane, { usePinCols } from './ScrollPane';
 import { HeadingGhost, ListGhost, TextGhost } from './Ghost';
+import { SortHead, useSort } from './Sort';
 
 const inr = (v) => `₹${(v ?? 0).toLocaleString('en-IN')}`;
 const shortName = (name) => (name || 'Unknown fund')
@@ -30,6 +31,13 @@ const Note = ({ tone = 'warn', children }) => (
   </div>
 );
 
+const PLAN_SORT_BY = {
+  fund: (p) => shortName(p.name),
+  current: (p) => p.current || 0,
+  revised: (p) => verdictOf(p).revised,
+  change: (p) => verdictOf(p).revised - (p.current || 0),
+};
+
 const RecommendationsView = ({
   recommendations,
   filteredFunds = null,
@@ -49,6 +57,8 @@ const RecommendationsView = ({
   const names = new Set((filteredFunds || []).flatMap((f) => [f.name, f.shortName]));
   const plan = (recommendations?.revisedPlan || []).filter((p) => !filtersApplied || names.has(p.name));
   const newInvestments = recommendations?.newInvestments || [];
+  const sorted = useSort(plan, PLAN_SORT_BY);
+  const head = { sort: sorted.sort, onSort: sorted.toggle };
 
   const currentTotal = (recommendations?.revisedPlan || []).reduce((t, p) => t + (p.current || 0), 0);
   const revisedTotal = (recommendations?.revisedPlan || []).reduce((t, p) => t + verdictOf(p).revised, 0);
@@ -113,22 +123,22 @@ const RecommendationsView = ({
             </div>
             {filtersApplied && <div className="mb-3"><Note tone="info">Showing {plan.length} of {recommendations.revisedPlan.length} funds for the active filters.</Note></div>}
             <div className="card">
-              <div ref={colsRef} className="pin-cols hidden @xl:grid grid-cols-[minmax(0,1fr)_100px_100px_120px_16px] gap-3 px-5 h-10 items-center" aria-hidden="true">
-                <span className="eyebrow">Fund</span>
-                <span className="eyebrow text-right">Current</span>
-                <span className="eyebrow text-right">Revised</span>
-                <span className="eyebrow text-right">Change</span>
+              <div ref={colsRef} className="pin-cols hidden @xl:grid grid-cols-[minmax(0,1fr)_100px_100px_120px_16px] gap-3 px-5 h-10 items-center" role="row">
+                <SortHead label="Fund" k="fund" {...head} />
+                <SortHead label="Current" k="current" align="right" {...head} />
+                <SortHead label="Revised" k="revised" align="right" {...head} />
+                <SortHead label="Change" k="change" align="right" {...head} />
                 <span />
               </div>
               <ul className="divide-y divide-line overflow-clip rounded-[12px] @xl:rounded-t-none">
-                {plan.map((p, idx) => {
+                {sorted.rows.map((p) => {
                   const v = verdictOf(p);
-                  const open = openIdx === idx;
+                  const open = openIdx === p.name;
                   return (
-                    <li key={idx}>
+                    <li key={p.name}>
                       <button
                         type="button"
-                        onClick={() => p.reason && setOpenIdx(open ? null : idx)}
+                        onClick={() => p.reason && setOpenIdx(open ? null : p.name)}
                         aria-expanded={p.reason ? open : undefined}
                         className={`w-full text-left grid grid-cols-[minmax(0,1fr)_auto] @xl:grid-cols-[minmax(0,1fr)_100px_100px_120px_16px] gap-x-3 gap-y-1 items-center px-4 md:px-5 py-3.5 transition-colors ${p.reason ? 'cursor-pointer hover:bg-surface-strong/40' : ''} ${open ? 'bg-surface-strong/40' : ''}`}
                       >

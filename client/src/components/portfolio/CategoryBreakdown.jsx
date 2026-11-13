@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { fundAge } from '../../utils/formatters';
 import { StatusBadge } from './FundsTable';
 import AllocationChart, { StyleSwitch, useAllocationStyle } from './AllocationChart';
 import Insights from './Insights';
@@ -34,7 +35,7 @@ const CategoryBreakdown = ({ categoryBreakdown, totals, performanceGroups, funds
           <>
             <p className="mt-3 text-[14px] font-medium text-ink">{topFund.shortName}</p>
             <p className="mt-1 text-[24px] font-semibold tracking-[-0.03em] text-gain num">{topFund.xirr.toFixed(1)}% <span className="text-[13px] font-normal text-muted">XIRR</span></p>
-            <p className="mt-1 font-mono text-[12px] text-muted">{topFund.investmentAge}mo · {topFund.returns.toFixed(2)}% returns</p>
+            <p className="mt-1 font-mono text-[12px] text-muted">{fundAge(topFund)} · {topFund.returns.toFixed(2)}% returns</p>
           </>
         ) : (
           <p className="mt-3 text-[14px] text-body">No fund is rated excellent yet.</p>

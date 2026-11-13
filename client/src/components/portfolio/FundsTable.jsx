@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { ChevronRight, LayoutGrid, List } from 'lucide-react';
 import { usePinCols } from './ScrollPane';
+import { SortHead, useSort } from './Sort';
+import { fundAge, monthsAsYears } from '../../utils/formatters';
 
 // Status as Vercel shows deployment state: a small dot and a word, the colour on the dot only.
 const STATUS = {
@@ -41,8 +43,9 @@ const inr = (v, digits = 0) => `₹${(v ?? 0).toLocaleString('en-IN', { minimumF
 const formatDate = (date) => (date ? new Date(date).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : '-');
 const pct = (v) => `${(v ?? 0) >= 0 ? '+' : '−'}${Math.abs(v ?? 0).toFixed(2)}%`;
 
-const Details = ({ fund }) => (
-  <div className="grid grid-cols-1 @2xl:grid-cols-3 gap-6 px-4 md:px-5 py-5 bg-surface-strong/50 border-t border-line text-[14px]">
+// `panel` drops the top hairline and tint, for the grid's details panel, which is its own card
+const Details = ({ fund, panel = false }) => (
+  <div className={`grid grid-cols-1 @2xl:grid-cols-3 gap-6 px-4 md:px-5 py-5 text-[14px] ${panel ? '' : 'bg-surface-strong/50 border-t border-line'}`}>
     {fund.sips?.length > 0 && (
       <div>
         <p className="eyebrow mb-3">SIP{fund.sips.length > 1 ? 's' : ''}</p>
@@ -55,7 +58,7 @@ const Details = ({ fund }) => (
           ))}
         </ul>
         {fund.totalSIPInvested > 0 && (
-          <p className="mt-3 pt-3 border-t border-line flex justify-between"><span className="text-body">Via SIP · {fund.sipMonths} months</span><span className="num">{inr(fund.totalSIPInvested)}</span></p>
+          <p className="mt-3 pt-3 border-t border-line flex justify-between"><span className="text-body">Via SIP · {monthsAsYears(fund.sipMonths)}</span><span className="num">{inr(fund.totalSIPInvested)}</span></p>
         )}
       </div>
     )}
@@ -83,17 +86,27 @@ const Details = ({ fund }) => (
 const COLS = '@2xl:grid-cols-[minmax(0,1fr)_120px_84px_72px_118px_16px] @2xl:gap-x-3';
 
 // Vercel's deployment list: one bordered container, a row per item, hairlines between, the row opens in place.
-const FundList = ({ funds }) => {
+const STATUS_RANK = { excellent: 4, good: 3, monitor: 2, poor: 1 };
+const SORT_BY = {
+  fund: (f) => f.shortName || f.name,
+  current: (f) => f.currentValue,
+  returns: (f) => f.returns,
+  xirr: (f) => f.xirr,
+  status: (f) => STATUS_RANK[f.status] ?? 0,
+};
+
+const FundList = ({ funds, sort, onSort }) => {
   const [openId, setOpenId] = useState(null);
   const colsRef = usePinCols();
+  const head = { sort, onSort };
   return (
     <div className="card">
-      <div ref={colsRef} className={`pin-cols hidden @2xl:grid ${COLS} gap-4 px-5 h-10 items-center`} aria-hidden="true">
-        <span className="eyebrow">Fund</span>
-        <span className="eyebrow text-right">Current</span>
-        <span className="eyebrow text-right">Returns</span>
-        <span className="eyebrow text-right">XIRR</span>
-        <span className="eyebrow text-right">Status</span>
+      <div ref={colsRef} role="row" className={`pin-cols hidden @2xl:grid ${COLS} gap-4 px-5 h-10 items-center`}>
+        <SortHead label="Fund" k="fund" {...head} />
+        <SortHead label="Current" k="current" align="right" {...head} />
+        <SortHead label="Returns" k="returns" align="right" {...head} />
+        <SortHead label="XIRR" k="xirr" align="right" {...head} />
+        <SortHead label="Status" k="status" align="right" {...head} />
         <span />
       </div>
       <ul className="divide-y divide-line overflow-clip rounded-[12px] @2xl:rounded-t-none">
@@ -112,7 +125,7 @@ const FundList = ({ funds }) => {
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: fund.color }} aria-hidden="true" />
                   <span className="min-w-0">
                     <span className="block text-[14px] font-medium text-ink truncate">{fund.shortName}</span>
-                    <span className="block font-mono text-[12px] text-muted truncate">{fund.category.toLowerCase()} · {fund.investmentAge}mo{fund.navStatus === 'stale' && <span className="text-warn"> · NAV from {fund.latestDate}</span>}{fund.navStatus === 'missing' && <span className="text-warn"> · no price yet</span>}</span>
+                    <span className="block font-mono text-[12px] text-muted truncate">{fund.category.toLowerCase()} · {fundAge(fund)}{fund.navStatus === 'stale' && <span className="text-warn"> · NAV from {fund.latestDate}</span>}{fund.navStatus === 'missing' && <span className="text-warn"> · no price yet</span>}</span>
                   </span>
                 </span>
                 <span className="@2xl:hidden text-right">
@@ -137,36 +150,84 @@ const FundList = ({ funds }) => {
   );
 };
 
-// Vercel's project cards: the name and its mono line, the one figure that matters, state at the foot.
-const FundGrid = ({ funds }) => (
-  <div className="grid @lg:grid-cols-2 @3xl:grid-cols-3 gap-4">
-    {funds.map((fund) => {
-      const up = (fund.returns ?? 0) >= 0;
-      return (
-        <article key={fund.id} className="card p-5 flex flex-col gap-4 transition-shadow hover:shadow-[0_0_0_1px_var(--c-line-strong),var(--c-shadow-float)]">
-          <header className="flex items-start gap-3">
-            <span className="w-8 h-8 rounded-full grid place-items-center shrink-0 text-[11px] font-semibold text-ink shadow-[inset_0_0_0_1px_var(--c-line-strong)]" style={{ background: `color-mix(in oklab, ${fund.color} 35%, var(--c-surface))` }} aria-hidden="true">
-              {(fund.shortName || '?').split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase()}
-            </span>
-            <div className="min-w-0">
-              <h3 className="text-[14px] font-medium text-ink truncate">{fund.shortName}</h3>
-              <p className="font-mono text-[12px] text-muted truncate">{fund.category.toLowerCase()} · {fund.investmentAge}mo{fund.navStatus === 'stale' && <span className="text-warn"> · NAV from {fund.latestDate}</span>}{fund.navStatus === 'missing' && <span className="text-warn"> · no price yet</span>}</p>
-            </div>
-          </header>
-          <div>
-            <p className="text-[24px] font-semibold tracking-[-0.03em] text-ink num">{inr(fund.currentValue)}</p>
-            <p className="mt-0.5 text-[13px] text-body"><span className={`num ${up ? 'text-gain' : 'text-loss'}`}>{pct(fund.returns)}</span> on <span className="num">{inr(fund.totalInvested)}</span></p>
-          </div>
-          <footer className="mt-auto pt-4 border-t border-line flex items-center justify-between">
-            <StatusBadge status={fund.status} />
-            <span className="font-mono text-[12px] text-muted">XIRR <span className="text-ink">{(fund.xirr ?? 0).toFixed(2)}%</span></span>
-          </footer>
-        </article>
-      );
-    })}
-  </div>
+const Monogram = ({ fund }) => (
+  <span className="w-8 h-8 rounded-full grid place-items-center shrink-0 text-[11px] font-semibold text-ink shadow-[inset_0_0_0_1px_var(--c-line-strong)]" style={{ background: `color-mix(in oklab, ${fund.color} 35%, var(--c-surface))` }} aria-hidden="true">
+    {(fund.shortName || '?').split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase()}
+  </span>
+);
+const FundMeta = ({ fund }) => (
+  <span className="block font-mono text-[12px] text-muted">{fund.category.toLowerCase()} · {fundAge(fund)}{fund.navStatus === 'stale' && <span className="text-warn"> · NAV from {fund.latestDate}</span>}{fund.navStatus === 'missing' && <span className="text-warn"> · no price yet</span>}</span>
 );
 
-const FundsTable = ({ funds, view = 'list' }) => (view === 'grid' ? <FundGrid funds={funds} /> : <FundList funds={funds} />);
+// How many columns a CSS grid is laying out right now (it changes with the container's width).
+const useGridColumns = () => {
+  const ref = useRef(null);
+  const [cols, setCols] = useState(1);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const read = () => setCols(getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean).length || 1);
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    read();
+    return () => ro.disconnect();
+  }, []);
+  return [ref, cols];
+};
+
+// Vercel's project cards: the name and its mono line, the one figure that matters, state at the foot.
+// A card opens without moving: it stays in its place, marked, and its SIP, lump sum and NAV details
+// open in a full-width panel right under its row, with a notch pointing up at it.
+const FundGrid = ({ funds }) => {
+  const [openId, setOpenId] = useState(null);
+  const [gridRef, cols] = useGridColumns();
+  const openIdx = funds.findIndex((f) => f.id === openId);
+  const rowEnd = openIdx < 0 ? -1 : Math.min(Math.floor(openIdx / cols) * cols + cols, funds.length) - 1;
+  const notch = openIdx < 0 ? 0 : (((openIdx % cols) + 0.5) / cols) * 100;
+  return (
+    <div ref={gridRef} className="grid @lg:grid-cols-2 @3xl:grid-cols-3 gap-4">
+      {funds.map((fund, i) => {
+        const up = (fund.returns ?? 0) >= 0;
+        const open = openId === fund.id;
+        return (
+          <React.Fragment key={fund.id}>
+            <article data-fund-id={fund.id} className={`card overflow-hidden flex flex-col transition-shadow ${open ? 'shadow-[0_0_0_1px_var(--c-ink),var(--c-shadow-float)]' : 'hover:shadow-[0_0_0_1px_var(--c-line-strong),var(--c-shadow-float)]'}`}>
+              <button type="button" onClick={() => setOpenId(open ? null : fund.id)} aria-expanded={open} aria-controls={open ? `fund-details-${fund.id}` : undefined} className="flex-1 w-full text-left p-5 flex flex-col gap-4 cursor-pointer">
+                <span className="flex items-start gap-3 w-full">
+                  <Monogram fund={fund} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14px] font-medium text-ink">{fund.shortName}</span>
+                    <FundMeta fund={fund} />
+                  </span>
+                  <ChevronRight className={`w-4 h-4 mt-0.5 shrink-0 text-muted transition-transform ${open ? 'rotate-90 text-ink' : ''}`} aria-hidden="true" />
+                </span>
+                <span className="block">
+                  <span className="block text-[24px] font-semibold tracking-[-0.03em] text-ink num">{inr(fund.currentValue)}</span>
+                  <span className="block mt-0.5 text-[13px] text-body"><span className={`num ${up ? 'text-gain' : 'text-loss'}`}>{pct(fund.returns)}</span> on <span className="num">{inr(fund.totalInvested)}</span></span>
+                </span>
+                <span className="mt-auto w-full pt-4 border-t border-line flex items-center justify-between">
+                  <StatusBadge status={fund.status} />
+                  <span className="font-mono text-[12px] text-muted">XIRR <span className="text-ink">{(fund.xirr ?? 0).toFixed(2)}%</span></span>
+                </span>
+              </button>
+            </article>
+            {i === rowEnd && (
+              <section id={`fund-details-${funds[openIdx].id}`} aria-label={`${funds[openIdx].shortName} details`} className="relative col-span-full card">
+                <span className="absolute -top-[6px] w-3 h-3 rotate-45 bg-surface shadow-[-1px_-1px_0_0_var(--c-ring)]" style={{ left: `calc(${notch}% - 6px)` }} aria-hidden="true" />
+                <Details fund={funds[openIdx]} panel />
+              </section>
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+};
+
+// The sort lives here so the order holds when switching between list and grid.
+const FundsTable = ({ funds, view = 'list', initialSort = null }) => {
+  const { rows, sort, toggle } = useSort(funds, SORT_BY, initialSort);
+  return view === 'grid' ? <FundGrid funds={rows} /> : <FundList funds={rows} sort={sort} onSort={toggle} />;
+};
 
 export default FundsTable;

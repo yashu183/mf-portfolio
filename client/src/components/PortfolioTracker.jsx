@@ -63,13 +63,13 @@ const PortfolioTracker = ({ activeAsset }) => {
   const setFundView = (v) => { setFundViewState(v); try { localStorage.setItem('vesta-fund-view', v); } catch {} };
   const [filters, setFilters] = useState({
     search: '',
-    category: '',
-    status: '',
-    investmentType: '',
+    category: [],
+    status: [],
+    investmentType: [],
   });
   const [recommendationFilters, setRecommendationFilters] = useState({
     search: '',
-    category: '',
+    category: [],
   });
 
   const {
@@ -119,7 +119,7 @@ const PortfolioTracker = ({ activeAsset }) => {
   };
 
   const handleClearFilters = () => {
-    setFilters({ search: '', category: '', status: '', investmentType: '' });
+    setFilters({ search: '', category: [], status: [], investmentType: [] });
   };
 
   const handleRecommendationFilterChange = (filterKey, value) => {
@@ -127,7 +127,7 @@ const PortfolioTracker = ({ activeAsset }) => {
   };
 
   const handleClearRecommendationFilters = () => {
-    setRecommendationFilters({ search: '', category: '' });
+    setRecommendationFilters({ search: '', category: [] });
   };
 
   const fundCategories = useMemo(() => {
@@ -148,23 +148,22 @@ const PortfolioTracker = ({ activeAsset }) => {
       }
 
       // Category filter
-      if (filters.category && fund.category !== filters.category) {
+      if (filters.category.length && !filters.category.includes(fund.category)) {
         return false;
       }
 
       // Status filter
-      if (filters.status && fund.status !== filters.status) {
+      if (filters.status.length && !filters.status.includes(fund.status)) {
         return false;
       }
 
       // Investment type filter
-      if (filters.investmentType) {
+      // Investment type filter: a fund stays if it matches any ticked type
+      if (filters.investmentType.length) {
         const hasSIP = fund.currentMonthlySIP > 0;
         const hasLumpsum = fund.totalLumpsum > 0;
-
-        if (filters.investmentType === 'sip' && !hasSIP) return false;
-        if (filters.investmentType === 'lumpsum' && !hasLumpsum) return false;
-        if (filters.investmentType === 'both' && (!hasSIP || !hasLumpsum)) return false;
+        const matches = { sip: hasSIP, lumpsum: hasLumpsum };
+        if (!filters.investmentType.some((t) => matches[t])) return false;
       }
 
       return true;
@@ -189,7 +188,7 @@ const PortfolioTracker = ({ activeAsset }) => {
       }
 
       // Category filter
-      if (recommendationFilters.category && fund.category !== recommendationFilters.category) {
+      if (recommendationFilters.category.length && !recommendationFilters.category.includes(fund.category)) {
         return false;
       }
 
@@ -414,10 +413,8 @@ const PortfolioTracker = ({ activeAsset }) => {
                               onClearFilters={handleClearFilters}
                               fundCategories={fundCategories}
                               right={<ViewToggle view={fundView} onChange={setFundView} />}
+                              summary={`${filteredPortfolioData.length}${filteredPortfolioData.length !== portfolioData.length ? ` of ${portfolioData.length}` : ''} funds`}
                             />
-                            <p className="-mt-3 mb-3 font-mono text-[12px] text-muted">
-                              {filteredPortfolioData.length}{filteredPortfolioData.length !== portfolioData.length && ` of ${portfolioData.length}`} funds
-                            </p>
                           </>
                         }
                       >
@@ -452,10 +449,12 @@ const PortfolioTracker = ({ activeAsset }) => {
                         onFilterChange={handleFilterChange}
                         onClearFilters={handleClearFilters}
                         fundCategories={fundCategories}
+                        right={<ViewToggle view={fundView} onChange={setFundView} />}
+                        summary={`${filteredPortfolioData.length}${filteredPortfolioData.length !== portfolioData.length ? ` of ${portfolioData.length}` : ''} funds`}
                       />
                     }
                   >
-                    <PerformanceView performanceGroups={filteredPerformanceGroups} />
+                    <PerformanceView performanceGroups={filteredPerformanceGroups} view={fundView} />
                   </ScrollPane>
                 )}
 

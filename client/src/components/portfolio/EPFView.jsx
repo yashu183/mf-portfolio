@@ -1,7 +1,7 @@
 import { PageGhost, HeadingGhost, ListGhost } from './Ghost';
 import SummaryPanel from './SummaryPanel';
 import { PANE } from './ScrollPane';
-import { formatCurrency, formatCurrentValue, formatCompact } from '../../utils/formatters';
+import { formatCurrency, formatCurrentValue, formatCompact, monthsAsYears } from '../../utils/formatters';
 import ToArrow from './ToArrow';
 
 // "2026-09" -> "Sep'26"
@@ -32,7 +32,7 @@ function AccountCard({ acc }) {
         ['Monthly', formatCurrency(acc.monthlyContribution)],
         ['Employee + employer', `₹${acc.employeeContribution.toLocaleString('en-IN')} + ₹${acc.employerContribution.toLocaleString('en-IN')}`],
         ['Rate', `${acc.annualRate}% p.a.`],
-        ['Months', `${acc.monthsContributed}`],
+        ['Contributing for', monthsAsYears(acc.monthsContributed)],
         ['Contributed', formatCurrency(acc.totalInvested)],
         ['Interest', `+${formatCurrency(totalInterest)}`, 'text-gain'],
     ];
@@ -45,7 +45,7 @@ function AccountCard({ acc }) {
                     <span className="w-2 h-2 rounded-full bg-gain shrink-0" aria-hidden="true" />
                     <div className="min-w-0">
                         <h3 className="text-[14px] font-medium text-ink truncate">{acc.label}</h3>
-                        <p className="font-mono text-[12px] text-muted">{fmtDate(acc.startDate)}<ToArrow />{fmtYM(acc.calcUpTo)} · {acc.monthsContributed} months</p>
+                        <p className="font-mono text-[12px] text-muted">{fmtDate(acc.startDate)}<ToArrow />{fmtYM(acc.calcUpTo)} · {monthsAsYears(acc.monthsContributed)}</p>
                     </div>
                 </div>
                 <div className="text-right">
