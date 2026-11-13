@@ -1,5 +1,6 @@
 import { useTheme, chartPalette } from '../../hooks/useTheme';
 import ChartTooltip from './ChartTooltip';
+import PinnedYAxis, { niceTicks } from './PinnedYAxis';
 import { useRef, useEffect } from 'react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, Rectangle,
@@ -10,6 +11,21 @@ import { formatCurrency, formatCompact } from '../../utils/formatters';
 const SET_SLOT_PX = 96;
 
 const BAR_RADIUS = [6, 6, 0, 0];
+// room on the right of the plot for the live price tag, so it never sits on a bar
+const LIVE_TAG_PX = 104;
+
+// The live price as a small tag just past the end of the dashed line, outside the bars
+const LiveTag = ({ viewBox, text, colors }) => {
+    if (!viewBox) return null;
+    const w = text.length * 6.6 + 16;
+    const x = viewBox.x + viewBox.width + 8;
+    return (
+        <g>
+            <rect x={x} y={viewBox.y - 11} width={w} height={22} rx={6} fill={colors.surface} stroke={colors.grid} />
+            <text x={x + w / 2} y={viewBox.y} dy="0.35em" textAnchor="middle" fill={colors.primary} fontSize={11} fontWeight={500}>{text}</text>
+        </g>
+    );
+};
 
 // Rounds the top corners only when this segment is the topmost non-empty one in its stack
 const stackSegment = (isTop) => (props) => (
@@ -80,6 +96,11 @@ export default function MetalSetsSection({ sets, pricePerGram, metalLabel }) {
         loss: Math.max(s.avgPrice - pricePerGram, 0),
     }));
 
+    // shared by the pinned y-axis and the scrolling bars, so labels and gridlines line up
+    const ticks = niceTicks(Math.max(...sets.map((s) => s.avgPrice), pricePerGram) * 1.05);
+    const margin = { top: 16, right: LIVE_TAG_PX, left: 0, bottom: 0 };
+    const tickFmt = (v) => v.toLocaleString('en-IN');
+
     return (
         <div className="space-y-4">
             <div className="pin-head flex items-baseline justify-between pb-3 mb-1">
@@ -92,32 +113,28 @@ export default function MetalSetsSection({ sets, pricePerGram, metalLabel }) {
                 <p className="text-xs text-ink-2 mb-3">
                     Avg buy price per set vs live price (₹/g)
                 </p>
-                <div ref={scrollRef} className="overflow-x-auto pb-2">
+                <div className="flex">
+                <PinnedYAxis ticks={ticks} width={60} height={256} margin={margin} tickFormatter={tickFmt} tick={{ fill: pal.tick, fontSize: 12 }} />
+                <div ref={scrollRef} className="flex-1 min-w-0 overflow-x-auto pb-2">
                 <div style={{ minWidth: Math.max(sets.length * SET_SLOT_PX, 280), height: 256 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={chartData} margin={{ top: 16, right: 16, left: 0, bottom: 0 }}>
+                        <BarChart data={chartData} margin={margin}>
                             <CartesianGrid strokeDasharray="3 3" stroke={pal.grid} vertical={false} />
                             <XAxis dataKey="name" tick={{ fill: pal.tick, fontSize: 12 }} axisLine={false} tickLine={false} />
-                            <YAxis
-                                tick={{ fill: pal.tick, fontSize: 12 }}
-                                axisLine={false}
-                                tickLine={false}
-                                width={60}
-                                domain={[0, (max) => Math.ceil(Math.max(max, pricePerGram) * 1.1)]}
-                                tickFormatter={(v) => v.toLocaleString('en-IN')}
-                            />
+                            <YAxis hide domain={[0, ticks[ticks.length - 1]]} ticks={ticks} />
                             <Tooltip content={<SetTooltip colors={pal} />} cursor={{ fill: 'color-mix(in oklab, var(--c-ink) 5%, transparent)' }} />
                             <ReferenceLine
                                 y={pricePerGram}
                                 stroke={pal.primary}
                                 strokeDasharray="5 4"
-                                label={{ value: `Live ${formatCurrency(pricePerGram)}`, fill: pal.primary, fontSize: 11, position: 'insideTopRight' }}
+                                label={<LiveTag text={`Live ${formatCurrency(pricePerGram)}`} colors={pal} />}
                             />
                             <Bar dataKey="investedPart" stackId="p" fill={pal.muted} maxBarSize={64} shape={investedShape} />
                             <Bar dataKey="profit" stackId="p" fill={pal.up} maxBarSize={64} shape={topShape} />
                             <Bar dataKey="loss" stackId="p" fill={pal.down} maxBarSize={64} shape={topShape} />
                             </BarChart>
                     </ResponsiveContainer>
+                </div>
                 </div>
                 </div>
                 <ul className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-body" aria-label="Chart key">

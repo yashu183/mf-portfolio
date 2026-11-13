@@ -3,6 +3,7 @@ import { useTheme, chartPalette } from '../../hooks/useTheme';
 import { PANE } from './ScrollPane';
 import SummaryPanel from './SummaryPanel';
 import ChartTooltip from './ChartTooltip';
+import PinnedYAxis, { niceTicks } from './PinnedYAxis';
 import React, { useMemo, useRef, useEffect } from 'react';
 import { AlertCircle } from 'lucide-react';
 import {
@@ -201,6 +202,9 @@ const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) =
   }
 
   const revisions = commitmentData.filter((p) => p.isRevision);
+  // shared by the pinned y-axis and the scrolling bars, so labels and gridlines line up
+  const monthTicks = niceTicks(Math.max(...months.map((m) => (m.sipAmount || 0) + (m.lumpsumAmount || 0))));
+  const MONTH_MARGIN = { top: 4, right: 8, left: 0, bottom: 4 };
 
   return (
     <div className="grid lg:grid-cols-[300px_minmax(0,1fr)] gap-6 lg:gap-8 items-start">
@@ -230,12 +234,14 @@ const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) =
       </div>
       <div className="card p-4 sm:p-5">
 
-        <div ref={scrollRef} className="overflow-x-auto pb-2">
+        <div className="flex">
+        <PinnedYAxis ticks={monthTicks} width={48} height={300} margin={MONTH_MARGIN} tickFormatter={formatY} tick={{ fill: pal.tick, fontSize: 11 }} />
+        <div ref={scrollRef} className="flex-1 min-w-0 overflow-x-auto pb-2">
         <div style={{ minWidth: Math.max(months.length * MONTH_SLOT_PX, 320), height: 300 }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={months}
-            margin={{ top: 4, right: 8, left: 0, bottom: 4 }}
+            margin={MONTH_MARGIN}
             maxBarSize={48}
           >
             <CartesianGrid strokeDasharray="3 3" stroke={pal.grid} vertical={false} />
@@ -245,13 +251,7 @@ const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) =
               axisLine={false}
               tickLine={false}
             />
-            <YAxis
-              tickFormatter={formatY}
-              tick={{ fill: pal.tick, fontSize: 11 }}
-              axisLine={false}
-              tickLine={false}
-              width={48}
-            />
+            <YAxis hide domain={[0, monthTicks[monthTicks.length - 1]]} ticks={monthTicks} />
             <Tooltip content={<BarTooltip colors={pal} />} cursor={{ fill: 'color-mix(in oklab, var(--c-ink) 5%, transparent)' }} />
             <Bar
               dataKey="sipAmount"
@@ -269,6 +269,7 @@ const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) =
             />
           </BarChart>
         </ResponsiveContainer>
+        </div>
         </div>
         </div>
 

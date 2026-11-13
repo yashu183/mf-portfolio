@@ -106,11 +106,17 @@
     transition: background-color .2s ease, color .2s ease;
   }
   ::selection { background: var(--c-ink); color: var(--c-canvas); }
+  /* Chart text is SVG: it keeps its own fill when selected, so a solid ink highlight hid it
+     (white on white in dark mode). A see-through link tint keeps the selected figures readable. */
+  svg ::selection { background: color-mix(in oklab, var(--c-link) 35%, transparent); }
   /* headings: 600 is the ceiling, tracking is always negative */
   h1 { font-weight: 600; letter-spacing: -0.04em; }
   h2 { font-weight: 600; letter-spacing: -0.035em; }
   h3, h4 { font-weight: 600; letter-spacing: -0.02em; }
   :focus-visible { outline: 2px solid var(--c-link); outline-offset: 2px; }
+  /* Charts take focus when clicked (Recharts' keyboard layer), which drew the blue ring round the
+     whole plot. The tooltip already shows what is selected, so charts never draw a focus ring. */
+  .recharts-wrapper, .recharts-wrapper * { outline: none !important; }
 }
 
 @layer components {

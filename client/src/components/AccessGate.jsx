@@ -5,6 +5,7 @@ import { VestaMark, ThemeToggle } from "./Navbar";
 import { verifyAccessCode, hasActiveSession } from '../services/authService';
 import { clearAllPortfolioCaches } from '../services/portfolioService';
 import { clearRecommendationsCache } from '../services/recommendationService';
+import { skipWelcome } from '../utils/installedApp';
 
 // The public landing page is a React route (components/Landing.jsx), outside this gate.
 export const LANDING_URL = '/welcome';
@@ -18,6 +19,9 @@ const AccessGate = ({ children }) => {
   // The landing page sets its own long title; the app (and the code form) are plain "Vesta".
   useEffect(() => { document.title = 'Vesta'; }, []);
   const goToLanding = () => navigate(LANDING_URL, { replace: true });
+  // The installed app goes to the code screen once its welcome page has been seen
+  const goToCode = () => { navigate(UNLOCK_PATH, { replace: true }); setScreen('code'); };
+  const signedOut = () => (skipWelcome() ? goToCode() : goToLanding());
   const onUnlock = location.pathname === UNLOCK_PATH;
   const [screen, setScreen] = useState('checking');
   const [digits, setDigits] = useState(Array(6).fill(''));
@@ -29,7 +33,8 @@ const AccessGate = ({ children }) => {
     const lock = () => {
       clearAllPortfolioCaches();
       try { clearRecommendationsCache(); } catch {}
-      goToLanding();
+      setDigits(Array(6).fill(''));
+      signedOut();
     };
     window.addEventListener('portfolio:locked', lock);
     return () => window.removeEventListener('portfolio:locked', lock);
@@ -45,7 +50,7 @@ const AccessGate = ({ children }) => {
       } else if (onUnlock) {
         setScreen('code');
       } else {
-        goToLanding();
+        signedOut();
       }
     });
     return () => { cancelled = true; };

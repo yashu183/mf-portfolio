@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { markAppWelcomed } from '../utils/installedApp';
 import { Link, useNavigate } from 'react-router-dom';
 import BigAmount from './portfolio/BigAmount';
 import { hasActiveSession } from '../services/authService';
@@ -304,6 +305,8 @@ const Landing = () => {
   const navigate = useNavigate();
 
   useEffect(() => { document.title = 'Vesta: a private tracker for mutual funds, FDs, metals and EPF'; }, []);
+  // In the installed app, this first welcome is the only one: later launches open on the code screen
+  useEffect(() => { markAppWelcomed(); }, []);
 
   // Signed in already? The landing page is for visitors: go straight to Overview.
   // Visitors see the page at once; the check only redirects, it never holds the page back.
