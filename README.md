@@ -12,9 +12,12 @@ A private portfolio tracker for mutual funds, fixed deposits, gold, silver and E
 - **AI recommendations**: a revised monthly SIP plan with reasons, plus suggested funds to add (Claude Sonnet on AWS Bedrock).
 - **Gold and silver**: holdings grouped into sets, with average buy price per set against the live price, per-gram and overall profit or loss, and how long each holding has been held.
 - **Fixed deposits**: every cycle of each deposit, with its principal, rate, progress and status, interest earned and maturity value; search and filter by bank and holder.
-- **EPF**: accounts, contributed vs interest, and each change in monthly contribution.
+- **EPF**: accounts, contributed vs interest, and each account's history of monthly contributions inside its card.
 - **Hide amounts**: one switch masks every rupee figure in the app (cards, lists, tooltips, chart axes); percentages stay visible. Remembered on the device.
 - **Light and dark themes**: follows the OS until you pick one; the choice is remembered.
+- **Value charts**: Gold, Silver, FDs and EPF each show what went in and what it earned as one chart (six styles to switch between), adding up to the current value.
+- **PDF reports**: download the whole portfolio from Overview or one asset from its page, with charts (each slice's amount and share, and the total), tables and insights. A masked copy hides every amount and keeps the percentages, so it is safe to share. Reports from the demo are named `vesta-demo-…pdf`.
+- **Status rules on hover**: an ⓘ beside the Status column, each Performance group and each status filter option says how a fund is rated (Excellent: XIRR 15% or more; Good: 12–15%; Monitor: under 12% or a SIP 6 months old or less; Underperforming: below 0%).
 - **Sortable tables and multi-select filters**: click any column head to sort; filter funds by several categories, statuses or types at once, and deposits by bank and holder.
 - **Private by default**: a six-digit access code guards the portfolio; a public landing page sits in front of it.
 - **Public demo**: the whole app at `/demo` with a made-up portfolio, live NAVs and metal prices, and no code.
@@ -188,7 +191,7 @@ Serve `client/dist` as a single-page app (every route falls back to `index.html`
 - **No Bedrock calls.** Recommendations in the demo return `sampleRecommendations` from `demoConfig.json`, so visitors cost nothing.
 - **Kept apart.** The demo's XIRR cache and the browser's saved recommendations are keyed separately, and entering or leaving the demo is a full page load, so the two portfolios never mix.
 - **Rate limited** to 300 requests per IP every 15 minutes (`DEMO_RATE_LIMIT_MAX`). The login routes are not available under `/api/demo`.
-- In the app the sidebar badge reads **Demo**, a note says what is sample and what is live, and **Exit demo** returns to the landing page.
+- In the app the sidebar badge reads **Demo**, a note says what is sample and what is live, and **Exit demo** returns to the landing page. PDFs downloaded there are prepared for "Demo portfolio" and named `vesta-demo-…pdf`.
 
 To change the demo portfolio, edit `server/demoConfig.json` (same format as `portfolioConfig.json`, plus `sampleRecommendations`) and restart the API. Locally: start both apps (see [Running](#running)) and open http://localhost:3000/demo.
 
@@ -210,13 +213,13 @@ In production use HTTPS and set `ALLOWED_ORIGINS` to the frontend's origin. Serv
 | --- | --- |
 | **Overview** | Total balance, gain and return; each asset's value and share; allocation donut; invested vs current per asset |
 | **Mutual Funds → Dashboard** | Every fund as a sortable list or a grid, with search and multi-select filters (category, status, SIP or lump sum); top performer, funds needing attention, category split |
-| **Mutual Funds → Performance** | Funds grouped as Excellent, Good, Monitor and Underperforming, as a list or grid |
+| **Mutual Funds → Performance** | Funds grouped as Excellent, Good, Monitor and Underperforming, as a list or grid; the ⓘ beside each group gives its rule |
 | **Mutual Funds → Allocation** | Monthly SIP by category, current vs Claude's target |
 | **Mutual Funds → Recommendations** | Claude's revised SIP plan with reasons, and funds to add (SIP funds only) |
 | **Mutual Funds → Timeline** | Monthly SIP and lump-sum investments, SIP commitment over time, every SIP revision |
-| **Gold / Silver** | Live price, sets against the live price, every holding with how long it has been held |
-| **FDs** | Each deposit's principal, rate and term, progress to maturity and value; open one for its cycles; search and filter by bank and holder |
-| **EPF** | Each account's balance, contributed vs interest, and contribution history |
+| **Gold / Silver** | Live price, invested and gain, sets against the live price, every holding with how long it has been held |
+| **FDs** | Principal and interest; each deposit's principal, rate and term, progress to maturity and value; open one for its cycles; search and filter by bank and holder |
+| **EPF** | Contributed and interest; each account's balance, contributed vs interest, and its contribution history |
 
 The foot of the sidebar (or the phone menu) holds the theme switch, **Hide amounts** and **Lock** (**Exit demo** in the demo).
 

@@ -3,6 +3,7 @@ import SummaryPanel from './SummaryPanel';
 import { PANE, usePinCols } from './ScrollPane';
 import { useMemo } from 'react';
 import MetalSetsSection from './MetalSetsSection';
+import ValueSplitCard from './ValueSplitCard';
 import { SortHead, useSort } from './Sort';
 
 const SORT_BY = {
@@ -70,6 +71,7 @@ export default function GoldSilverView({ metal, data, isLoading, error }) {
                     {fetchedAt ? `fetched ${new Date(fetchedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} · bullions.co.in` : 'bullions.co.in'}
                 </p>
             </section>
+            <ValueSplitCard title="Invested and gain" invested={totals.totalInvested} current={totals.totalCurrentValue} />
           </aside>
 
           <div className={`min-w-0 space-y-10 ${PANE}`}>

@@ -3,6 +3,9 @@ import SummaryPanel from './SummaryPanel';
 import { PANE } from './ScrollPane';
 import { formatCurrency, formatCurrentValue, formatCompact, monthsAsYears } from '../../utils/formatters';
 import ToArrow from './ToArrow';
+import ValueSplitCard from './ValueSplitCard';
+import { useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 
 // "2026-09" -> "Sep'26"
 function fmtYM(yyyyMM) {
@@ -23,9 +26,11 @@ function prevYM(yyyyMM) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-// One EPF account as a Vercel card: identity row, a details grid, the principal/interest split,
-// then contribution history as list rows with a state and the months each rate ran.
+// One EPF account as a Vercel card: identity row, a details grid, the principal/interest split.
+// Its contribution history opens from a row at the card's foot.
 function AccountCard({ acc }) {
+    const [open, setOpen] = useState(true);
+    const rates = (acc.contributionRevisions || []).length;
     const totalInterest = parseFloat((acc.currentValue - acc.totalInvested).toFixed(2));
     const principalPct = acc.currentValue > 0 ? (acc.totalInvested / acc.currentValue) * 100 : 100;
     const details = [
@@ -36,8 +41,6 @@ function AccountCard({ acc }) {
         ['Contributed', formatCurrency(acc.totalInvested)],
         ['Interest', `+${formatCurrency(totalInterest)}`, 'text-gain'],
     ];
-    const revisions = acc.contributionRevisions || [];
-
     return (
         <article className="card overflow-hidden">
             <header className="flex items-center justify-between gap-4 px-5 py-4">
@@ -74,37 +77,57 @@ function AccountCard({ acc }) {
                 </div>
             </div>
 
-            {revisions.length > 0 && (
-                <div className="border-t border-line">
-                    <p className="eyebrow px-5 pt-4 pb-2">Contribution history</p>
-                    <ul className="divide-y divide-line border-t border-line">
-                        {revisions.slice().reverse().map((r, i, list) => {
-                            const idx = revisions.length - 1 - i;
-                            const next = revisions[idx + 1];
-                            const isUpcoming = r.from > acc.calcUpTo;
-                            const isCurrent = !isUpcoming && (!next || next.from > acc.calcUpTo);
-                            const until = next ? (next.from > acc.calcUpTo ? acc.calcUpTo : prevYM(next.from)) : acc.calcUpTo;
-                            const prevTotal = revisions[idx - 1]?.total;
-                            const diff = prevTotal != null ? r.total - prevTotal : 0;
-                            const state = isUpcoming ? { label: 'Upcoming', dot: 'bg-warn' } : isCurrent ? { label: 'Current', dot: 'bg-link' } : { label: 'Earlier', dot: 'bg-muted' };
-                            return (
-                                <li key={r.from} className="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_100px_auto] gap-x-4 items-center px-5 py-3">
-                                    <div className="min-w-0">
-                                        <p className="font-mono text-[13px] text-ink">{isUpcoming ? `from ${fmtYM(r.from)}` : <>{fmtYM(r.from)}<ToArrow />{isCurrent ? 'now' : fmtYM(until)}</>}</p>
-                                        <p className="font-mono text-[12px] text-muted">₹{r.employeeContribution.toLocaleString('en-IN')} + ₹{r.employerContribution.toLocaleString('en-IN')}</p>
-                                    </div>
-                                    <span className="hidden sm:inline-flex justify-self-end items-center gap-1.5 text-[13px] text-body"><span className={`w-2 h-2 rounded-full ${state.dot}`} aria-hidden="true" />{state.label}</span>
-                                    <div className="text-right">
-                                        <p className="num text-[14px] text-ink">{formatCurrency(r.total)}<span className="text-[12px] font-normal text-muted">/mo</span></p>
-                                        {diff !== 0 && <p className={`flex justify-end gap-2 num text-[12px] whitespace-nowrap ${diff > 0 ? 'text-gain' : 'text-loss'}`}><span>{diff > 0 ? '+' : '−'}₹{Math.abs(diff).toLocaleString('en-IN')}</span><span className="opacity-80">({diff > 0 ? "↑" : "↓"} {Math.abs((diff / prevTotal) * 100).toFixed(1)}%)</span></p>}
-                                    </div>
-                                </li>
-                            );
-                        })}
-                    </ul>
-                </div>
+            {/* the account's own contribution history, at its foot: open by default, folds away in place */}
+            {rates > 0 && (
+                <>
+                    <button
+                        type="button"
+                        onClick={() => setOpen(o => !o)}
+                        aria-expanded={open}
+                        className="w-full flex items-center gap-2 px-5 h-12 border-t border-line text-left cursor-pointer transition-colors hover:bg-surface-strong/40"
+                    >
+                        <span className="text-[14px] font-medium text-ink">Contribution history</span>
+                        <span className="font-mono text-[12px] text-muted">{rates} {rates === 1 ? 'rate' : 'rates'}</span>
+                        <ChevronRight className={`ml-auto w-4 h-4 text-muted transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden="true" />
+                    </button>
+                    {open && <HistoryList acc={acc} />}
+                </>
             )}
         </article>
+    );
+}
+
+// An account's contribution history: each monthly rate with the months it ran and its state.
+function HistoryList({ acc }) {
+    const revisions = acc.contributionRevisions || [];
+    return (
+        <div className="border-t border-line bg-surface-strong/40">
+            <ul className="divide-y divide-line">
+                {revisions.slice().reverse().map((r, i, list) => {
+                    const idx = revisions.length - 1 - i;
+                    const next = revisions[idx + 1];
+                    const isUpcoming = r.from > acc.calcUpTo;
+                    const isCurrent = !isUpcoming && (!next || next.from > acc.calcUpTo);
+                    const until = next ? (next.from > acc.calcUpTo ? acc.calcUpTo : prevYM(next.from)) : acc.calcUpTo;
+                    const prevTotal = revisions[idx - 1]?.total;
+                    const diff = prevTotal != null ? r.total - prevTotal : 0;
+                    const state = isUpcoming ? { label: 'Upcoming', dot: 'bg-warn' } : isCurrent ? { label: 'Current', dot: 'bg-link' } : { label: 'Earlier', dot: 'bg-muted' };
+                    return (
+                        <li key={r.from} className="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_100px_190px] gap-x-4 items-center px-5 py-3">
+                            <div className="min-w-0">
+                                <p className="font-mono text-[13px] text-ink">{isUpcoming ? `from ${fmtYM(r.from)}` : <>{fmtYM(r.from)}<ToArrow />{isCurrent ? 'now' : fmtYM(until)}</>}</p>
+                                <p className="font-mono text-[12px] text-muted">₹{r.employeeContribution.toLocaleString('en-IN')} + ₹{r.employerContribution.toLocaleString('en-IN')}</p>
+                            </div>
+                            <span className="hidden sm:inline-flex justify-self-start items-center gap-1.5 text-[13px] text-body"><span className={`w-2 h-2 rounded-full ${state.dot}`} aria-hidden="true" />{state.label}</span>
+                            <div className="text-right">
+                                <p className="num text-[14px] text-ink">{formatCurrency(r.total)}<span className="text-[12px] font-normal text-muted">/mo</span></p>
+                                {diff !== 0 && <p className={`flex justify-end gap-2 num text-[12px] whitespace-nowrap ${diff > 0 ? 'text-gain' : 'text-loss'}`}><span>{diff > 0 ? '+' : '−'}₹{Math.abs(diff).toLocaleString('en-IN')}</span><span className="opacity-80">({diff > 0 ? "↑" : "↓"} {Math.abs((diff / prevTotal) * 100).toFixed(1)}%)</span></p>}
+                            </div>
+                        </li>
+                    );
+                })}
+            </ul>
+        </div>
     );
 }
 
@@ -135,7 +158,7 @@ export default function EPFView({ data, isLoading, error }) {
 
     return (
         <div className="grid lg:grid-cols-[300px_minmax(0,1fr)] gap-6 lg:gap-8 items-start">
-          <aside className="lg:sticky lg:top-[calc(var(--head-h,0px)+32px)] lg:max-h-[calc(100vh-var(--head-h,0px)-64px)] lg:overflow-y-auto [scrollbar-width:none] lg:p-px lg:-m-px">
+          <aside className="space-y-4 lg:sticky lg:top-[calc(var(--head-h,0px)+32px)] lg:max-h-[calc(100vh-var(--head-h,0px)-64px)] lg:overflow-y-auto [scrollbar-width:none] lg:p-px lg:-m-px">
             <SummaryPanel
                 label="EPF balance"
                 value={formatCurrency(currentValue)}
@@ -148,6 +171,7 @@ export default function EPFView({ data, isLoading, error }) {
                     { label: 'Accounts', value: `${accounts.length}` },
                 ]}
             />
+            <ValueSplitCard title="Contributed and interest" invested={totalInvested} current={currentValue} investedLabel="Contributed" gainLabel="Interest" />
           </aside>
           <div className={`min-w-0 ${PANE}`}>
             {/* Accounts */}

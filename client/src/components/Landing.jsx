@@ -202,7 +202,7 @@ const PdfMock = () => {
           ))}
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
-          {[['Current value', [46, 24, 13, 12, 5]], ['Invested', [44, 27, 14, 11, 4]]].map(([title, shares]) => (
+          {[['Current value', [46, 24, 13, 12, 5], 18.43], ['Invested', [44, 27, 14, 11, 4], 14.90]].map(([title, shares, totalL]) => (
             <div key={title} className="rounded-[4px] border p-2" style={{ borderColor: '#ebebeb' }}>
               <p className="text-[7px] tracking-[0.04em] uppercase" style={{ color: '#6f6f6f' }}>{title}</p>
               <div className="mt-1 grid grid-cols-[52px_1fr] gap-2 items-center">
@@ -212,9 +212,15 @@ const PdfMock = () => {
                     <li key={a.label} className="flex items-center gap-1 text-[7.5px]">
                       <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: paper.series[i] }} />
                       <span className="flex-1 truncate">{a.label}</span>
-                      <span className="num font-semibold">{shares[i].toFixed(2)}%</span>
+                      <span className="num" style={{ color: '#4d4d4d' }}>{m(`₹${((totalL * shares[i]) / 100).toFixed(2)}L`)}</span>
+                      <span className="num font-semibold w-7 text-right">{shares[i]}%</span>
                     </li>
                   ))}
+                  {/* the report gives each slice's amount and the total under the key */}
+                  <li className="flex items-center gap-1 text-[7.5px] font-semibold pt-0.5 mt-0.5 border-t" style={{ borderColor: '#ebebeb' }}>
+                    <span className="flex-1">Total</span>
+                    <span className="num">{m(`₹${totalL.toFixed(2)}L`)}</span>
+                  </li>
                 </ul>
               </div>
             </div>

@@ -29,6 +29,38 @@ const CategoryBreakdown = ({ categoryBreakdown, totals, performanceGroups, funds
 
   return (
     <>
+      <section className="card overflow-hidden" aria-labelledby="split-h">
+        <div className="flex items-center justify-between gap-3 px-5 pt-5">
+          <p id="split-h" className="eyebrow">Categories</p>
+          <StyleSwitch value={chartStyle} onChange={setChartStyle} />
+        </div>
+        {slices.length > 0 && (
+          <div className="px-5 pt-5 pb-5">
+            <AllocationChart
+              style={chartStyle}
+              data={slices}
+              hot={hot}
+              onHot={setHot}
+              share={share}
+              label={`Current value by category: ${slices.map((d) => `${d.name} ${share(d.value)}%`).join(', ')}`}
+              tip={(d) => `${d.name}: ${formatCompact(d.value)} (${share(d.value)}%)`}
+              surface={palette.surface}
+              grid={palette.grid}
+            />
+          </div>
+        )}
+        <ul className="divide-y divide-line border-t border-line" onMouseLeave={() => setHot(null)}>
+          {slices.map((d) => (
+            <li key={d.name} onMouseEnter={() => setHot(d.name)} className={`flex items-center gap-2 px-5 h-10 text-[13px] transition-colors ${hot === d.name ? 'bg-surface-strong/50' : ''}`}>
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} aria-hidden="true" />
+              <span className="flex-1 min-w-0 truncate text-ink">{d.name}</span>
+              <span className="font-mono text-[12px] text-muted">{d.count} {d.count === 1 ? 'fund' : 'funds'}</span>
+              <span className="w-14 text-right num text-body">{share(d.value)}%</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <section className="card p-5" aria-labelledby="top-h">
         <p id="top-h" className="eyebrow">Top performer</p>
         {topFund ? (
@@ -63,38 +95,7 @@ const CategoryBreakdown = ({ categoryBreakdown, totals, performanceGroups, funds
         )}
       </section>
 
-      <section className="card overflow-hidden" aria-labelledby="split-h">
-        <div className="flex items-center justify-between gap-3 px-5 pt-5">
-          <p id="split-h" className="eyebrow">Categories</p>
-          <StyleSwitch value={chartStyle} onChange={setChartStyle} />
-        </div>
-        {slices.length > 0 && (
-          <div className="px-5 pt-5 pb-5">
-            <AllocationChart
-              style={chartStyle}
-              data={slices}
-              hot={hot}
-              onHot={setHot}
-              share={share}
-              label={`Current value by category: ${slices.map((d) => `${d.name} ${share(d.value)}%`).join(', ')}`}
-              tip={(d) => `${d.name}: ${formatCompact(d.value)} (${share(d.value)}%)`}
-              surface={palette.surface}
-              grid={palette.grid}
-            />
-          </div>
-        )}
-        <ul className="divide-y divide-line border-t border-line" onMouseLeave={() => setHot(null)}>
-          {slices.map((d) => (
-            <li key={d.name} onMouseEnter={() => setHot(d.name)} className={`flex items-center gap-2 px-5 h-10 text-[13px] transition-colors ${hot === d.name ? 'bg-surface-strong/50' : ''}`}>
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} aria-hidden="true" />
-              <span className="flex-1 min-w-0 truncate text-ink">{d.name}</span>
-              <span className="font-mono text-[12px] text-muted">{d.count} {d.count === 1 ? 'fund' : 'funds'}</span>
-              <span className="w-14 text-right num text-body">{share(d.value)}%</span>
-            </li>
-          ))}
-        </ul>
-        <Insights items={insights} />
-      </section>
+      <Insights items={insights} standalone />
     </>
   );
 };

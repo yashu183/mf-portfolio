@@ -2,6 +2,7 @@ import { PageGhost, SummaryGhost, NoteGhost, HeadingGhost, ListGhost } from './G
 import SummaryPanel from './SummaryPanel';
 import { ChevronRight } from 'lucide-react';
 import FilterBar from './FilterBar';
+import ValueSplitCard from './ValueSplitCard';
 import ScrollPane from './ScrollPane';
 import React, { useMemo, useState } from 'react';
 import { fdDate, fdMonthYY, parseLocalDate } from '../../utils/fdCalculations';
@@ -127,6 +128,8 @@ const FixedDepositsView = ({ deposits, isLoading = false, error = null }) => {
             { label: 'Deposits', value: `${filteredDeposits.length}` },
           ]}
         />
+        {/* follows the filters, as the balance above it does */}
+        <ValueSplitCard title="Principal and interest" invested={totals.principal} current={totals.currentValue} investedLabel="Principal" gainLabel="Interest" />
       </aside>
 
       <section aria-labelledby="deposits-h" className="min-w-0">

@@ -2,15 +2,32 @@ import React, { useLayoutEffect, useRef, useState } from 'react';
 import { ChevronRight, LayoutGrid, List } from 'lucide-react';
 import { usePinCols } from './ScrollPane';
 import { SortHead, useSort } from './Sort';
+import InfoTip from './InfoTip';
 import { fundAge, monthsAsYears } from '../../utils/formatters';
 
 // Status as Vercel shows deployment state: a small dot and a word, the colour on the dot only.
-const STATUS = {
-  excellent: { label: 'Excellent', dot: 'bg-gain' },
-  good: { label: 'Good', dot: 'bg-link' },
-  monitor: { label: 'Monitor', dot: 'bg-warn' },
-  poor: { label: 'Underperforming', dot: 'bg-loss' },
+// `rule` is how the server sorts a fund into each (deriveStatus in server.js); the info icon tips show it.
+export const STATUS = {
+  excellent: { label: 'Excellent', dot: 'bg-gain', rule: 'XIRR of 15% or more.' },
+  good: { label: 'Good', dot: 'bg-link', rule: 'XIRR from 12% up to 15%.' },
+  monitor: { label: 'Monitor', dot: 'bg-warn', rule: 'XIRR from 0% up to 12%, or a SIP that is 6 months old or less, which is too early to judge whatever its XIRR.' },
+  poor: { label: 'Underperforming', dot: 'bg-loss', rule: 'XIRR below 0%: worth less than what went in, once the timing of each payment is counted.' },
 };
+
+// All four statuses with their dots and rules, for the info icon in the Status column head.
+export const StatusLegend = () => (
+  <span className="block">
+    <span className="block font-medium text-ink mb-1.5">How funds are rated</span>
+    <span className="block space-y-1.5">
+      {Object.entries(STATUS).map(([id, s]) => (
+        <span key={id} className="flex items-start gap-2">
+          <span className={`w-2 h-2 mt-[5px] rounded-full shrink-0 ${s.dot}`} aria-hidden="true" />
+          <span><span className="text-ink">{s.label}</span>: {s.rule}</span>
+        </span>
+      ))}
+    </span>
+  </span>
+);
 
 export const StatusBadge = ({ status }) => {
   const s = STATUS[status] ?? { label: status, dot: 'bg-muted' };
@@ -106,7 +123,10 @@ const FundList = ({ funds, sort, onSort }) => {
         <SortHead label="Current" k="current" align="right" {...head} />
         <SortHead label="Returns" k="returns" align="right" {...head} />
         <SortHead label="XIRR" k="xirr" align="right" {...head} />
-        <SortHead label="Status" k="status" align="right" {...head} />
+        <span className="flex items-center justify-end gap-1 min-w-0">
+          <SortHead label="Status" k="status" align="right" {...head} />
+          <InfoTip label="What each status means" wide><StatusLegend /></InfoTip>
+        </span>
         <span />
       </div>
       <ul className="divide-y divide-line overflow-clip rounded-[12px] @2xl:rounded-t-none">

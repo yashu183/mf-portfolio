@@ -1,11 +1,11 @@
 import React from 'react';
 
-// Plain-words facts under an allocation chart, in the summary panel's row style: the label on the
-// left, the figure on the right with a mono line under it. Sits at the foot of its card.
-const Insights = ({ items }) => {
+// Plain-words facts about an allocation, in the summary panel's row style: the label on the left, the
+// figure on the right with a mono line under it. At the foot of its chart's card, or `standalone` as a card.
+const Insights = ({ items, standalone = false }) => {
   if (!items?.length) return null;
   return (
-    <div className="border-t border-line">
+    <div className={standalone ? 'card overflow-hidden' : 'border-t border-line'}>
       <p className="eyebrow px-5 pt-4 pb-2">Insights</p>
       <dl className="divide-y divide-line border-t border-line">
         {items.map((it) => (

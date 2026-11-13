@@ -1,6 +1,7 @@
 // The PDF report: one A4 document drawn from the same data the screens use.
 // Overview downloads every section; each asset page downloads only its own.
 // jsPDF, autotable and the Geist files load on the first click, so the app itself stays light.
+import { IS_DEMO } from './demo';
 import geistRegularUrl from '../assets/fonts/Geist-Regular.ttf?url';
 import geistSemiBoldUrl from '../assets/fonts/Geist-SemiBold.ttf?url';
 import {
@@ -16,7 +17,8 @@ const LINE = '#ebebeb';
 const SURFACE_STRONG = '#f5f5f5';
 const GAIN = '#1a7f37';
 const LOSS = '#c50000';
-const SERIES = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#e34948', '#8250df', '#9a6700', '#0e7490'];
+const INVESTED = '#5367ff'; // the value card's invested part, as the app's light theme
+const SERIES = ['#5367ff', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#e34948', '#8250df', '#9a6700', '#0e7490'];
 
 const PAGE_W = 595.28; // A4 in points
 const PAGE_H = 841.89;
@@ -201,7 +203,7 @@ function makeKit(doc, autoTable, hidden) {
     const colW = (W - gapX) / 2;
     const r = 52;
     const heightOf = (p) => (p.kind === 'donut'
-      ? 34 + r * 2 + 20 + p.data.length * 14 + (p.footnote ? 14 : 0) + 6
+      ? 34 + r * 2 + 20 + p.data.length * 14 + (p.total ? 18 : 0) + (p.footnote ? 14 : 0) + 6
       : 34 + p.rows.length * 18 + 10);
     for (let i = 0; i < panels.length; i += 2) {
       const pair = panels.slice(i, i + 2);
@@ -221,11 +223,20 @@ function makeKit(doc, autoTable, hidden) {
           p.data.forEach((d) => {
             doc.setFillColor(d.color); doc.circle(x0 + 17, ky - 2.6, 2.6, 'F');
             font(8, 'normal', INK);
-            doc.text(doc.splitTextToSize(d.name, colW - 90)[0], x0 + 25, ky);
+            doc.text(doc.splitTextToSize(d.name, p.amounts ? colW - 150 : colW - 90)[0], x0 + 25, ky);
             font(8, 'bold', INK);
             doc.text(`${((d.value / total) * 100).toFixed(2)}%`, x0 + colW - 14, ky, { align: 'right' });
+            // value panels also give each part's exact amount, beside its share
+            if (p.amounts) { font(8, 'normal', BODY); doc.text(money.full(d.value), x0 + colW - 62, ky, { align: 'right' }); }
             ky += 14;
           });
+          if (p.total) {
+            doc.setDrawColor(LINE); doc.setLineWidth(0.5);
+            doc.line(x0 + 14, ky - 7, x0 + colW - 14, ky - 7);
+            font(8, 'bold', INK);
+            doc.text(p.total.label, x0 + 14, ky + 4);
+            doc.text(money.full(p.total.value), x0 + colW - 14, ky + 4, { align: 'right' });
+          }
           if (p.footnote) { font(7, 'normal', MUTED); doc.text(doc.splitTextToSize(p.footnote, colW - 28)[0], x0 + 14, y + h - 10); }
         } else {
           let ky = y + 44;
@@ -288,9 +299,10 @@ const chartPanels = (rows, money, colorOf) => {
   // the hole is small: ₹62.5L, not ₹62,47,641
   const short = (v) => money.compact(v) || '₹****';
   return [
-    { kind: 'donut', label: 'Current value', data: cur, centre: { label: 'Total', value: short(sum(cur)) } },
-    { kind: 'donut', label: 'Invested', data: inv, centre: { label: 'Total', value: short(sum(inv)) } },
-    { kind: 'donut', label: 'Returns', data: ret, centre: { label: 'Gains', value: short(sum(ret)) }, footnote: losers.length ? `At a loss, left out: ${losers.join(', ')}` : null },
+    // each key gives every slice's exact amount beside its share, and the total under them
+    { kind: 'donut', label: 'Current value', data: cur, amounts: true, centre: { label: 'Total', value: short(sum(cur)) }, total: { label: 'Total', value: sum(cur) } },
+    { kind: 'donut', label: 'Invested', data: inv, amounts: true, centre: { label: 'Total', value: short(sum(inv)) }, total: { label: 'Total', value: sum(inv) } },
+    { kind: 'donut', label: 'Returns', data: ret, amounts: true, centre: { label: 'Gains', value: short(sum(ret)) }, total: { label: losers.length ? 'Total gains' : 'Total', value: sum(ret) }, footnote: losers.length ? `At a loss, left out: ${losers.join(', ')}` : null },
     {
       kind: 'list',
       label: 'Return on what went in',
@@ -299,6 +311,21 @@ const chartPanels = (rows, money, colorOf) => {
         .sort((a, b) => b.value - a.value),
     },
   ];
+};
+
+// The app's value card as a donut: what went in and what it earned, the current value in the hole.
+// At a loss the slices are what's left of the money put in and what was lost.
+const valueSplit = (label, invested, current, money, { investedLabel = 'Invested', gainLabel = 'Gain' } = {}) => {
+  const gain = current - invested;
+  const data = (gain >= 0
+    ? [{ name: investedLabel, value: invested, color: INVESTED }, { name: gainLabel, value: gain, color: GAIN }]
+    : [{ name: `${investedLabel}, still there`, value: current, color: INVESTED }, { name: 'Loss', value: -gain, color: LOSS }]
+  ).filter((d) => d.value > 0);
+  return {
+    kind: 'donut', label, data, amounts: true,
+    centre: { label: 'Current', value: money.compact(current) || '₹****' },
+    total: gain >= 0 ? { label: 'Current value', value: current } : { label: `${investedLabel} in total`, value: invested },
+  };
 };
 
 // ── Sections ──────────────────────────────────────────────────────────────────
@@ -351,6 +378,7 @@ function metalSection(k, label, data) {
     { label: 'Avg buy price', value: totals.totalQuantity > 0 ? `${full(totals.totalInvested / totals.totalQuantity)}/g` : '-' },
     { label: 'Gain/Loss', value: `${signed(totals.totalGain || 0)} (${pct(totals.totalGainPercent)})`, color: tone(totals.totalGain) },
   ]);
+  if ((totals.totalCurrentValue || 0) > 0) k.charts([valueSplit('Invested and gain', totals.totalInvested || 0, totals.totalCurrentValue || 0, k.money)]);
   if (sets.length) {
     k.table(
       ['Set', 'Period', 'Quantity', 'Avg price', 'Invested', 'Current', 'Gain/Loss'],
@@ -392,6 +420,7 @@ function fdSection(k, deposits) {
     { label: 'Interest earned', value: full(sum('currentValue') - sum('principal')), color: GAIN },
     { label: 'At maturity', value: full(sum('finalMaturityAmount')) },
   ]);
+  if (sum('currentValue') > 0) k.charts([valueSplit('Principal and interest', sum('principal'), sum('currentValue'), k.money, { investedLabel: 'Principal', gainLabel: 'Interest' })]);
   k.table(
     ['Deposit', 'Holder', 'Started', 'Matures', 'Rate', 'Principal', 'Current', 'At maturity'],
     deposits.map((d) => {
@@ -423,6 +452,7 @@ function epfSection(k, data) {
     { label: 'Interest', value: full(currentValue - totalInvested), color: GAIN },
     { label: 'Growth', value: pct(gainPercent), color: tone(gainPercent) },
   ]);
+  if (currentValue > 0) k.charts([valueSplit('Contributed and interest', totalInvested, currentValue, k.money, { investedLabel: 'Contributed', gainLabel: 'Interest' })]);
   k.table(
     ['Account', 'Since', 'Months', 'Monthly', 'Rate', 'Contributed', 'Interest', 'Balance'],
     accounts.map((a) => [
@@ -558,5 +588,6 @@ export async function downloadReport(scope, { hidden = false, owner = '' } = {})
   }
 
   const stamp = ist({ year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-');
-  doc.save(`vesta-${scope === 'mutualFunds' ? 'mutual-funds' : scope}-${stamp}${hidden ? '-masked' : ''}.pdf`);
+  // a report from the public demo says so in its name: vesta-demo-overview-…pdf
+  doc.save(`vesta-${IS_DEMO ? 'demo-' : ''}${scope === 'mutualFunds' ? 'mutual-funds' : scope}-${stamp}${hidden ? '-masked' : ''}.pdf`);
 }

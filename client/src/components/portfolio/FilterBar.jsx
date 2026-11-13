@@ -1,13 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import Select from './Select';
+import { STATUS } from './FundsTable';
 import { Search, X } from 'lucide-react';
 
+// each status carries its rule, shown by an info icon in the menu
 const statusOptions = [
   { value: '', label: 'All statuses' },
-  { value: 'excellent', label: 'Excellent' },
-  { value: 'good', label: 'Good' },
-  { value: 'monitor', label: 'Monitor' },
-  { value: 'poor', label: 'Poor' },
+  ...['excellent', 'good', 'monitor', 'poor'].map((value) => ({ value, label: STATUS[value].label, hint: STATUS[value].rule })),
 ];
 
 const investmentTypeOptions = [

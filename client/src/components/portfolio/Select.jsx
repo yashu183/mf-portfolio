@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
+import InfoTip from './InfoTip';
 
-// options: [{ value, label }]. With `multiple`, value is an array, the first option (value '') is the
+// options: [{ value, label, hint? }]; a hint shows as an info icon tip on its row. With `multiple`, value is an array, the first option (value '') is the
 // "all" row that clears it, and the menu stays open while ticking.
 const Select = ({ value, onChange, options, className = '', multiple = false }) => {
   const [open, setOpen] = useState(false);
@@ -69,6 +70,7 @@ const Select = ({ value, onChange, options, className = '', multiple = false }) 
                     {isSel && <Check className="w-3 h-3" strokeWidth={3} />}
                   </span>
                   <span className="truncate">{o.label}</span>
+                  {o.hint && <InfoTip label={`What ${o.label} means`} className="ml-auto">{o.hint}</InfoTip>}
                 </li>
               );
             }
