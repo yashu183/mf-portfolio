@@ -65,3 +65,45 @@ test('PIN authentication protects portfolio APIs', async () => {
         server.kill();
     }
 });
+
+test('the demo is open, serves only the demo portfolio, and never opens the real one', async () => {
+    const port = 23000 + Math.floor(Math.random() * 10000);
+    const server = spawn(process.execPath, ['server.js'], {
+        cwd: __dirname,
+        env: { ...process.env, PORT: String(port), AUTH_ACCESS_CODE: '012345', NODE_ENV: 'test' },
+        stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    try {
+        await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Server startup timed out')), 10000);
+            server.stdout.on('data', () => { clearTimeout(timeout); resolve(); });
+            server.once('exit', () => { clearTimeout(timeout); reject(new Error('Server exited before startup')); });
+        });
+        const base = `http://localhost:${port}`;
+        const demoConfig = require('./demoConfig.json');
+
+        // open without a session, and it is the demo's data
+        const fds = await fetch(`${base}/api/demo/portfolio/fds`);
+        assert.equal(fds.status, 200);
+        const { data } = await fds.json();
+        assert.deepEqual(data.fixedDeposits.map((d) => d.id), demoConfig.fixedDeposits.map((d) => d.id));
+        assert.deepEqual(data.fixedDeposits.map((d) => d.bank), demoConfig.fixedDeposits.map((d) => d.bank));
+
+        // the AI advice is the saved sample, never a Bedrock call
+        const recs = await fetch(`${base}/api/demo/recommendations`, { method: 'POST' });
+        assert.equal(recs.status, 200);
+        assert.deepEqual((await recs.json()).data, demoConfig.sampleRecommendations);
+
+        // the login routes don't exist under the demo, so it can't start or end a real session
+        for (const route of ['/api/demo/auth/verify', '/api/demo/auth/logout']) {
+            assert.equal((await fetch(`${base}${route}`, { method: 'POST' })).status, 404, `${route} must not exist`);
+        }
+
+        // the real routes still need the code, and a look-alike prefix doesn't count as the demo
+        for (const route of ['/api/portfolio/fds', '/api/demoportfolio/fds']) {
+            assert.equal((await fetch(`${base}${route}`)).status, 401, `${route} must require authentication`);
+        }
+    } finally {
+        server.kill();
+    }
+});

@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://localhost:3002';
+import { API_ROOT } from '../utils/demo';
 
 export const authenticatedFetch = async (url, options = {}) => {
   const response = await fetch(url, { ...options, credentials: 'include' });
@@ -8,7 +8,7 @@ export const authenticatedFetch = async (url, options = {}) => {
 
 export const hasActiveSession = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/auth/session`, { credentials: 'include' });
+    const response = await fetch(`${API_ROOT}/auth/session`, { credentials: 'include' });
     return response.ok;
   } catch {
     return false;
@@ -16,7 +16,7 @@ export const hasActiveSession = async () => {
 };
 
 export const verifyAccessCode = async (code) => {
-  const response = await fetch(`${API_BASE_URL}/api/auth/verify`, {
+  const response = await fetch(`${API_ROOT}/auth/verify`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -31,6 +31,6 @@ export const verifyAccessCode = async (code) => {
 // the caller locks the app either way, and the cookie can't outlive its hour.
 export const logout = async () => {
   try {
-    await fetch(`${API_BASE_URL}/api/auth/logout`, { method: 'POST', credentials: 'include' });
+    await fetch(`${API_ROOT}/auth/logout`, { method: 'POST', credentials: 'include' });
   } catch {}
 };

@@ -161,6 +161,14 @@ Rules:
 - Focus/open: an ink ring plus a 4px `line` halo (`0 0 0 1px ink, 0 0 0 4px line`).
 - The search field shows a `/` key hint, and pressing `/` focuses it.
 - The `Select` menu is a floating layer: 8px radius, 36px options, a check on the selected one.
+- **Filters take several picks** (`<Select multiple>`): an "All …" row at the top clears the filter, a hairline
+  under it, then a 16px checkbox per option; the menu stays open while ticking. The button reads the first pick
+  plus a count (`ELSS +2`), and ticking every option is the same as "All". Within one filter a row matches any
+  pick; across filters it must match each.
+- **One toolbar everywhere** (`FilterBar`): search first, the dropdowns beside it, an optional view switch on the
+  right; under it a mono count line (`9 of 17 funds`) and, while anything is set, a quiet underlined
+  `✕ clear filters` link on that line, never a button in the row. Pages pass their own dropdowns through
+  `selects` (deposits: banks and holders).
 
 ### Segmented toggle
 - A `surface-strong` track with `p-0.5`. The selected segment gets `bg-surface` and a ring.
@@ -179,10 +187,25 @@ Rules:
   their own hover and detail bands. A row opens in place to a detail band on `surface-strong/50`. Every table
   is built this way, including Gold/Silver holdings (a CSS grid with `role="table"`, not a `<table>`, because
   a sticky header can't stop early inside a `<table>`).
-- **Column alignment, every table:** the first column (the row's name, with its mono meta line) is left-aligned;
-  every other column is right-aligned, figures and states alike (Status, Change, a cycle's state), and its
-  column head is right-aligned with it. The PDF report follows the same rule, except that a few word columns
-  that identify a row (category, holder) sit left beside the name.
+- **Column alignment:** the first column (the row's name, with its mono meta line) is always left-aligned. In
+  the fund, allocation, plan and holdings tables every other column is right-aligned, figures and states alike,
+  with its column head. The **deposits** table centres its other columns (head and cells; a centred head hangs
+  its sort arrow outside the caption so the caption stays on the centre), and the **cycle card** inside an
+  opened deposit left-aligns all of its columns. The PDF report keeps the right-aligned rule, except that a few
+  word columns that identify a row (category, holder) sit left beside the name.
+- **Sorting:** every column head of a table is a button (`SortHead` in `Sort.jsx`, `useSort`). Numbers start
+  high to low, words A to Z; a second click flips it; a third goes back to the list's own order (a list that has
+  a natural ranking, like Performance's XIRR, is passed in already in that order). The arrow shows on hover and
+  on the active column. Grid views don't sort; the order chosen in the list carries over.
+- **Durations** read as years, months and days (`4 yrs 3 mo 18 days`, `heldFor`/`fundAge` in `formatters.js`);
+  a count of months reads `3 yrs 10 mo` (`monthsAsYears`). Mono meta lines wrap rather than end in an ellipsis.
+- **Deposits:** the row's circle is the bank's initials tinted with its palette colour (a short name stays
+  whole: SBI); the holder is a tinted chip on the title line (`HolderChip`, one palette slot per person, apart
+  from the bank colours); the term sits under the rate. An opened deposit shows a card of its cycles with its
+  own small column heads: Cycle (rate and exact dates), Principal, Progress (bar, % centred under it), Status
+  (dot and word), Value (amount, gain). Nothing in a row repeats what another column says.
+  Once a deposit's last cycle has ended, its bar turns green at 100% and the line under it reads "matured"; the
+  meta line then drops "cycle N", so it says so once.
 - **Allocation cards** (Overview's Allocation, Mutual Funds' Categories): the chart with each share printed on
   its slice (6% and up), the key, then an **Insights** list in the summary panel's row style.
 
@@ -206,7 +229,9 @@ Rules:
 - Built by `client/src/utils/pdfReport.js` (jsPDF + autotable, Geist embedded, loaded on the first click),
   printed in the light theme. Insights come from `client/src/utils/insights.js`, shared with the screens.
 - **Grid card** (fund cards): initials plate → name + mono meta → 24px figure → footer with status and XIRR
-  above a hairline.
+  above a hairline. Closed cards share one height. A card opens without moving: it gets an ink ring and a turned
+  chevron, and its details open in a full-width panel right under its row, with a notch pointing up at it
+  (the row end comes from the grid's live column count).
 
 ### Status line
 - The page head's right side has a "Live" chip (a 6px gain dot, the word, the mono time), a spinner while
@@ -220,6 +245,9 @@ Rules:
 - **≥1024px:** a fixed 240px sidebar (`bg-surface`, right hairline). The Vesta mark with a "Private" badge,
   a "Portfolio" eyebrow, then items with icons in their asset colour. Theme, hide amounts and Lock sit at
   the bottom.
+- **Demo (`/demo`):** the same app with a made-up portfolio. The badge reads "Demo" in the link colour (also in
+  the phone bar), a tinted note above the switches says what is sample and what is live, and **Exit demo**
+  replaces Lock. The overview greets "Welcome to the demo" and the PDF is prepared for "Demo portfolio".
 - **<1024px:** a sticky 56px menu bar (`bg-surface/90`, backdrop blur) with the menu button, the current page
   name, hide amounts and theme. The menu opens a 280px drawer from the left over a 50% black scrim.
 
@@ -412,6 +440,11 @@ It uses the same tokens, components and theme switch as the app, plus a few mark
 - A larger display heading (40 → 64px, tracking −0.05em).
 - Mock UI cards built from the app's real components (`BigAmount` with `masked`, `.card`, `.asset-plate`).
 
+**Try the demo** sits beside every "Open your portfolio": a secondary pill in the top bar, the phone menu and the
+hero (with a muted line under it: a made-up portfolio at live prices, no code needed), an outlined white pill in
+the closing band, and a "Live demo" link in the footer. It is a plain link to `/demo` (a full page load, since
+the demo is its own app instance).
+
 When the app's look changes, update the landing page in the same change.
 
 ---
@@ -444,7 +477,11 @@ When the app's look changes, update the landing page in the same change.
 | `client/src/components/Navbar.jsx` | Sidebar, menu bar, drawer, `WRAP`, toggles |
 | `client/src/components/PortfolioTracker.jsx` | Page head, tabs, `--head-h`, footer |
 | `client/src/components/portfolio/ScrollPane.jsx` | `ScrollPane`, `PANE`, `--tb-h`, `usePinCols` |
-| `client/src/components/portfolio/FilterBar.jsx` | Search and filter toolbar |
+| `client/src/components/portfolio/FilterBar.jsx` | Search and filter toolbar, count line, clear link |
+| `client/src/components/portfolio/Select.jsx` | Single and multi-select dropdown |
+| `client/src/components/portfolio/Sort.jsx` | `useSort`, `SortHead` |
+| `client/src/components/portfolio/FixedDepositsView.jsx` | Deposits table, holder chips, cycle card |
+| `client/src/utils/demo.js` | `IS_DEMO`, `API_ROOT`: the demo switch |
 | `client/src/components/portfolio/FundsTable.jsx` | Fund list/grid, `StatusBadge`, `ViewToggle` |
 | `client/src/components/portfolio/SummaryPanel.jsx`, `BigAmount.jsx` | The headline balance card |
 | `client/src/components/portfolio/ChartTooltip.jsx` | The shared chart tooltip |

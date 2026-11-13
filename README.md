@@ -2,6 +2,8 @@
 
 A private portfolio tracker for mutual funds, fixed deposits, gold, silver and EPF, with AI SIP recommendations from Claude on AWS Bedrock.
 
+**Try it:** open `/demo` (or **Try the demo** on the landing page) to look around a made-up portfolio at live prices, no access code needed. See [Demo](#demo).
+
 ## Features
 
 - **Five asset classes, one dashboard**: mutual funds at today's NAV, fixed deposits across their renewal cycles, gold and silver at live prices, and EPF with its contribution history.
@@ -9,11 +11,13 @@ A private portfolio tracker for mutual funds, fixed deposits, gold, silver and E
 - **Mutual funds**: returns, XIRR and status for each fund, grouped by performance; allocation by SIP against Claude's target; a month-by-month investment timeline with SIP revisions.
 - **AI recommendations**: a revised monthly SIP plan with reasons, plus suggested funds to add (Claude Sonnet on AWS Bedrock).
 - **Gold and silver**: holdings grouped into sets, with average buy price per set against the live price, per-gram and overall profit or loss, and how long each holding has been held.
-- **Fixed deposits**: every cycle of each deposit, matured or in progress, with interest earned and maturity value.
+- **Fixed deposits**: every cycle of each deposit, with its principal, rate, progress and status, interest earned and maturity value; search and filter by bank and holder.
 - **EPF**: accounts, contributed vs interest, and each change in monthly contribution.
 - **Hide amounts**: one switch masks every rupee figure in the app (cards, lists, tooltips, chart axes); percentages stay visible. Remembered on the device.
 - **Light and dark themes**: follows the OS until you pick one; the choice is remembered.
+- **Sortable tables and multi-select filters**: click any column head to sort; filter funds by several categories, statuses or types at once, and deposits by bank and holder.
 - **Private by default**: a six-digit access code guards the portfolio; a public landing page sits in front of it.
+- **Public demo**: the whole app at `/demo` with a made-up portfolio, live NAVs and metal prices, and no code.
 - **Responsive**: a fixed sidebar from 1024px; a menu bar and slide-in drawer on phones and tablets.
 
 ## Tech stack
@@ -60,7 +64,7 @@ NODE_ENV=development
 AWS_REGION=us-east-1   # optional, for recommendations
 ```
 
-Optional: `NAV_CACHE_DURATION_MS`, `RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_MS`, and AWS keys (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`) if you don't use an AWS CLI profile.
+Optional: `NAV_CACHE_DURATION_MS`, `RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_MS`, `DEMO_RATE_LIMIT_MAX`, and AWS keys (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`) if you don't use an AWS CLI profile.
 
 The frontend calls the API at `http://localhost:3002` by default. Set `VITE_API_URL` when building or running the client to point it elsewhere.
 
@@ -176,6 +180,18 @@ npm --prefix client run build   # outputs client/dist
 
 Serve `client/dist` as a single-page app (every route falls back to `index.html`) and run the API with `NODE_ENV=production`. `server/mf-portfolio.service` is a systemd unit for the API.
 
+## Demo
+
+`/demo` runs the full app against `server/demoConfig.json`, a made-up portfolio committed with the code: invented holders, amounts and dates, but real mutual-fund schemes, so NAVs, gold and silver prices, XIRR and the timeline are all live and computed the same way as yours.
+
+- **No access code.** The client sees `/demo` in the URL and calls `/api/demo/...`; the server rewrites those to the normal routes, reads `demoConfig.json` instead of `portfolioConfig.json`, and skips the session check for them only. Your own routes still need the code.
+- **No Bedrock calls.** Recommendations in the demo return `sampleRecommendations` from `demoConfig.json`, so visitors cost nothing.
+- **Kept apart.** The demo's XIRR cache and the browser's saved recommendations are keyed separately, and entering or leaving the demo is a full page load, so the two portfolios never mix.
+- **Rate limited** to 300 requests per IP every 15 minutes (`DEMO_RATE_LIMIT_MAX`). The login routes are not available under `/api/demo`.
+- In the app the sidebar badge reads **Demo**, a note says what is sample and what is live, and **Exit demo** returns to the landing page.
+
+To change the demo portfolio, edit `server/demoConfig.json` (same format as `portfolioConfig.json`, plus `sampleRecommendations`) and restart the API. Locally: start both apps (see [Running](#running)) and open http://localhost:3000/demo.
+
 ## Access
 
 - The code is checked by the API only. Never put it in a `VITE_` variable or commit it. Restart the API after changing it.
@@ -193,20 +209,20 @@ In production use HTTPS and set `ALLOWED_ORIGINS` to the frontend's origin. Serv
 | Page | What it shows |
 | --- | --- |
 | **Overview** | Total balance, gain and return; each asset's value and share; allocation donut; invested vs current per asset |
-| **Mutual Funds → Dashboard** | Every fund as a list or grid, with search and filters (category, status, SIP or lump sum); top performer, funds needing attention, category split |
-| **Mutual Funds → Performance** | Funds grouped as Excellent, Good, Monitor and Underperforming |
+| **Mutual Funds → Dashboard** | Every fund as a sortable list or a grid, with search and multi-select filters (category, status, SIP or lump sum); top performer, funds needing attention, category split |
+| **Mutual Funds → Performance** | Funds grouped as Excellent, Good, Monitor and Underperforming, as a list or grid |
 | **Mutual Funds → Allocation** | Monthly SIP by category, current vs Claude's target |
 | **Mutual Funds → Recommendations** | Claude's revised SIP plan with reasons, and funds to add (SIP funds only) |
 | **Mutual Funds → Timeline** | Monthly SIP and lump-sum investments, SIP commitment over time, every SIP revision |
 | **Gold / Silver** | Live price, sets against the live price, every holding with how long it has been held |
-| **FDs** | Each deposit's cycles, progress, interest and value at maturity; filter by holder |
+| **FDs** | Each deposit's principal, rate and term, progress to maturity and value; open one for its cycles; search and filter by bank and holder |
 | **EPF** | Each account's balance, contributed vs interest, and contribution history |
 
-The foot of the sidebar (or the phone menu) holds the theme switch, **Hide amounts** and **Lock**.
+The foot of the sidebar (or the phone menu) holds the theme switch, **Hide amounts** and **Lock** (**Exit demo** in the demo).
 
 ## API
 
-Every route except `/api/health`, `/api/auth/verify` and `/api/auth/logout` needs a session.
+Every route except `/api/health`, `/api/auth/verify` and `/api/auth/logout` needs a session. Every `GET`/`POST` route below except the `auth` ones is also served without a session under `/api/demo/...` (e.g. `/api/demo/portfolio/funds`), against the demo portfolio.
 
 | Method | Route | Returns |
 | --- | --- | --- |

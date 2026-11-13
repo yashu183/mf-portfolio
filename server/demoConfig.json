@@ -1,0 +1,441 @@
+{
+  "_about": "A made-up portfolio for the public demo (/demo). Names, amounts and dates are invented; the funds are real schemes so live NAVs work.",
+  "funds": [
+    {
+      "id": 1,
+      "name": "Parag Parikh Flexi Cap Fund - Direct Plan - Growth",
+      "shortName": "Parag Parikh Flexi Cap",
+      "category": "Flexi Cap",
+      "schemeId": "122639",
+      "color": "#BFE3B4",
+      "lumpsums": [
+        {
+          "amount": 25000,
+          "date": "2021-11-15"
+        }
+      ],
+      "sips": [
+        {
+          "amount": 5000,
+          "startDate": "2021-12-05",
+          "stopDate": "2024-03-05"
+        },
+        {
+          "amount": 7500,
+          "startDate": "2024-04-05",
+          "stopDate": null
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "UTI Nifty 50 Index Fund - Direct Plan - Growth",
+      "shortName": "UTI Nifty 50 Index",
+      "category": "Large Cap",
+      "schemeId": "120716",
+      "color": "#B9D7F2",
+      "lumpsums": [],
+      "sips": [
+        {
+          "amount": 4000,
+          "startDate": "2022-01-10",
+          "stopDate": null
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Axis Small Cap Fund - Direct Plan - Growth",
+      "shortName": "Axis Small Cap",
+      "category": "Small Cap",
+      "schemeId": "125354",
+      "color": "#F2C6DE",
+      "lumpsums": [
+        {
+          "amount": 20000,
+          "date": "2023-03-20"
+        }
+      ],
+      "sips": [
+        {
+          "amount": 3000,
+          "startDate": "2023-04-12",
+          "stopDate": null
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Mirae Asset Large Cap Fund - Direct Plan - Growth",
+      "shortName": "Mirae Large Cap",
+      "category": "Large Cap",
+      "schemeId": "118825",
+      "color": "#D9CCF5",
+      "lumpsums": [],
+      "sips": [
+        {
+          "amount": 3000,
+          "startDate": "2021-06-05",
+          "stopDate": "2024-03-05"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "HDFC Mid Cap Fund - Direct Plan - Growth Option",
+      "shortName": "HDFC Mid Cap",
+      "category": "Mid Cap",
+      "schemeId": "118989",
+      "color": "#FFF1B8",
+      "lumpsums": [],
+      "sips": [
+        {
+          "amount": 4000,
+          "startDate": "2022-08-08",
+          "stopDate": null
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Kotak ELSS Tax Saver Fund - Direct Plan - Growth",
+      "shortName": "Kotak ELSS Tax Saver",
+      "category": "ELSS",
+      "schemeId": "119773",
+      "color": "#C7EFE6",
+      "lumpsums": [
+        {
+          "amount": 50000,
+          "date": "2022-03-25"
+        },
+        {
+          "amount": 50000,
+          "date": "2023-03-24"
+        },
+        {
+          "amount": 50000,
+          "date": "2024-03-22"
+        }
+      ],
+      "sips": []
+    },
+    {
+      "id": 7,
+      "name": "HDFC Large and Mid Cap Fund - Direct Plan - Growth Option",
+      "shortName": "HDFC Large & Mid Cap",
+      "category": "Large & Mid Cap",
+      "schemeId": "130498",
+      "color": "#FFD9C2",
+      "lumpsums": [],
+      "sips": [
+        {
+          "amount": 2500,
+          "startDate": "2025-07-15",
+          "stopDate": null
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "ICICI Prudential Gold ETF FOF - Direct Plan - Growth",
+      "shortName": "ICICI Gold FoF",
+      "category": "Gold Fund",
+      "schemeId": "120685",
+      "color": "#F5E6A8",
+      "lumpsums": [
+        {
+          "amount": 30000,
+          "date": "2023-10-09"
+        }
+      ],
+      "sips": [
+        {
+          "amount": 1500,
+          "startDate": "2024-01-10",
+          "stopDate": null
+        }
+      ]
+    }
+  ],
+  "fixedDeposits": [
+    {
+      "id": 1,
+      "name": "Asha",
+      "bank": "SBI",
+      "label": "3L - 444 d",
+      "principal": 300000,
+      "startDate": "2025-02-10",
+      "cycles": [
+        {
+          "termDays": 444,
+          "rate": 7.25,
+          "maturityDate": "2026-04-30",
+          "interestBank": 27401
+        },
+        {
+          "termDays": 444,
+          "rate": 6.6,
+          "maturityDate": "2027-07-18",
+          "interestBank": 27137
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Ravi",
+      "bank": "SBI",
+      "label": "2L - 444 d",
+      "principal": 200000,
+      "startDate": "2025-03-04",
+      "cycles": [
+        {
+          "termDays": 444,
+          "rate": 7.25,
+          "maturityDate": "2026-05-22",
+          "interestBank": 18267
+        },
+        {
+          "termDays": 444,
+          "rate": 6.6,
+          "maturityDate": "2027-08-09",
+          "interestBank": 18091
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Asha",
+      "bank": "HDFC Bank",
+      "label": "1.5L - 2 yr",
+      "principal": 150000,
+      "startDate": "2025-08-20",
+      "cycles": [
+        {
+          "termDays": 730,
+          "rate": 7.0,
+          "maturityDate": "2027-08-20",
+          "interestBank": 22332
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Meera",
+      "bank": "Suryoday SF",
+      "label": "1L - 2 yr 6 mo",
+      "principal": 100000,
+      "startDate": "2026-05-12",
+      "cycles": [
+        {
+          "termDays": 913,
+          "rate": 8.1,
+          "maturityDate": "2028-11-10",
+          "interestBank": 22212
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Ravi",
+      "bank": "Shivalik SF",
+      "label": "50K - 1 yr 6 mo",
+      "principal": 50000,
+      "startDate": "2026-06-02",
+      "cycles": [
+        {
+          "termDays": 548,
+          "rate": 7.5,
+          "maturityDate": "2027-12-02",
+          "interestBank": 5901
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Meera",
+      "bank": "ICICI Bank",
+      "label": "2L - 1 yr",
+      "principal": 200000,
+      "startDate": "2024-09-15",
+      "cycles": [
+        {
+          "termDays": 365,
+          "rate": 7.1,
+          "maturityDate": "2025-09-15",
+          "interestBank": 14583
+        },
+        {
+          "termDays": 365,
+          "rate": 6.7,
+          "maturityDate": "2026-09-15",
+          "interestBank": 14742
+        }
+      ]
+    }
+  ],
+  "gold": [
+    {
+      "id": 1,
+      "label": "SGB 2023-24 Series III",
+      "set": "Sovereign Gold Bonds",
+      "purchaseDate": "2023-12-20",
+      "quantity": 8,
+      "purchasePrice": 6149
+    },
+    {
+      "id": 2,
+      "label": "SGB 2024-25 Series I",
+      "set": "Sovereign Gold Bonds",
+      "purchaseDate": "2024-06-21",
+      "quantity": 5,
+      "purchasePrice": 7213
+    },
+    {
+      "id": 3,
+      "label": "Gold coin 10 g",
+      "set": "Coins",
+      "purchaseDate": "2025-10-20",
+      "quantity": 10,
+      "purchasePrice": 12450
+    }
+  ],
+  "silver": [
+    {
+      "id": 1,
+      "label": "Silver coins",
+      "set": "Coins",
+      "purchaseDate": "2023-11-12",
+      "quantity": 250,
+      "purchasePrice": 76
+    },
+    {
+      "id": 2,
+      "label": "Silver bar 500 g",
+      "set": "Bars",
+      "purchaseDate": "2025-04-14",
+      "quantity": 500,
+      "purchasePrice": 98
+    }
+  ],
+  "epf": [
+    {
+      "id": 1,
+      "label": "Current employer",
+      "startDate": "2019-07-01",
+      "monthlyContribution": 3600,
+      "employeeContribution": 1800,
+      "employerContribution": 1800,
+      "contributionHistory": [
+        {
+          "from": "2021-04",
+          "employeeContribution": 2400,
+          "employerContribution": 2400
+        }
+      ]
+    }
+  ],
+  "llmConfig": {
+    "enabled": false
+  },
+  "sampleRecommendations": {
+    "recommendations": {
+      "revisedPlan": [
+        {
+          "name": "Parag Parikh Flexi Cap Fund - Direct Plan - Growth",
+          "current": 7500,
+          "revised": 7500,
+          "change": "Monitor",
+          "reason": "Core holding doing its job; keep the amount as it is."
+        },
+        {
+          "name": "UTI Nifty 50 Index Fund - Direct Plan - Growth",
+          "current": 4000,
+          "revised": 5000,
+          "change": "ADD",
+          "reason": "Cheapest large-cap exposure in the plan; take it up to anchor the portfolio.",
+          "add": true
+        },
+        {
+          "name": "Axis Small Cap Fund - Direct Plan - Growth",
+          "current": 3000,
+          "revised": 3000,
+          "change": "Monitor",
+          "reason": "Small caps are volatile; hold the SIP and review after a full cycle."
+        },
+        {
+          "name": "HDFC Mid Cap Fund - Direct Plan - Growth Option",
+          "current": 4000,
+          "revised": 4000,
+          "change": "Monitor",
+          "reason": "Strong long-run record; no change needed."
+        },
+        {
+          "name": "HDFC Large and Mid Cap Fund - Direct Plan - Growth Option",
+          "current": 2500,
+          "revised": 0,
+          "change": "STOP",
+          "reason": "Overlaps with the index and mid-cap funds; move this amount into the index fund and the new debt fund.",
+          "stop": true
+        },
+        {
+          "name": "ICICI Prudential Gold ETF FOF - Direct Plan - Growth",
+          "current": 1500,
+          "revised": 1500,
+          "change": "Monitor",
+          "reason": "A small gold slice is a useful hedge; keep it near 5%."
+        }
+      ],
+      "newInvestments": [
+        {
+          "name": "Parag Parikh Conservative Hybrid Fund",
+          "category": "Hybrid",
+          "suggestedSip": 1500,
+          "expectedReturns": "8–9%",
+          "reason": "The plan is all equity and gold; a conservative hybrid adds a steadier sleeve without leaving mutual funds."
+        }
+      ],
+      "resultMessage": "Sample analysis for the demo portfolio: the core is sound, there is some overlap between the large & mid cap fund and the index and mid-cap funds, and nothing steadies it. Shift ₹2,500 a month from the overlap into the index fund and a conservative hybrid."
+    },
+    "recommendedAllocation": {
+      "totalTarget": 22500,
+      "summary": "Sample target for the demo: a broad core in flexi and large cap, measured mid and small cap, a little gold and a new hybrid sleeve.",
+      "allocations": [
+        {
+          "category": "Flexi Cap",
+          "percentage": 33.3,
+          "advice": "Keep as the core."
+        },
+        {
+          "category": "Large Cap",
+          "percentage": 22.2,
+          "advice": "Raise through the index fund."
+        },
+        {
+          "category": "Mid Cap",
+          "percentage": 17.8,
+          "advice": "Hold."
+        },
+        {
+          "category": "Small Cap",
+          "percentage": 13.3,
+          "advice": "Hold; don't add more."
+        },
+        {
+          "category": "Gold Fund",
+          "percentage": 6.7,
+          "advice": "Keep near 5–7%."
+        },
+        {
+          "category": "Hybrid",
+          "percentage": 6.7,
+          "advice": "New: start a conservative hybrid SIP."
+        },
+        {
+          "category": "Large & Mid Cap",
+          "percentage": 0,
+          "advice": "Stop; it overlaps the others."
+        }
+      ]
+    }
+  }
+}

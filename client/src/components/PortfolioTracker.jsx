@@ -20,12 +20,13 @@ import GoldSilverView from './portfolio/GoldSilverView';
 import EPFView from './portfolio/EPFView';
 import OverviewView from './portfolio/OverviewView';
 import ScrollPane from './portfolio/ScrollPane';
+import { IS_DEMO } from '../utils/demo';
 import { PageGhost, SummaryGhost, NoteGhost, HeadingGhost, ListGhost, ChartGhost } from './portfolio/Ghost';
 
 const ASSET_HEADER_CONTENT = {
   overview: {
-    title: 'Welcome, Yashwanth',
-    subtitle: 'Your complete portfolio at a glance - all assets, one view',
+    title: IS_DEMO ? 'Welcome to the demo' : 'Welcome, Yashwanth',
+    subtitle: IS_DEMO ? 'A made-up portfolio, valued at today\'s prices - every asset, one view' : 'Your complete portfolio at a glance - all assets, one view',
   },
   mutualFunds: {
     title: 'Mutual Funds',
@@ -51,7 +52,7 @@ const ASSET_HEADER_CONTENT = {
 
 
 // Printed at the top of every PDF report
-const OWNER_NAME = 'Yashwanth C';
+const OWNER_NAME = IS_DEMO ? 'Demo portfolio' : 'Yashwanth C';
 
 const PortfolioTracker = ({ activeAsset }) => {
   const navigate = useNavigate();

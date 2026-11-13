@@ -11,6 +11,8 @@ import { useTheme, chartPalette } from '../hooks/useTheme';
 // so it always matches the app and follows the same light/dark theme (Vercel DESIGN.md).
 
 const UNLOCK = '/unlock';
+// The public demo is its own app instance under /demo, so it opens with a full page load (a plain link)
+const DEMO = '/demo';
 const NAV = [
   { href: '#assets', label: 'Assets' },
   { href: '#advice', label: 'Advice' },
@@ -337,6 +339,7 @@ const Landing = () => {
           </nav>
           <div className="ml-auto flex items-center gap-2">
             <ThemeToggle />
+            <a href={DEMO} className="pill pill-sm pill-secondary hidden sm:inline-flex">Try the demo</a>
             <Link to={UNLOCK} className="pill pill-sm pill-primary hidden sm:inline-flex">Open your portfolio</Link>
             <button type="button" onClick={() => setOpen(v => !v)} aria-expanded={open} aria-controls="landing-menu" aria-label={open ? 'Close menu' : 'Open menu'} className="md:hidden inline-grid place-items-center w-10 h-10 rounded-full bg-surface-strong text-ink cursor-pointer">
               {open ? <X className="w-[18px] h-[18px]" aria-hidden="true" /> : <Menu className="w-[18px] h-[18px]" aria-hidden="true" />}
@@ -349,6 +352,7 @@ const Landing = () => {
         <nav id="landing-menu" aria-label="Main" className="md:hidden fixed inset-x-0 top-16 bottom-0 z-40 overflow-y-auto bg-canvas px-4 py-4 flex flex-col gap-1">
           {NAV.map(n => <a key={n.href} href={n.href} onClick={() => setOpen(false)} className="flex items-center h-14 px-4 rounded-2xl text-[17px] font-medium text-ink hover:bg-surface-strong">{n.label}</a>)}
           <Link to={UNLOCK} className="pill pill-round pill-primary mt-4">Open your portfolio</Link>
+          <a href={DEMO} className="pill pill-round pill-secondary mt-2">Try the demo</a>
         </nav>
       )}
 
@@ -365,8 +369,9 @@ const Landing = () => {
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
               <Link to={UNLOCK} className="pill pill-round pill-primary">Open your portfolio <ArrowRight className="w-4 h-4" aria-hidden="true" /></Link>
-              <a href="#advice" className="pill pill-round pill-secondary">See SIP advice</a>
+              <a href={DEMO} className="pill pill-round pill-secondary">Try the demo</a>
             </div>
+            <p className="mt-4 text-[14px] text-muted">The demo is a made-up portfolio at live prices. No code needed.</p>
             <div className="mt-14 md:mt-16 mx-auto max-w-[960px] rounded-2xl p-2 bg-surface/60 backdrop-blur shadow-[0_0_0_1px_var(--c-ring),var(--c-shadow-float)]">
               <OverviewMock palette={palette} />
             </div>
@@ -433,8 +438,11 @@ const Landing = () => {
           <div className={WRAP}>
             <div className="rounded-xl bg-[#171717] text-white [[data-theme=dark]_&]:bg-surface [[data-theme=dark]_&]:shadow-[0_0_0_1px_var(--c-ring)] px-6 py-14 md:px-16 md:py-20 text-center">
               <h2 className="text-[32px] md:text-[48px] leading-[1.05] tracking-[-0.05em]">Open your portfolio.</h2>
-              <p className="mt-4 text-[18px] text-[#a1a1a1]">Have your six-digit code ready.</p>
-              <Link to={UNLOCK} className="pill pill-round bg-white text-[#171717] hover:bg-[#ededed] mt-8">Open your portfolio <ArrowRight className="w-4 h-4" aria-hidden="true" /></Link>
+              <p className="mt-4 text-[18px] text-[#a1a1a1]">Have your six-digit code ready, or look around the demo first.</p>
+              <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
+                <Link to={UNLOCK} className="pill pill-round bg-white text-[#171717] hover:bg-[#ededed]">Open your portfolio <ArrowRight className="w-4 h-4" aria-hidden="true" /></Link>
+                <a href={DEMO} className="pill pill-round bg-transparent text-white shadow-[inset_0_0_0_1px_rgb(255_255_255/0.35)] hover:bg-white/10">Try the demo</a>
+              </div>
             </div>
           </div>
         </section>
@@ -449,7 +457,7 @@ const Landing = () => {
           {[
             ['Assets', [['Mutual funds', '#funds'], ['Fixed deposits', '#deposits'], ['Gold and silver', '#metals']]],
             ['Advice', [['SIP ideas', '#advice']]],
-            ['Access', [['Access code', '#access']]],
+            ['Access', [['Access code', '#access'], ['Live demo', DEMO]]],
           ].map(([h, links]) => (
             <div key={h}>
               <h3 className="eyebrow">{h}</h3>

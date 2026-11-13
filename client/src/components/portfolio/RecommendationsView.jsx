@@ -121,7 +121,7 @@ const RecommendationsView = ({
               <h2 id="plan-h" className="text-[20px] leading-[28px] text-ink">Revised SIP plan</h2>
               <span className="font-mono text-[12px] text-muted">{inr(currentTotal)}<ToArrow />{inr(revisedTotal)}</span>
             </div>
-            {filtersApplied && <div className="mb-3"><Note tone="info">Showing {plan.length} of {recommendations.revisedPlan.length} funds for the active filters.</Note></div>}
+            {filtersApplied && plan.length < recommendations.revisedPlan.length && <div className="mb-3"><Note tone="info">Showing {plan.length} of {recommendations.revisedPlan.length} funds for the active filters.</Note></div>}
             <div className="card">
               <div ref={colsRef} className="pin-cols hidden @xl:grid grid-cols-[minmax(0,1fr)_100px_100px_120px_16px] gap-3 px-5 h-10 items-center" role="row">
                 <SortHead label="Fund" k="fund" {...head} />

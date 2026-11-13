@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { Sun, Moon, Eye, EyeOff, Lock, Menu, ArrowLeftToLine, LayoutGrid, LineChart, Coins, Gem, Landmark, PiggyBank } from 'lucide-react';
+import { Sun, Moon, Eye, EyeOff, Lock, LogOut, Menu, ArrowLeftToLine, LayoutGrid, LineChart, Coins, Gem, Landmark, PiggyBank } from 'lucide-react';
 import { ASSET_TABS, MUTUAL_FUND_VIEWS } from '../utils/assetRoutes';
 import { useTheme, chartPalette } from '../hooks/useTheme';
 import { usePrivacy } from '../hooks/usePrivacy';
 import { logout } from '../services/authService';
+import { IS_DEMO } from '../utils/demo';
 
 // Vesta's mark: four dots, the last one squared, in the ink colour (it flips with the theme).
 export const VestaMark = ({ size = 22, color = 'var(--c-ink)' }) => (
@@ -56,6 +57,11 @@ export const ThemeToggle = ({ className = '' }) => {
 const ASSET_ICONS = { overview: LayoutGrid, mutualFunds: LineChart, gold: Coins, silver: Gem, fds: Landmark, epf: PiggyBank };
 const ASSET_SLOT = { mutualFunds: 0, fds: 1, epf: 2, gold: 3, silver: 4 };
 
+// Marks every screen of the demo, beside the mark (and in the phone bar).
+const DemoChip = ({ fallback = null }) => (IS_DEMO
+  ? <span className="shrink-0 inline-flex items-center h-5 px-2 rounded-full bg-link/10 font-mono text-[11px] text-link shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--c-link)_35%,transparent)]">Demo</span>
+  : fallback);
+
 // The sidebar's foot, stacked rows: the two switches (named for what clicking will do), then Lock.
 const SidebarSwitches = () => {
   const { theme, toggle: toggleTheme } = useTheme();
@@ -73,6 +79,11 @@ const SidebarSwitches = () => {
   const EyeIcon = hidden ? Eye : EyeOff;
   return (
     <div className="shrink-0 px-3 py-3 border-t border-line space-y-0.5">
+      {IS_DEMO && (
+        <p className="mx-1 mb-2 px-3 py-2.5 rounded-md bg-link/10 text-[12px] leading-[18px] text-body shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--c-link)_30%,transparent)]">
+          A made-up portfolio. NAVs and metal prices are live; the AI advice is a saved sample.
+        </p>
+      )}
       <button type="button" onClick={toggleTheme} className={row}>
         <ThemeIcon className="w-4 h-4 text-muted" strokeWidth={1.75} aria-hidden="true" />
         {dark ? 'Light theme' : 'Dark theme'}
@@ -81,10 +92,18 @@ const SidebarSwitches = () => {
         <EyeIcon className="w-4 h-4 text-muted" strokeWidth={1.75} aria-hidden="true" />
         {hidden ? 'Show amounts' : 'Hide amounts'}
       </button>
-      <button type="button" onClick={lock} disabled={locking} className={`${row} disabled:opacity-60 disabled:cursor-default`}>
-        <Lock className="w-4 h-4 text-muted" strokeWidth={1.75} aria-hidden="true" />
-        {locking ? 'Locking…' : 'Lock'}
-      </button>
+      {IS_DEMO ? (
+        // leaving the demo is a full page load, so its data and router go with it
+        <a href="/welcome" className={row}>
+          <LogOut className="w-4 h-4 text-muted" strokeWidth={1.75} aria-hidden="true" />
+          Exit demo
+        </a>
+      ) : (
+        <button type="button" onClick={lock} disabled={locking} className={`${row} disabled:opacity-60 disabled:cursor-default`}>
+          <Lock className="w-4 h-4 text-muted" strokeWidth={1.75} aria-hidden="true" />
+          {locking ? 'Locking…' : 'Lock'}
+        </button>
+      )}
     </div>
   );
 };
@@ -103,7 +122,7 @@ const SidebarContent = ({ onNavigate, closeButton }) => {
         <Link to="/" onClick={onNavigate} className="flex items-center gap-2 text-[16px] font-semibold tracking-[-0.02em] text-ink">
           <VestaMark /> Vesta
         </Link>
-        <span className="inline-flex items-center h-5 px-2 rounded-full bg-surface-strong font-mono text-[11px] text-muted">Private</span>
+        <DemoChip fallback={<span className="inline-flex items-center h-5 px-2 rounded-full bg-surface-strong font-mono text-[11px] text-muted">Private</span>} />
         {closeButton}
       </div>
       <nav aria-label="Portfolio" className="flex-1 overflow-y-auto px-3 py-4">
@@ -198,6 +217,7 @@ const Navbar = () => {
         </button>
         <Link to="/" aria-label="Vesta, overview"><VestaMark size={20} /></Link>
         <span className="min-w-0 truncate text-[14px] font-medium text-ink">{label}</span>
+        <DemoChip />
         <div className="ml-auto flex items-center gap-2"><HideAmountsToggle /><ThemeToggle /></div>
       </header>
 

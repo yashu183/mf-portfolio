@@ -1,7 +1,7 @@
 // Portfolio Service – all API calls to the unified backend
 import { authenticatedFetch } from './authService';
 
-const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://localhost:3002';
+import { API_ROOT } from '../utils/demo';
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
@@ -19,7 +19,7 @@ export const getMutualFunds = async () => {
     console.log('📋 Using cached MF data');
     return _mfCache.data;
   }
-  const response = await authenticatedFetch(`${API_BASE_URL}/api/portfolio/funds`);
+  const response = await authenticatedFetch(`${API_ROOT}/portfolio/funds`);
   if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   const result = await response.json();
   if (result.status !== 'success') throw new Error(result.message ?? 'Unknown server error');
@@ -37,7 +37,7 @@ export const getFixedDeposits = async () => {
     console.log('📋 Using cached FD data');
     return _fdCache.data;
   }
-  const response = await authenticatedFetch(`${API_BASE_URL}/api/portfolio/fds`);
+  const response = await authenticatedFetch(`${API_ROOT}/portfolio/fds`);
   if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   const result = await response.json();
   if (result.status !== 'success') throw new Error(result.message ?? 'Unknown server error');
@@ -54,7 +54,7 @@ export const getCompletePortfolio = async () => {
     console.log('📋 Using cached portfolio data');
     return _portfolioCache.data;
   }
-  const response = await authenticatedFetch(`${API_BASE_URL}/api/portfolio/complete`);
+  const response = await authenticatedFetch(`${API_ROOT}/portfolio/complete`);
   if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   const result = await response.json();
   if (result.status !== 'success') throw new Error(result.message ?? 'Unknown server error');
@@ -70,7 +70,7 @@ export const getInvestmentTimeline = async () => {
   if (_timelineCache.data && _timelineCache.timestamp && now - _timelineCache.timestamp < CACHE_TTL) {
     return _timelineCache.data;
   }
-  const response = await authenticatedFetch(`${API_BASE_URL}/api/portfolio/investment-timeline`);
+  const response = await authenticatedFetch(`${API_ROOT}/portfolio/investment-timeline`);
   if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   const result = await response.json();
   if (result.status !== 'success') throw new Error(result.message ?? 'Unknown server error');
@@ -90,7 +90,7 @@ export const getGoldPortfolio = async () => {
     console.log('📋 Using cached gold data');
     return _goldCache.data;
   }
-  const response = await authenticatedFetch(`${API_BASE_URL}/api/portfolio/gold`);
+  const response = await authenticatedFetch(`${API_ROOT}/portfolio/gold`);
   if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   const result = await response.json();
   if (result.status !== 'success') throw new Error(result.message ?? 'Unknown server error');
@@ -110,7 +110,7 @@ export const getSilverPortfolio = async () => {
     console.log('📋 Using cached silver data');
     return _silverCache.data;
   }
-  const response = await authenticatedFetch(`${API_BASE_URL}/api/portfolio/silver`);
+  const response = await authenticatedFetch(`${API_ROOT}/portfolio/silver`);
   if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   const result = await response.json();
   if (result.status !== 'success') throw new Error(result.message ?? 'Unknown server error');
@@ -129,7 +129,7 @@ export const getEPFPortfolio = async () => {
   if (_epfCache.data && _epfCache.timestamp && now - _epfCache.timestamp < CACHE_TTL) {
     return _epfCache.data;
   }
-  const response = await authenticatedFetch(`${API_BASE_URL}/api/portfolio/epf`);
+  const response = await authenticatedFetch(`${API_ROOT}/portfolio/epf`);
   if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   const result = await response.json();
   if (result.status !== 'success') throw new Error(result.message ?? 'Unknown server error');
@@ -149,7 +149,7 @@ export const getOverview = async () => {
     console.log('📋 Using cached overview data');
     return _overviewCache.data;
   }
-  const response = await authenticatedFetch(`${API_BASE_URL}/api/portfolio/overview`);
+  const response = await authenticatedFetch(`${API_ROOT}/portfolio/overview`);
   if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   const result = await response.json();
   if (result.status !== 'success') throw new Error(result.message ?? 'Unknown server error');

@@ -1,10 +1,11 @@
 // Recommendation Service – calls the unified backend
 import { authenticatedFetch } from './authService';
 
-const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://localhost:3002';
+import { API_ROOT, IS_DEMO } from '../utils/demo';
 
-const CACHE_KEY = 'portfolio_recommendations';
-const CACHE_TS_KEY = 'portfolio_recommendations_timestamp';
+// the demo keeps its own copy, so a browser that has both never shows one portfolio's advice on the other
+const CACHE_KEY = IS_DEMO ? 'demo_portfolio_recommendations' : 'portfolio_recommendations';
+const CACHE_TS_KEY = `${CACHE_KEY}_timestamp`;
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
 /**
@@ -12,7 +13,7 @@ const CACHE_TTL = 60 * 60 * 1000; // 1 hour
  * Generates AI-powered recommendations via the secure backend.
  */
 export const generatePortfolioRecommendations = async (portfolioData, currentValues) => {
-  const response = await authenticatedFetch(`${API_BASE_URL}/api/recommendations`, {
+  const response = await authenticatedFetch(`${API_ROOT}/recommendations`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ portfolioData, currentValues }),
@@ -72,7 +73,7 @@ export const checkServiceHealth = async () => {
   try {
     const controller = new AbortController();
     const tid = setTimeout(() => controller.abort(), 5000);
-    const response = await fetch(`${API_BASE_URL}/api/health`, { signal: controller.signal });
+    const response = await fetch(`${API_ROOT}/health`, { signal: controller.signal });
     clearTimeout(tid);
     return response.ok;
   } catch {

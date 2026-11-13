@@ -178,7 +178,7 @@ const FixedDepositsView = ({ deposits, isLoading = false, error = null }) => {
             const bar = (
               <span className="flex items-center gap-2">
                 <Bar pct={pct} tone={matured ? 'bg-gain' : 'bg-link'} marks={cycleBoundaries} />
-                <span className="w-8 text-right font-mono text-[11px] text-ink">{Math.round(pct)}%</span>
+                <span className="w-10 shrink-0 text-right font-mono text-[11px] text-ink tabular-nums">{Math.round(pct)}%</span>
               </span>
             );
             return (
@@ -199,7 +199,7 @@ const FixedDepositsView = ({ deposits, isLoading = false, error = null }) => {
                       {/* wraps instead of cutting off: every part here is something the other columns don't say */}
                       <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 font-mono text-[12px] text-muted">
                         <span className="whitespace-nowrap">{fdMonthYY(d.startDate)}<ToArrow />{fdMonthYY(lastCycle.maturityDate)}</span>
-                        <span className="whitespace-nowrap">· {matured ? 'matured' : `cycle ${activeCycleIdx + 1}`}<span className="@2xl:hidden"> · {pctText(rate)} · {termOf(d)}</span></span>
+                        <span className="whitespace-nowrap">{!matured && `· cycle ${activeCycleIdx + 1}`}<span className="@2xl:hidden"> · {pctText(rate)} · {termOf(d)}</span></span>
                       </span>
                     </span>
                   </span>
@@ -208,9 +208,11 @@ const FixedDepositsView = ({ deposits, isLoading = false, error = null }) => {
                     <span className="block num text-[14px] text-ink">{pctText(rate)}</span>
                     <span className="block font-mono text-[11px] text-muted whitespace-nowrap">{termOf(d)}</span>
                   </span>
-                  <span className="hidden @2xl:block min-w-0 text-center">
-                    {bar}
-                    <span className={`block mt-1 font-mono text-[11px] ${matured ? 'text-gain' : 'text-muted'}`}>{matured ? 'matured' : `${left} left`}</span>
+                  {/* the % on top, the bar across the column, and what's left (or "matured") under it, all ending at the bar's end */}
+                  <span className="hidden @2xl:flex flex-col gap-1 min-w-0">
+                    <span className="text-right font-mono text-[11px] text-ink tabular-nums">{Math.round(pct)}%</span>
+                    <span className="flex"><Bar pct={pct} tone={matured ? 'bg-gain' : 'bg-link'} marks={cycleBoundaries} /></span>
+                    <span className={`text-right font-mono text-[11px] whitespace-nowrap ${matured ? 'text-gain' : 'text-muted'}`}>{matured ? 'matured' : `${left} left`}</span>
                   </span>
                   <span className="text-right @2xl:text-center">
                     <span className="block num text-[14px] text-ink">{formatCurrency(d.currentValue)}</span>

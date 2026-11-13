@@ -31,6 +31,27 @@ app.use(cors({
 
 app.use(express.json({ limit: '10mb' }));
 
+// ─── Public demo ──────────────────────────────────────────────────────────────
+// /api/demo/<route> runs the same <route> against demoConfig.json (a made-up portfolio committed with
+// the code) with no access code, so the app can be shown to anyone. Live NAVs and metal prices, real
+// maths; the AI recommendation is a saved sample so visitors never start a Bedrock call.
+const demoLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: parseInt(process.env.DEMO_RATE_LIMIT_MAX || '300', 10),
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { status: 'error', message: 'The demo is busy. Please try again in a few minutes.' },
+});
+app.use((req, res, next) => {
+    if (req.url !== '/api/demo' && !req.url.startsWith('/api/demo/')) return next();
+    if (req.url.startsWith('/api/demo/auth/') && req.url !== '/api/demo/auth/session') {
+        return res.status(404).json({ status: 'error', message: 'Not available in the demo.' });
+    }
+    req.demo = true;
+    req.url = `/api${req.url.slice('/api/demo'.length)}`;
+    return demoLimiter(req, res, next);
+});
+
 const accessCode = process.env.AUTH_ACCESS_CODE;
 const sessions = new Map();
 const sessionDuration = 60 * 60 * 1000;
@@ -100,7 +121,7 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 app.use('/api', (req, res, next) => {
-    if (req.path === '/health') return next();
+    if (req.path === '/health' || req.demo) return next();
     res.set('Cache-Control', 'no-store');
     const token = readSessionToken(req);
     const expiry = sessions.get(token);
@@ -123,7 +144,8 @@ const limiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
 });
-app.use('/api/recommendations', limiter);
+// the demo's recommendation is a saved sample, so it doesn't spend the hourly allowance
+app.use('/api/recommendations', (req, res, next) => (req.demo ? next() : limiter(req, res, next)));
 
 // ─── Standardised response helpers ────────────────────────────────────────────
 const ok = (res, data, extra = {}) => res.json({ status: 'success', data, ...extra });
@@ -496,10 +518,14 @@ function deriveStatus(xirr, sipMonths) {
 }
 
 // ─── Portfolio Config loader ───────────────────────────────────────────────────
-async function loadConfig() {
-    const configPath = path.join(__dirname, 'portfolioConfig.json');
+// The demo reads demoConfig.json and is marked, so caches keyed by fund id never mix the two portfolios.
+async function loadConfig(req) {
+    const demo = Boolean(req?.demo);
+    const configPath = path.join(__dirname, demo ? 'demoConfig.json' : 'portfolioConfig.json');
     const raw = await fs.readFile(configPath, 'utf-8');
-    return JSON.parse(raw);
+    const config = JSON.parse(raw);
+    if (demo) config.__demo = true;
+    return config;
 }
 
 // ----- Fix the Allocations after LLM's response
@@ -605,7 +631,7 @@ async function computeMFData(config) {
             const cashFlows = buildCashFlows(fund, sipMonths, currentDate);
             cashFlows.push({ date: currentDate, amount: currentValue });
 
-            const cacheKey = latestDate ? `${fund.id}_${latestDate}_xirr` : null;
+            const cacheKey = latestDate ? `${config.__demo ? 'demo_' : ''}${fund.id}_${latestDate}_xirr` : null;
             // no NAV means no value to measure against, and a diverged solve is not a return either
             const rawXirr = navStatus !== 'missing' && cashFlows.length > 1 ? calculateXIRR(cashFlows, 0.1, cacheKey) : 0;
             const xirr = Number.isFinite(rawXirr) ? rawXirr : 0;
@@ -659,9 +685,9 @@ app.get('/api/health', (_req, res) =>
 );
 
 /** GET /api/portfolio/funds – Mutual funds only */
-app.get('/api/portfolio/funds', async (_req, res) => {
+app.get('/api/portfolio/funds', async (req, res) => {
     try {
-        const config = await loadConfig();
+        const config = await loadConfig(req);
         const { funds, totals } = await computeMFData(config);
         ok(res, { funds, totals });
     } catch (err) {
@@ -671,9 +697,9 @@ app.get('/api/portfolio/funds', async (_req, res) => {
 });
 
 /** GET /api/portfolio/fds – Fixed deposits only */
-app.get('/api/portfolio/fds', async (_req, res) => {
+app.get('/api/portfolio/fds', async (req, res) => {
     try {
-        const config = await loadConfig();
+        const config = await loadConfig(req);
         const fixedDeposits = calculateFixedDeposits(config.fixedDeposits ?? []);
         ok(res, { fixedDeposits });
     } catch (err) {
@@ -686,9 +712,9 @@ app.get('/api/portfolio/fds', async (_req, res) => {
  * GET /api/portfolio/complete
  * Kept for backward compatibility – returns funds + totals + fixedDeposits in one shot.
  */
-app.get('/api/portfolio/complete', async (_req, res) => {
+app.get('/api/portfolio/complete', async (req, res) => {
     try {
-        const config = await loadConfig();
+        const config = await loadConfig(req);
         const [{ funds, totals }, fixedDeposits] = await Promise.all([
             computeMFData(config),
             Promise.resolve(calculateFixedDeposits(config.fixedDeposits ?? [])),
@@ -703,6 +729,10 @@ app.get('/api/portfolio/complete', async (_req, res) => {
 /** POST /api/recommendations – rate-limited AI recommendation endpoint */
 app.post('/api/recommendations', async (req, res) => {
     try {
+        if (req.demo) {
+            const demoConfig = await loadConfig(req);
+            return ok(res, demoConfig.sampleRecommendations);
+        }
         const { portfolioData, currentValues } = req.body;
         if (!portfolioData || !currentValues)
             return fail(res, 400, 'Missing required portfolio data');
@@ -710,7 +740,7 @@ app.post('/api/recommendations', async (req, res) => {
         if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY)
             throw new Error('AWS credentials not configured on server');
 
-        const config = await loadConfig();
+        const config = await loadConfig(req);
         const { llmConfig } = config;
 
         // Calculate total current SIP from active sips
@@ -883,9 +913,9 @@ app.post('/api/recommendations', async (req, res) => {
  * GET /api/portfolio/investment-timeline
  * Returns month-by-month SIP + lumpsum investment data and SIP commitment history.
  */
-app.get('/api/portfolio/investment-timeline', async (_req, res) => {
+app.get('/api/portfolio/investment-timeline', async (req, res) => {
     try {
-        const config = await loadConfig();
+        const config = await loadConfig(req);
         const funds = config.funds;
         const now = new Date();
 
@@ -1129,9 +1159,9 @@ function computeMetalHoldings(entries, pricePerGram) {
 }
 
 /** GET /api/portfolio/gold */
-app.get('/api/portfolio/gold', async (_req, res) => {
+app.get('/api/portfolio/gold', async (req, res) => {
     try {
-        const [config, prices] = await Promise.all([loadConfig(), fetchMetalSpotPricesINR()]);
+        const [config, prices] = await Promise.all([loadConfig(req), fetchMetalSpotPricesINR()]);
         const { holdings, totals, sets } = computeMetalHoldings(config.gold ?? [], prices.gold.pricePerGram);
         ok(res, { holdings, totals, sets, pricePerGram: prices.gold.pricePerGram, fetchedAt: prices.fetchedAt });
     } catch (err) {
@@ -1141,9 +1171,9 @@ app.get('/api/portfolio/gold', async (_req, res) => {
 });
 
 /** GET /api/portfolio/silver */
-app.get('/api/portfolio/silver', async (_req, res) => {
+app.get('/api/portfolio/silver', async (req, res) => {
     try {
-        const [config, prices] = await Promise.all([loadConfig(), fetchMetalSpotPricesINR()]);
+        const [config, prices] = await Promise.all([loadConfig(req), fetchMetalSpotPricesINR()]);
         const { holdings, totals, sets } = computeMetalHoldings(config.silver ?? [], prices.silver.pricePerGram);
         ok(res, { holdings, totals, sets, pricePerGram: prices.silver.pricePerGram, fetchedAt: prices.fetchedAt });
     } catch (err) {
@@ -1320,9 +1350,9 @@ function computeEPFValue(epfConfig) {
 }
 
 /** GET /api/portfolio/epf */
-app.get('/api/portfolio/epf', async (_req, res) => {
+app.get('/api/portfolio/epf', async (req, res) => {
     try {
-        const config = await loadConfig();
+        const config = await loadConfig(req);
         if (!config.epf) return fail(res, 404, 'EPF config not found');
 
         // Support both legacy single-object and new array format
@@ -1347,9 +1377,9 @@ app.get('/api/portfolio/epf', async (_req, res) => {
 });
 
 /** GET /api/portfolio/overview – Aggregated overview data for all assets */
-app.get('/api/portfolio/overview', async (_req, res) => {
+app.get('/api/portfolio/overview', async (req, res) => {
     try {
-        const config = await loadConfig();
+        const config = await loadConfig(req);
 
         // Parallel fetch of all asset totals
         const [
