@@ -1,3 +1,4 @@
+import { PageGhost, SummaryGhost, NoteGhost, HeadingGhost, ChartGhost, CardsGhost, ListGhost } from './Ghost';
 import SummaryPanel from './SummaryPanel';
 import { PANE, usePinCols } from './ScrollPane';
 import { useMemo } from 'react';
@@ -32,17 +33,13 @@ export default function GoldSilverView({ metal, data, isLoading, error }) {
         return data.holdings.map(h => ({ ...h, currentPricePerGram: data.pricePerGram }));
     }, [data]);
 
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center py-24 text-ink-2">
-                <svg className="animate-spin h-6 w-6 mr-3 text-primary" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                </svg>
-                Fetching live {metal} prices…
-            </div>
+    if (isLoading) return (
+            <PageGhost label={`Loading ${metal}`} aside={<><SummaryGhost /><NoteGhost /></>}>
+                <section><HeadingGhost /><ChartGhost height={220} /></section>
+                <CardsGhost count={3} />
+                <section><HeadingGhost /><ListGhost rows={5} figures={5} /></section>
+            </PageGhost>
         );
-    }
 
     if (error) {
         return (
@@ -107,7 +104,7 @@ export default function GoldSilverView({ metal, data, isLoading, error }) {
                                 <span role="columnheader" className="eyebrow px-3 text-right">Bought at</span>
                                 <span role="columnheader" className="eyebrow px-3 text-right">Invested</span>
                                 <span role="columnheader" className="eyebrow px-3 text-right">Current</span>
-                                <span role="columnheader" className="eyebrow pl-3 pr-4 md:pr-6 text-right">Gain</span>
+                                <span role="columnheader" className="eyebrow pl-3 pr-4 md:pr-6 text-right">Gain/Loss</span>
                             </div>
                             <ul role="rowgroup" className="divide-y divide-line overflow-clip rounded-b-[12px]">
                                 {enrichedHoldings.map((h) => {

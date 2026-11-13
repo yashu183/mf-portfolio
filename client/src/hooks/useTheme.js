@@ -35,7 +35,7 @@ export function useTheme() {
 }
 
 // Chart colours per theme. Categorical: the dataviz reference order (blue, orange, aqua, yellow,
-// magenta), with the light or dark steps validated against that theme's surface.
+// magenta, then green, red, violet, brown, teal so up to ten categories each keep a colour), with the light or dark steps validated against that theme's surface.
 export const chartPalette = (theme) => theme === 'dark'
-  ? { series: ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#e66767'], grid: '#1f1f1f', tick: '#8f8f8f', muted: '#3d3d3d', primary: '#ededed', up: '#63c174', down: '#ff6166', surface: '#0a0a0a' }
-  : { series: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#e34948'], grid: '#ebebeb', tick: '#6f6f6f', muted: '#d4d4d4', primary: '#171717', up: '#1a7f37', down: '#c50000', surface: '#ffffff' };
+  ? { series: ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#e66767', '#a371f7', '#bf8700', '#22a8c4'], grid: '#1f1f1f', tick: '#8f8f8f', muted: '#3d3d3d', primary: '#ededed', up: '#63c174', down: '#ff6166', surface: '#0a0a0a' }
+  : { series: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#e34948', '#8250df', '#9a6700', '#0e7490'], grid: '#ebebeb', tick: '#6f6f6f', muted: '#d4d4d4', primary: '#171717', up: '#1a7f37', down: '#c50000', surface: '#ffffff' };

@@ -3,6 +3,7 @@ import { RefreshCw, AlertCircle, Sparkles, ChevronRight } from 'lucide-react';
 import SummaryPanel from './SummaryPanel';
 import ToArrow from './ToArrow';
 import ScrollPane, { usePinCols } from './ScrollPane';
+import { HeadingGhost, ListGhost, TextGhost } from './Ghost';
 
 const inr = (v) => `₹${(v ?? 0).toLocaleString('en-IN')}`;
 const shortName = (name) => (name || 'Unknown fund')
@@ -77,7 +78,7 @@ const RecommendationsView = ({
             </span>
           </div>
           {isLoadingRecommendations ? (
-            <p className="flex items-center gap-2 text-[14px] text-body"><RefreshCw className="w-4 h-4 animate-spin" aria-hidden="true" /> Analysing your portfolio…</p>
+            <TextGhost lines={4} />
           ) : recommendations?.resultMessage ? (
             <p className="text-[14px] leading-[22px] text-body">{recommendations.resultMessage}</p>
           ) : null}
@@ -116,7 +117,7 @@ const RecommendationsView = ({
                 <span className="eyebrow">Fund</span>
                 <span className="eyebrow text-right">Current</span>
                 <span className="eyebrow text-right">Revised</span>
-                <span className="eyebrow">Change</span>
+                <span className="eyebrow text-right">Change</span>
                 <span />
               </div>
               <ul className="divide-y divide-line overflow-clip rounded-[12px] @xl:rounded-t-none">
@@ -141,7 +142,7 @@ const RecommendationsView = ({
                         </span>
                         <span className="hidden @xl:block text-right num text-[14px] text-body">{p.current > 0 ? inr(p.current) : '-'}</span>
                         <span className={`hidden @xl:block text-right num text-[14px] ${v.tone}`}>{inr(v.revised)}</span>
-                        <span className="hidden @xl:inline-flex items-center gap-1.5 text-[13px] text-body"><span className={`w-2 h-2 rounded-full ${v.dot}`} aria-hidden="true" /><span className="num">{v.label}</span></span>
+                        <span className="hidden @xl:inline-flex justify-self-end items-center gap-1.5 text-[13px] text-body"><span className={`w-2 h-2 rounded-full ${v.dot}`} aria-hidden="true" /><span className="num">{v.label}</span></span>
                         {p.reason ? <ChevronRight className={`hidden @xl:block w-4 h-4 text-muted transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden="true" /> : <span className="hidden @xl:block" />}
                       </button>
                       {open && <p className="px-4 md:px-5 py-4 bg-surface-strong/40 border-t border-line text-[14px] leading-[22px] text-body">{p.reason}</p>}
@@ -198,14 +199,7 @@ const RecommendationsView = ({
         )}
 
         {isLoadingRecommendations && (
-          <div className="card divide-y divide-line overflow-hidden" aria-label="Loading recommendations">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center gap-4 px-5 h-[60px]">
-                <span className="h-3 w-40 rounded bg-surface-strong animate-pulse" />
-                <span className="ml-auto h-3 w-20 rounded bg-surface-strong animate-pulse" />
-              </div>
-            ))}
-          </div>
+          <section role="status" aria-label="Loading recommendations"><HeadingGhost /><ListGhost rows={6} figures={3} /></section>
         )}
       </div>
       </ScrollPane>

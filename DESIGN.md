@@ -179,6 +179,32 @@ Rules:
   their own hover and detail bands. A row opens in place to a detail band on `surface-strong/50`. Every table
   is built this way, including Gold/Silver holdings (a CSS grid with `role="table"`, not a `<table>`, because
   a sticky header can't stop early inside a `<table>`).
+- **Column alignment, every table:** the first column (the row's name, with its mono meta line) is left-aligned;
+  every other column is right-aligned, figures and states alike (Status, Change, a cycle's state), and its
+  column head is right-aligned with it. The PDF report follows the same rule, except that a few word columns
+  that identify a row (category, holder) sit left beside the name.
+- **Allocation cards** (Overview's Allocation, Mutual Funds' Categories): the chart with each share printed on
+  its slice (6% and up), the key, then an **Insights** list in the summary panel's row style.
+
+### Loading
+- **Ghost loading, never a page spinner.** While a page's data first loads it shows its own shape in grey blocks
+  (`.ghost`, a slow sheen; still under reduced motion): the summary card on the left, then the lists, cards and
+  charts it will hold, from `client/src/components/portfolio/Ghost.jsx` (`PageGhost`, `SummaryGhost`,
+  `ListGhost`, `CardsGhost`, `ChartGhost`, `PieGhost`, `TextGhost` for Claude's analysis). A refresh keeps the
+  figures on screen and only the head's status chip says "Updating". Spinners stay only inside buttons.
+
+### PDF report
+- A "PDF" menu sits beside Refresh in the page head (`PdfMenu`): **Full report** or **Masked report**. The masked
+  one hides rupee amounts and grams as `****` and keeps percentages, counts and dates; it carries a "Masked"
+  badge and `-masked` in the file name. With amounts hidden on screen, the masked option comes first.
+- Overview downloads every section; each asset page downloads only its own. The cover says who it is prepared
+  for and the time in IST. Overview and Mutual Funds draw three donuts (current value, invested, returns; assets
+  at a loss are named under the returns donut) and a ranked "return on what went in" list, two cards to a row, then
+  the insights. Every category gets its own colour (ten series, no "Other"). Percentages print to two decimals; the
+  tables' gain columns read "Gain/Loss". Page one's running head is just the Vesta mark, since the cover names the
+  report, the person and the time; later pages carry them in the head.
+- Built by `client/src/utils/pdfReport.js` (jsPDF + autotable, Geist embedded, loaded on the first click),
+  printed in the light theme. Insights come from `client/src/utils/insights.js`, shared with the screens.
 - **Grid card** (fund cards): initials plate → name + mono meta → 24px figure → footer with status and XIRR
   above a hairline.
 

@@ -93,7 +93,7 @@ const FundList = ({ funds }) => {
         <span className="eyebrow text-right">Current</span>
         <span className="eyebrow text-right">Returns</span>
         <span className="eyebrow text-right">XIRR</span>
-        <span className="eyebrow">Status</span>
+        <span className="eyebrow text-right">Status</span>
         <span />
       </div>
       <ul className="divide-y divide-line overflow-clip rounded-[12px] @2xl:rounded-t-none">
@@ -125,7 +125,7 @@ const FundList = ({ funds }) => {
                 </span>
                 <span className={`hidden @2xl:block text-right num text-[14px] ${up ? 'text-gain' : 'text-loss'}`}>{pct(fund.returns)}</span>
                 <span className="hidden @2xl:block text-right num text-[14px] text-ink">{(fund.xirr ?? 0).toFixed(2)}%</span>
-                <span className="hidden @2xl:block"><StatusBadge status={fund.status} /></span>
+                <span className="hidden @2xl:block text-right"><StatusBadge status={fund.status} /></span>
                 <ChevronRight className={`hidden @2xl:block w-4 h-4 text-muted transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden="true" />
               </button>
               {open && <Details fund={fund} />}

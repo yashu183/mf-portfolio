@@ -1,3 +1,4 @@
+import { PageGhost, SummaryGhost, NoteGhost, HeadingGhost, ListGhost } from './Ghost';
 import SummaryPanel from './SummaryPanel';
 import { PANE } from './ScrollPane';
 import { ChevronRight } from 'lucide-react';
@@ -43,17 +44,11 @@ const FixedDepositsView = ({ deposits, isLoading = false, error = null }) => {
   ), [filteredDeposits]);
 
   // ── Early returns after all hooks ─────────────────────────────────────────────
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-24 text-ink-2">
-        <svg className="animate-spin h-6 w-6 mr-3 text-primary" viewBox="0 0 24 24" fill="none">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-        </svg>
-        Loading fixed deposits…
-      </div>
+  if (isLoading) return (
+      <PageGhost label="Loading fixed deposits" aside={<><SummaryGhost /><NoteGhost lines={3} /></>}>
+        <section><HeadingGhost /><ListGhost rows={4} figures={2} /></section>
+      </PageGhost>
     );
-  }
 
   if (error) {
     return (
@@ -162,7 +157,7 @@ const FixedDepositsView = ({ deposits, isLoading = false, error = null }) => {
                           {fdMonthYY(from)}<ToArrow />{fdMonthYY(cycle.maturityDate)} · {isPast ? 'matured on' : 'matures on'} {fdMonYY(cycle.maturityDate)}
                         </p>
                       </div>
-                      <span className="hidden sm:inline-flex items-center gap-1.5 text-[13px] text-body whitespace-nowrap">
+                      <span className="hidden sm:inline-flex justify-self-end items-center gap-1.5 text-[13px] text-body whitespace-nowrap">
                         <span className={`w-2 h-2 rounded-full ${state.dot}`} aria-hidden="true" />{state.label}
                       </span>
                       <div className="text-right">

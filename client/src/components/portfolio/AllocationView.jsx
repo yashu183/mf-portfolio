@@ -3,6 +3,7 @@ import { PANE, usePinCols } from './ScrollPane';
 import { RefreshCw, AlertCircle, Sparkles } from 'lucide-react';
 import SummaryPanel from './SummaryPanel';
 import ToArrow from './ToArrow';
+import { TextGhost } from './Ghost';
 
 // Vercel's note: a bordered strip with an icon, for service state and errors.
 const Note = ({ tone = 'warn', children }) => (
@@ -57,7 +58,7 @@ const AllocationView = ({
         <section className="card p-5 space-y-3" aria-labelledby="ai-h">
           <p id="ai-h" className="eyebrow flex items-center gap-2"><Sparkles className="w-3.5 h-3.5" aria-hidden="true" /> Claude analysis</p>
           {isLoadingRecommendations ? (
-            <p className="flex items-center gap-2 text-[14px] text-body"><RefreshCw className="w-4 h-4 animate-spin" aria-hidden="true" /> Analysing your allocation…</p>
+            <TextGhost lines={4} />
           ) : recommendedAllocation?.summary ? (
             <p className="text-[14px] leading-[22px] text-body">{recommendedAllocation.summary}</p>
           ) : (

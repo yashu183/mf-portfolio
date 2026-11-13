@@ -207,3 +207,27 @@
 
 /* The main column's own scroll (ScrollPane): a thin quiet bar in the line colour */
 .pane-scroll { scrollbar-width: thin; scrollbar-color: var(--c-line-strong) transparent; }
+
+/* Ghost loading: grey blocks in the shape of the page that is coming, with a slow sheen across them.
+   In the components layer, so a block's own rounded-* utility (a round plate, a pie) wins */
+@layer components {
+.ghost {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--c-surface-strong);
+}
+.ghost::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--c-ink) 7%, transparent), transparent);
+  animation: ghost-sheen 1.4s ease-in-out infinite;
+}
+}
+@keyframes ghost-sheen { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) {
+  .ghost::after { animation: none; }
+}

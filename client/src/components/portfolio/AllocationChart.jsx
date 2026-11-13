@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { PieChart, Grid, LayoutDashboard, BarChartHorizontal, RectangleHorizontal, Flower2 } from 'lucide-react';
 
 // Six ways to draw one whole split by asset. They share one contract: `data` is [{ name, value, color }]
@@ -12,6 +12,16 @@ export const ALLOCATION_STYLES = [
   { id: 'segmented', label: 'Segmented bar', icon: RectangleHorizontal },
   { id: 'rose', label: 'Rose', icon: Flower2 },
 ];
+
+// The chart's style is a per-device preference, like the theme, shared by every allocation card;
+// storage can be blocked, so it falls back to the pie
+const STYLE_KEY = 'vesta-allocation-style';
+const readStyle = () => { try { const v = localStorage.getItem(STYLE_KEY); return ALLOCATION_STYLES.some((x) => x.id === v) ? v : 'pie'; } catch { return 'pie'; } };
+export const useAllocationStyle = () => {
+  const [style, setStyleState] = useState(readStyle);
+  const setStyle = (v) => { setStyleState(v); try { localStorage.setItem(STYLE_KEY, v); } catch {} };
+  return [style, setStyle];
+};
 
 const C = 100; // centre of the 200-unit drawing box the round charts use
 const R = 96; // their outer radius, leaving room for the 2px gaps at the rim
@@ -38,19 +48,32 @@ const Round = ({ label, onLeave, children }) => (
   </svg>
 );
 
-// 1. Pie: angle by share, slices parted by a 2px gap in the card colour
+// A share printed on its slice, to two decimals, when the slice is wide enough to hold it (9% and up)
+const SliceLabel = ({ d, total, angle, r, hot }) => {
+  const share = (d.value / total) * 100;
+  if (share < 9) return null;
+  return (
+    <text
+      x={C + r * Math.cos(angle)} y={C + r * Math.sin(angle)} dy="0.35em" textAnchor="middle"
+      className="num" fontSize="11" fontWeight="600" fill={inkOn(d.color)} pointerEvents="none" style={dim(hot, d.name)}
+    >
+      {`${share.toFixed(2)}%`}
+    </text>
+  );
+};
+
+// 1. Pie: angle by share, slices parted by a 2px gap in the card colour, each share printed on its slice
 const Pie = ({ data, total, hot, onHot, label, surface, tip }) => {
   let a = -Math.PI / 2;
+  const arcs = data.map((d) => { const a0 = a; a += (d.value / total) * 2 * Math.PI; return { d, a0, a1: a }; });
   return (
     <Round label={label} onLeave={() => onHot(null)}>
-      {data.map((d) => {
-        const a0 = a; a += (d.value / total) * 2 * Math.PI;
-        return (
-          <path key={d.name} d={data.length === 1 ? disc(R) : wedge(R, a0, a)} fill={d.color} stroke={surface} strokeWidth="2" strokeLinejoin="round" style={dim(hot, d.name)} onMouseEnter={() => onHot(d.name)}>
-            <title>{tip(d)}</title>
-          </path>
-        );
-      })}
+      {arcs.map(({ d, a0, a1 }) => (
+        <path key={d.name} d={data.length === 1 ? disc(R) : wedge(R, a0, a1)} fill={d.color} stroke={surface} strokeWidth="2" strokeLinejoin="round" style={dim(hot, d.name)} onMouseEnter={() => onHot(d.name)}>
+          <title>{tip(d)}</title>
+        </path>
+      ))}
+      {arcs.map(({ d, a0, a1 }) => <SliceLabel key={d.name} d={d} total={total} angle={data.length === 1 ? Math.PI / 2 : (a0 + a1) / 2} r={data.length === 1 ? 0 : R * 0.64} hot={hot} />)}
     </Round>
   );
 };
@@ -58,7 +81,7 @@ const Pie = ({ data, total, hot, onHot, label, surface, tip }) => {
 // 6. Rose: every asset the same angle, reaching out by its share. The radius goes by the square root,
 // so a slice's area is proportional (twice the money looks twice as big, not four times); faint rings
 // at half and full scale give the lengths something to be read against.
-const Rose = ({ data, hot, onHot, label, surface, grid, tip }) => {
+const Rose = ({ data, total, hot, onHot, label, surface, grid, tip }) => {
   const max = Math.max(...data.map((d) => d.value), 1);
   const step = (2 * Math.PI) / data.length;
   return (
@@ -72,6 +95,11 @@ const Rose = ({ data, hot, onHot, label, surface, grid, tip }) => {
             <title>{tip(d)}</title>
           </path>
         );
+      })}
+      {data.map((d, i) => {
+        const r = Math.max(R * Math.sqrt(d.value / max), 6);
+        // only where the petal is long enough for the figure to sit inside it
+        return r >= 52 ? <SliceLabel key={d.name} d={d} total={total} angle={data.length === 1 ? Math.PI / 2 : -Math.PI / 2 + (i + 0.5) * step} r={data.length === 1 ? 0 : r * 0.66} hot={hot} /> : null;
       })}
     </Round>
   );

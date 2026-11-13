@@ -1,12 +1,30 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { StatusBadge } from './FundsTable';
+import AllocationChart, { StyleSwitch, useAllocationStyle } from './AllocationChart';
+import Insights from './Insights';
+import { fundInsights } from '../../utils/insights';
+import { useTheme, chartPalette } from '../../hooks/useTheme';
+import { formatCompact } from '../../utils/formatters';
 
 // Insights for the left column, as stacked Vercel cards: a mono label, then the facts.
-const CategoryBreakdown = ({ categoryBreakdown, totals, performanceGroups }) => {
+const CategoryBreakdown = ({ categoryBreakdown, totals, performanceGroups, funds = [] }) => {
   const topFund = [...performanceGroups.excellent].sort((a, b) => b.xirr - a.xirr)[0];
   const categories = Object.entries(categoryBreakdown)
     .map(([category, data]) => ({ category, ...data, pct: totals.totalCurrentValue > 0 ? (data.current / totals.totalCurrentValue) * 100 : 0 }))
     .sort((a, b) => b.pct - a.pct);
+
+  const { theme } = useTheme();
+  const palette = chartPalette(theme);
+  const [chartStyle, setChartStyle] = useAllocationStyle();
+  const [hot, setHot] = useState(null);
+  // Colour by rank here (categories have no fixed order); every category keeps its own slice
+  const slices = useMemo(() => categories
+    .filter((c) => c.current > 0)
+    .map((c, i) => ({ name: c.category, value: c.current, color: palette.series[i % palette.series.length], count: c.count })),
+  [categories, theme]);
+  const sliceTotal = slices.reduce((s, d) => s + d.value, 0);
+  const share = (v) => (sliceTotal > 0 ? ((v / sliceTotal) * 100).toFixed(2) : '0');
+  const insights = useMemo(() => fundInsights(funds), [funds]);
 
   return (
     <>
@@ -45,20 +63,36 @@ const CategoryBreakdown = ({ categoryBreakdown, totals, performanceGroups }) => 
       </section>
 
       <section className="card overflow-hidden" aria-labelledby="split-h">
-        <p id="split-h" className="eyebrow px-5 pt-5 pb-3">Category split</p>
-        <ul className="divide-y divide-line border-t border-line">
-          {categories.map((c) => (
-            <li key={c.category} className="px-5 py-2.5">
-              <div className="flex justify-between text-[13px]">
-                <span className="text-ink">{c.category}</span>
-                <span className="num text-body">{c.pct.toFixed(1)}%</span>
-              </div>
-              <div className="mt-1.5 h-1 rounded-full bg-surface-strong overflow-hidden">
-                <div className="h-full rounded-full bg-ink" style={{ width: `${c.pct}%` }} />
-              </div>
+        <div className="flex items-center justify-between gap-3 px-5 pt-5">
+          <p id="split-h" className="eyebrow">Categories</p>
+          <StyleSwitch value={chartStyle} onChange={setChartStyle} />
+        </div>
+        {slices.length > 0 && (
+          <div className="px-5 pt-5 pb-5">
+            <AllocationChart
+              style={chartStyle}
+              data={slices}
+              hot={hot}
+              onHot={setHot}
+              share={share}
+              label={`Current value by category: ${slices.map((d) => `${d.name} ${share(d.value)}%`).join(', ')}`}
+              tip={(d) => `${d.name}: ${formatCompact(d.value)} (${share(d.value)}%)`}
+              surface={palette.surface}
+              grid={palette.grid}
+            />
+          </div>
+        )}
+        <ul className="divide-y divide-line border-t border-line" onMouseLeave={() => setHot(null)}>
+          {slices.map((d) => (
+            <li key={d.name} onMouseEnter={() => setHot(d.name)} className={`flex items-center gap-2 px-5 h-10 text-[13px] transition-colors ${hot === d.name ? 'bg-surface-strong/50' : ''}`}>
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} aria-hidden="true" />
+              <span className="flex-1 min-w-0 truncate text-ink">{d.name}</span>
+              <span className="font-mono text-[12px] text-muted">{d.count} {d.count === 1 ? 'fund' : 'funds'}</span>
+              <span className="w-14 text-right num text-body">{share(d.value)}%</span>
             </li>
           ))}
         </ul>
+        <Insights items={insights} />
       </section>
     </>
   );

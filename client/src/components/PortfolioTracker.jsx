@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { RefreshCw, WifiOff } from 'lucide-react';
+import PdfMenu from './portfolio/PdfMenu';
 import { WRAP } from './Navbar';
 import { usePortfolioData } from '../hooks/usePortfolioData';
 import { ASSET_PATHS, MUTUAL_FUND_VIEWS, mutualFundViewPath } from '../utils/assetRoutes';
@@ -18,6 +19,7 @@ import GoldSilverView from './portfolio/GoldSilverView';
 import EPFView from './portfolio/EPFView';
 import OverviewView from './portfolio/OverviewView';
 import ScrollPane from './portfolio/ScrollPane';
+import { PageGhost, SummaryGhost, NoteGhost, HeadingGhost, ListGhost, ChartGhost } from './portfolio/Ghost';
 
 const ASSET_HEADER_CONTENT = {
   overview: {
@@ -46,6 +48,9 @@ const ASSET_HEADER_CONTENT = {
   },
 };
 
+
+// Printed at the top of every PDF report
+const OWNER_NAME = 'Yashwanth C';
 
 const PortfolioTracker = ({ activeAsset }) => {
   const navigate = useNavigate();
@@ -270,6 +275,7 @@ const PortfolioTracker = ({ activeAsset }) => {
     activeAsset === 'overview' ? lastOverviewUpdate :
     lastUpdate;
   const canRefresh = activeAsset !== 'overview';
+
   const refreshLabel =
     isGoldView ? 'gold' : isSilverView ? 'silver' : isFdView ? 'fixed deposits' : isEpfView ? 'EPF' : 'mutual funds';
 
@@ -311,6 +317,12 @@ const PortfolioTracker = ({ activeAsset }) => {
                   <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" /> Refresh
                 </button>
               )}
+              <PdfMenu
+                scope={activeAsset}
+                owner={OWNER_NAME}
+                label={activeAsset === 'overview' ? 'the full portfolio' : refreshLabel}
+                disabled={statusLoading}
+              />
             </div>
           </div>
           {/* Mutual Funds' sections, as Vercel's project tabs; they sit in the pinned head, so they stay in view */}
@@ -338,12 +350,13 @@ const PortfolioTracker = ({ activeAsset }) => {
         {activeAsset === 'mutualFunds' && (
           <>
             {isLoadingPortfolio ? (
-              <div className="min-h-[320px] card flex items-center justify-center">
-                <div className="text-center">
-                  <RefreshCw className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
-                  <p className="text-xl text-ink-2">Loading portfolio</p>
-                </div>
-              </div>
+              <PageGhost label="Loading mutual funds" aside={<><SummaryGhost /><NoteGhost /><NoteGhost lines={3} /></>}>
+                {activeView === 'timeline' ? (
+                  <><section><HeadingGhost /><ChartGhost height={300} /></section><section><HeadingGhost /><ChartGhost height={280} /></section></>
+                ) : (
+                  <section><HeadingGhost /><ListGhost rows={8} figures={3} /></section>
+                )}
+              </PageGhost>
             ) : portfolioError ? (
               <div className="min-h-[320px] card flex items-center justify-center">
                 <div className="text-center max-w-md px-6">
@@ -381,6 +394,7 @@ const PortfolioTracker = ({ activeAsset }) => {
                       <div className="hidden lg:block space-y-4">
                         <CategoryBreakdown
                           categoryBreakdown={unfilteredCategoryBreakdown}
+                          funds={portfolioData}
                           totals={totals}
                           performanceGroups={unfilteredPerformanceGroups}
                         />
@@ -420,6 +434,7 @@ const PortfolioTracker = ({ activeAsset }) => {
                     <div className="lg:hidden space-y-4">
                       <CategoryBreakdown
                         categoryBreakdown={unfilteredCategoryBreakdown}
+                          funds={portfolioData}
                         totals={totals}
                         performanceGroups={unfilteredPerformanceGroups}
                       />

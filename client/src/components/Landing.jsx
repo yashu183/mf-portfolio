@@ -150,6 +150,90 @@ const MetalsMock = () => (
   </div>
 );
 
+// Mirrors the PDF report: a light page (the report always prints on white), its cover, figures,
+// two donuts and a few rows. The switch flips it to the masked copy, as the app's PDF menu does.
+const PdfMock = () => {
+  const [masked, setMasked] = useState(false);
+  const paper = chartPalette('light');
+  const m = (v) => (masked ? '₹****' : v);
+  const donut = (shares) => {
+    let at = 0;
+    return (
+      <svg viewBox="0 0 42 42" className="w-full h-auto -rotate-90">
+        {shares.map((p, i) => {
+          const el = <circle key={i} cx="21" cy="21" r="15.9155" fill="none" stroke={paper.series[i]} strokeWidth="7" strokeDasharray={`${Math.max(p - 0.8, 0.4)} ${100 - Math.max(p - 0.8, 0.4)}`} strokeDashoffset={-at} />;
+          at += p;
+          return el;
+        })}
+      </svg>
+    );
+  };
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <span className="font-mono text-[12px] text-muted">vesta-overview{masked ? '-masked' : ''}.pdf</span>
+        <div className="flex p-0.5 rounded-md bg-surface-strong" role="group" aria-label="Report version">
+          {[['Full', false], ['Masked', true]].map(([label, v]) => (
+            <button key={label} type="button" onClick={() => setMasked(v)} aria-pressed={masked === v}
+              className={`h-7 px-3 rounded-[5px] text-[12px] transition-colors cursor-pointer ${masked === v ? 'bg-surface text-ink shadow-[0_0_0_1px_var(--c-ring),0_1px_2px_rgb(0_0_0/0.06)]' : 'text-body hover:text-ink'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {/* the page itself, in the report's own light colours whatever the site theme */}
+      <div aria-hidden="true" className="rounded-md p-4 md:p-5 shadow-[0_0_0_1px_rgb(0_0_0/0.08),0_8px_24px_-12px_rgb(0_0_0/0.25)]" style={{ background: '#ffffff', color: '#171717' }}>
+        <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: '#ebebeb' }}>
+          <span className="text-[11px] font-semibold">Vesta</span>
+          {masked && <span className="h-4 px-2 inline-flex items-center rounded-full text-[8px] font-semibold tracking-[0.04em]" style={{ background: '#f5f5f5', color: '#4d4d4d' }}>MASKED · AMOUNTS HIDDEN</span>}
+        </div>
+        <p className="mt-3 font-mono text-[8px] tracking-[0.04em]" style={{ color: '#6f6f6f' }}>PREPARED FOR YOU</p>
+        <p className="text-[16px] font-semibold leading-tight">Portfolio report</p>
+        <p className="text-[9px]" style={{ color: '#4d4d4d' }}>As of 13 November 2026 at 09:00 am IST</p>
+        <div className="mt-3 grid grid-cols-4 rounded-[4px] border divide-x" style={{ borderColor: '#ebebeb' }}>
+          {[['Balance', m('₹18.43L'), '#171717'], ['Invested', m('₹14.90L'), '#171717'], ['Gain/Loss', masked ? '₹****' : '+₹3.53L', '#1a7f37'], ['Return', '+23.66%', '#1a7f37']].map(([l, v, c]) => (
+            <div key={l} className="px-2 py-1.5 min-w-0" style={{ borderColor: '#ebebeb' }}>
+              <p className="text-[7px] tracking-[0.04em] uppercase" style={{ color: '#6f6f6f' }}>{l}</p>
+              <p className="num text-[10px] font-semibold truncate" style={{ color: c }}>{v}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {[['Current value', [46, 24, 13, 12, 5]], ['Invested', [44, 27, 14, 11, 4]]].map(([title, shares]) => (
+            <div key={title} className="rounded-[4px] border p-2" style={{ borderColor: '#ebebeb' }}>
+              <p className="text-[7px] tracking-[0.04em] uppercase" style={{ color: '#6f6f6f' }}>{title}</p>
+              <div className="mt-1 grid grid-cols-[52px_1fr] gap-2 items-center">
+                {donut(shares)}
+                <ul className="space-y-0.5">
+                  {ASSETS.map((a, i) => (
+                    <li key={a.label} className="flex items-center gap-1 text-[7.5px]">
+                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: paper.series[i] }} />
+                      <span className="flex-1 truncate">{a.label}</span>
+                      <span className="num font-semibold">{shares[i].toFixed(2)}%</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 text-[8px]">
+          <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 px-1.5 py-1 uppercase tracking-[0.04em]" style={{ background: '#f5f5f5', color: '#6f6f6f' }}>
+            <span>Asset</span><span className="text-right">Current</span><span className="text-right w-12">Gain/Loss</span>
+          </div>
+          {[['Mutual Funds', '₹8,46,000', '+18.91%', true], ['Fixed Deposits', '₹4,42,000', '+9.61%', true], ['Silver', '₹92,130', '−16.21%', false]].map(([n, v, g, up]) => (
+            <div key={n} className="grid grid-cols-[1fr_auto_auto] gap-x-3 px-1.5 py-1 border-b" style={{ borderColor: '#ebebeb' }}>
+              <span className="font-semibold">{n}</span>
+              <span className="num text-right">{m(v)}</span>
+              <span className="num text-right w-12" style={{ color: up ? '#1a7f37' : '#c50000' }}>{g}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const TotalMock = ({ palette }) => (
   <div className="card p-5" aria-hidden="true">
     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
@@ -234,6 +318,7 @@ const Landing = () => {
     { id: 'deposits', title: "Counts down to each FD's maturity", body: 'Each renewal keeps its own rate, term and the interest it paid.', mock: <FdMock /> },
     { id: 'metals', title: 'Averages gold and silver cost by set', body: 'Every purchase joins a set: average price per gram by set, year or total.', mock: <MetalsMock /> },
     { id: 'total', title: 'Adds five classes into one total', body: 'Funds, deposits, metals and EPF meet on one overview, with a timeline.', mock: <TotalMock palette={palette} /> },
+    { id: 'reports', wide: true, title: 'Downloads a PDF report', body: 'The whole portfolio or one asset, with charts and insights. A masked copy hides every amount and keeps the percentages, so it is safe to share.', mock: <PdfMock /> },
   ];
 
   return (
@@ -272,7 +357,7 @@ const Landing = () => {
           <div className={`${WRAP} relative text-center`}>
             <h1 className="mt-6 mx-auto max-w-[15ch] text-[40px] sm:text-[52px] md:text-[64px] leading-[1.05] tracking-[-0.05em] text-ink">Vesta, a private portfolio tracker.</h1>
             <p className="mx-auto mt-6 max-w-[56ch] text-[17px] md:text-[18px] leading-[28px] text-body">
-              Mutual funds at today's NAV, fixed deposits, gold, silver and EPF: 5 asset classes on one dashboard, with XIRR and a year-by-year timeline.
+              Mutual funds at today's NAV, fixed deposits, gold, silver and EPF - 5 asset classes on one dashboard, with XIRR and a year-by-year timeline.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
               <Link to={UNLOCK} className="pill pill-round pill-primary">Open your portfolio <ArrowRight className="w-4 h-4" aria-hidden="true" /></Link>
@@ -289,12 +374,12 @@ const Landing = () => {
           <Heading id="assets-h" sub="Each keeps its own page and maths.">5 asset classes on one dashboard.</Heading>
           <div className="grid md:grid-cols-2 gap-6">
             {features.map(f => (
-              <article key={f.id} id={f.id} className="card p-6 md:p-8 flex flex-col gap-6 scroll-mt-20">
+              <article key={f.id} id={f.id} className={`card p-6 md:p-8 flex flex-col gap-6 scroll-mt-20 ${f.wide ? 'md:col-span-2 lg:grid lg:grid-cols-[1fr_1.25fr] lg:items-center lg:gap-10' : ''}`}>
                 <div>
                   <h3 className="text-[18px] leading-[1.33] text-ink">{f.title}</h3>
                   <p className="mt-2 text-[16px] leading-[1.5] text-body">{f.body}</p>
                 </div>
-                <div className="mt-auto rounded-lg bg-canvas p-3 md:p-4 shadow-[inset_0_0_0_1px_var(--c-line)]">{f.mock}</div>
+                <div className={`rounded-lg bg-canvas p-3 md:p-4 shadow-[inset_0_0_0_1px_var(--c-line)] ${f.wide ? 'lg:mt-0' : 'mt-auto'}`}>{f.mock}</div>
               </article>
             ))}
           </div>

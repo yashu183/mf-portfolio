@@ -3,7 +3,10 @@ import { PANE } from './ScrollPane';
 import SummaryPanel from './SummaryPanel';
 import { formatCurrentValue } from '../../utils/formatters';
 import ChartTooltip from './ChartTooltip';
-import AllocationChart, { StyleSwitch, ALLOCATION_STYLES } from './AllocationChart';
+import AllocationChart, { StyleSwitch, useAllocationStyle } from './AllocationChart';
+import Insights from './Insights';
+import { Bone, PageGhost, SummaryGhost, PieGhost, HeadingGhost, CardsGhost, ChartGhost } from './Ghost';
+import { assetInsights } from '../../utils/insights';
 import { LineChart as FundsIcon, Landmark, PiggyBank, Coins, Gem, ArrowRight } from 'lucide-react';
 import { useTheme, chartPalette } from '../../hooks/useTheme';
 
@@ -23,21 +26,10 @@ const ASSET_CFG = [
   { id: 'silver',      label: 'Silver',         short: 'Silver', slot: 4 },
 ];
 
-// The allocation chart's style is a per-device preference, like the theme; storage can be blocked
-const STYLE_KEY = 'vesta-allocation-style';
-const readStyle = () => { try { const v = localStorage.getItem(STYLE_KEY); return ALLOCATION_STYLES.some(x => x.id === v) ? v : 'pie'; } catch { return 'pie'; } };
-
 const fmt = (v) =>
   v >= 1e7 ? `₹${(v / 1e7).toFixed(2)}Cr`
   : v >= 1e5 ? `₹${(v / 1e5).toFixed(2)}L`
   : `₹${v.toLocaleString('en-IN')}`;
-
-const Spinner = () => (
-  <svg className="animate-spin h-3 w-3 text-slate flex-shrink-0" viewBox="0 0 24 24" fill="none">
-    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-  </svg>
-);
 
 export default function OverviewView({
   overviewData, isLoading, error, onNavigate,
@@ -77,8 +69,8 @@ export default function OverviewView({
   const [pieMode, setPieMode] = useState('currentValue');
   // the asset under the pointer (by name), shared by the chart and the list rows
   const [hot, setHot] = useState(null);
-  const [chartStyle, setChartStyleState] = useState(readStyle);
-  const setChartStyle = (v) => { setChartStyleState(v); try { localStorage.setItem(STYLE_KEY, v); } catch {} };
+  const [chartStyle, setChartStyle] = useAllocationStyle();
+  const insights = useMemo(() => assetInsights(loadedAssets), [loadedAssets]);
 
   const PIE_MODES = [
     { id: 'currentValue', label: 'Current Value' },
@@ -104,7 +96,7 @@ export default function OverviewView({
   }, [loadedAssets, pieMode]);
 
   const pieTotal = useMemo(() => pieData.reduce((s, d) => s + d.value, 0), [pieData]);
-  const share = (v) => (pieTotal > 0 ? ((v / pieTotal) * 100).toFixed(1) : '0');
+  const share = (v) => (pieTotal > 0 ? ((v / pieTotal) * 100).toFixed(2) : '0');
   const modeLabel = pieMode === 'currentValue' ? 'Current value' : pieMode === 'invested' ? 'Invested' : 'Gain';
 
   const barData = useMemo(() =>
@@ -178,16 +170,27 @@ export default function OverviewView({
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: entry.color }} aria-hidden="true" />
                 <span className="flex-1 min-w-0 truncate text-ink">{entry.name}</span>
                 <span className="num text-body">{fmt(entry.value)}</span>
-                <span className="w-12 text-right num text-muted">{share(entry.value)}%</span>
+                <span className="w-14 text-right num text-muted">{share(entry.value)}%</span>
               </li>
             ))}
           </ul>
+          <Insights items={insights} />
         </>
       ) : (
-        <div className="h-[120px] grid place-items-center font-mono text-[12px] text-muted">loading assets…</div>
+        <div className="px-5 py-5"><Bone className="mx-auto w-full max-w-[200px] aspect-square rounded-full" /></div>
       )}
     </section>
   );
+
+  // First load: the page's shape in ghost blocks; a later refresh keeps the figures on screen
+  if (isLoading && !overviewData) {
+    return (
+      <PageGhost label="Loading your portfolio" aside={<><SummaryGhost /><PieGhost /></>}>
+        <section><HeadingGhost /><CardsGhost count={5} /></section>
+        <section><HeadingGhost /><ChartGhost height={260} /></section>
+      </PageGhost>
+    );
+  }
 
   return (
     <div className="grid lg:grid-cols-[300px_minmax(0,1fr)] gap-6 lg:gap-8 items-start">
@@ -231,14 +234,13 @@ export default function OverviewView({
                     <span className="asset-plate" aria-hidden="true"><Icon className="w-4 h-4" style={{ color: a.color }} strokeWidth={2} /></span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-[14px] font-medium text-ink">{a.label}</span>
-                      <span className="block font-mono text-[12px] text-muted">{a.hasData ? `${share.toFixed(1)}% of portfolio` : (isLoading ? 'loading…' : 'no holdings')}</span>
+                      <span className="block font-mono text-[12px] text-muted">{a.hasData ? `${share.toFixed(2)}% of portfolio` : (isLoading ? 'updating' : 'no holdings')}</span>
                     </span>
-                    {isLoading && <Spinner />}
                   </span>
                   <span>
                     <span className="block text-[24px] font-semibold tracking-[-0.03em] text-ink num">{a.hasData ? fmt(a.current) : '-'}</span>
                     {a.hasData && (
-                      <span className="block mt-0.5 text-[13px] text-body"><span className={`num ${up ? 'text-gain' : 'text-loss'}`}>{up ? '+' : '−'}{Math.abs(a.returnPercent).toFixed(1)}%</span> on <span className="num">{fmt(a.invested)}</span></span>
+                      <span className="block mt-0.5 text-[13px] text-body"><span className={`num ${up ? 'text-gain' : 'text-loss'}`}>{up ? '+' : '−'}{Math.abs(a.returnPercent).toFixed(2)}%</span> on <span className="num">{fmt(a.invested)}</span></span>
                     )}
                   </span>
                   <span className="mt-auto pt-4 border-t border-line flex items-center justify-between">
