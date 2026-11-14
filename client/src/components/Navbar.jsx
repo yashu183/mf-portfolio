@@ -18,6 +18,7 @@ export const VestaMark = ({ size = 22, color = 'var(--c-ink)' }) => (
 export const WRAP = 'w-full max-w-[1200px] mx-auto px-4 sm:px-6';
 
 // Vercel's icon-button-circular: canvas fill, a hairline ring.
+export const ROUND_BTN = 'inline-grid place-items-center w-9 h-9 rounded-full bg-surface text-body hover:text-ink shadow-[0_0_0_1px_var(--c-line-strong)] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
 // Mercury's eye, kept with the navigation because it covers the whole app: every rupee figure turns to
 // asterisks, percentages stay. Same round button as the theme switch beside it.
 export const HideAmountsToggle = ({ className = '' }) => {
@@ -203,7 +204,7 @@ const Navbar = () => {
         <SidebarContent />
       </aside>
 
-      <header className="lg:hidden sticky top-0 z-40 h-14 flex items-center gap-2 px-3 sm:px-4 bg-surface/90 backdrop-blur-md border-b border-line">
+      <header className="lg:hidden sticky top-0 z-40 h-14 flex items-center gap-2 px-3 sm:px-4 bg-surface border-b border-line">
         <button
           ref={openerRef}
           type="button"
@@ -218,7 +219,8 @@ const Navbar = () => {
         <Link to="/" aria-label="Vesta, overview"><VestaMark size={20} /></Link>
         <span className="min-w-0 truncate text-[14px] font-medium text-ink">{label}</span>
         <DemoChip />
-        <div className="ml-auto flex items-center gap-2"><HideAmountsToggle /><ThemeToggle /></div>
+        {/* the page's Refresh and PDF land here (PortfolioTracker) once its own buttons scroll away */}
+        <div className="ml-auto flex items-center gap-2"><span id="bar-actions" className="contents" /><HideAmountsToggle /><ThemeToggle /></div>
       </header>
 
       {open && (

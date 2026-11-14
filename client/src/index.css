@@ -179,6 +179,12 @@
   margin-inline: -8px;
   padding-inline: 8px;
 }
+/* Phones pin it straight under the menu bar (or Mutual Funds' tabs), so it carries 12px of solid band on
+   top to keep off that edge; the negative margin keeps it where it sat. Under a toolbar (ScrollPane sets
+   --pin-pad to 0) the toolbar's own bottom spacing is the breathing room. */
+@media (max-width: 767.98px) {
+  .pin-head { padding-top: var(--pin-pad, 12px); margin-top: calc(-1 * var(--pin-pad, 12px)); }
+}
 /* -1px: the column keeps 1px of top padding (so card rings aren't clipped); the heading covers it too */
 @media (min-width: 1024px) { .pin-head { top: -1px; } }
 

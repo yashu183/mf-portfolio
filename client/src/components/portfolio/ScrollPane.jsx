@@ -73,7 +73,7 @@ const ScrollPane = ({ toolbar, children, className = '' }) => {
   }, [toolbar != null]);
 
   return (
-    <div ref={rootRef} className={`min-w-0 lg:flex lg:flex-col lg:h-[calc(100vh-var(--head-h,0px)-64px)] ${className}`}>
+    <div ref={rootRef} className={`min-w-0 lg:flex lg:flex-col lg:h-[calc(100vh-var(--head-h,0px)-64px)] ${className}`} style={toolbar ? { '--pin-pad': '0px' } : undefined}>
       {toolbar && (
         // a solid band: flow-root keeps the last bottom margin inside it, and it reaches 8px past the
         // column on each side so the cards' 1px rings are covered too as they scroll under it. Phones
@@ -81,8 +81,10 @@ const ScrollPane = ({ toolbar, children, className = '' }) => {
         // it at the band's last pixel, so 1px on top keeps the controls' top rings in its own band.
         <div ref={barRef} className="flow-root sticky lg:static z-20 bg-canvas -mt-3 pt-3 md:-mt-px md:pt-px lg:-mt-3 lg:pt-3 -mx-2 px-2" style={{ top: 'var(--head-h, 0px)' }}>{toolbar}</div>
       )}
-      {/* the inset gutter keeps the cards' hairline rings and shadows from being clipped by the scroll edge */}
-      <div className="@container pane-scroll lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:-mx-2 lg:px-2 lg:pt-px lg:pb-2">{children}</div>
+      {/* the inset gutter keeps the cards' hairline rings and shadows from being clipped by the scroll edge.
+          1px of top padding at every width: a card's ring is drawn 1px above its edge, and the toolbar band
+          (painted over the content) would otherwise cover the top ring of a card resting right under it */}
+      <div className="@container pane-scroll pt-px lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:-mx-2 lg:px-2 lg:pb-2">{children}</div>
     </div>
   );
 };

@@ -14,6 +14,8 @@ import { useTheme, chartPalette } from '../../hooks/useTheme';
 
 // Deposit, Principal, Rate, Maturity, Value, chevron
 const FD_COLS = '@2xl:grid-cols-[minmax(0,1fr)_96px_76px_168px_112px_16px] gap-x-4';
+// below @2xl: the deposit, its value, the chevron that says the row opens (the bar runs under all three)
+const ROW_COLS = 'grid-cols-[minmax(0,1fr)_auto_16px]';
 // holder chips take these palette slots (green, violet, magenta, yellow, teal, orange), so they read apart from the bank circles
 const HOLDER_SLOTS = [2, 7, 4, 3, 9, 1];
 
@@ -158,15 +160,16 @@ const FixedDepositsView = ({ deposits, isLoading = false, error = null }) => {
         ) : (
         // Vercel's deployment list: a row per deposit under sortable column heads, opening in place to its cycles
         <div className="card">
-          <div ref={colsRef} role="row" className={`pin-cols hidden @2xl:grid ${FD_COLS} px-5 h-10 items-center`}>
+          <div ref={colsRef} role="row" className={`pin-cols grid ${ROW_COLS} ${FD_COLS} px-4 md:px-5 h-10 items-center`}>
             <SortHead label="Deposit" k="deposit" {...head} />
-            <SortHead label="Principal" k="principal" align="center" {...head} />
-            <SortHead label="Rate" k="rate" align="center" {...head} />
-            <SortHead label="Maturity" k="matures" align="center" {...head} />
-            <SortHead label="Value" k="value" align="center" {...head} />
+            <SortHead label="Value" k="value" align="right" className="@2xl:hidden" {...head} />
+            <SortHead label="Principal" k="principal" align="center" className="hidden @2xl:flex" {...head} />
+            <SortHead label="Rate" k="rate" align="center" className="hidden @2xl:flex" {...head} />
+            <SortHead label="Maturity" k="matures" align="center" className="hidden @2xl:flex" {...head} />
+            <SortHead label="Value" k="value" align="center" className="hidden @2xl:flex" {...head} />
             <span />
           </div>
-        <ul className="divide-y divide-line overflow-clip rounded-[12px] @2xl:rounded-t-none">
+        <ul className="divide-y divide-line overflow-clip rounded-b-[12px]">
           {sorted.rows.map((d) => {
             const pct = d.progress?.pct ?? 0;
             const cycleBoundaries = d.progress?.cycleBoundaries ?? [];
@@ -190,7 +193,7 @@ const FixedDepositsView = ({ deposits, isLoading = false, error = null }) => {
                   type="button"
                   onClick={() => setOpenId(open ? null : d.id)}
                   aria-expanded={open}
-                  className={`w-full text-left grid grid-cols-[minmax(0,1fr)_auto] ${FD_COLS} gap-y-2 items-center px-4 md:px-5 py-3.5 transition-colors cursor-pointer ${open ? 'bg-surface-strong/50' : 'hover:bg-surface-strong/40'}`}
+                  className={`w-full text-left grid ${ROW_COLS} ${FD_COLS} gap-y-2 items-center px-4 md:px-5 py-3.5 transition-colors cursor-pointer ${open ? 'bg-surface-strong/50' : 'hover:bg-surface-strong/40'}`}
                 >
                   <span className="flex items-center gap-3 min-w-0">
                     <span className="w-8 h-8 rounded-full grid place-items-center shrink-0 text-[10px] tracking-[0.02em] font-semibold text-ink shadow-[inset_0_0_0_1px_var(--c-line-strong)]" style={{ background: `color-mix(in oklab, ${color} 40%, var(--c-surface))` }} aria-hidden="true">{initials(d.bank)}</span>
@@ -202,7 +205,8 @@ const FixedDepositsView = ({ deposits, isLoading = false, error = null }) => {
                       {/* wraps instead of cutting off: every part here is something the other columns don't say */}
                       <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 font-mono text-[12px] text-muted">
                         <span className="whitespace-nowrap">{fdMonthYY(d.startDate)}<ToArrow />{fdMonthYY(lastCycle.maturityDate)}</span>
-                        <span className="whitespace-nowrap">{!matured && `· cycle ${activeCycleIdx + 1}`}<span className="@2xl:hidden"> · {pctText(rate)} · {termOf(d)}</span></span>
+                        {!matured && <span className="hidden @2xl:inline whitespace-nowrap">· cycle {activeCycleIdx + 1}</span>}
+                        <span className="basis-full @2xl:hidden">{[!matured && `cycle ${activeCycleIdx + 1}`, pctText(rate), termOf(d)].filter(Boolean).join(' · ')}</span>
                       </span>
                     </span>
                   </span>
@@ -221,8 +225,8 @@ const FixedDepositsView = ({ deposits, isLoading = false, error = null }) => {
                     <span className="block num text-[14px] text-ink">{formatCurrency(d.currentValue)}</span>
                     <span className="block num text-[12px] text-gain">+{formatCurrency(d.currentValue - d.principal)}</span>
                   </span>
-                  <ChevronRight className={`hidden @2xl:block w-4 h-4 text-muted transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden="true" />
-                  <span className="col-span-2 @2xl:hidden">{bar}</span>
+                  <ChevronRight className={`w-4 h-4 text-muted transition-transform ${open ? 'rotate-90 text-ink' : ''}`} aria-hidden="true" />
+                  <span className="col-span-3 @2xl:hidden">{bar}</span>
                 </button>
                 {open && (
                   // the cycles as a card inside the row: each on four fixed columns, so the bar, the state and

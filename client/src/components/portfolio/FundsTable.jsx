@@ -101,6 +101,8 @@ const Details = ({ fund, panel = false }) => (
 );
 
 const COLS = '@2xl:grid-cols-[minmax(0,1fr)_120px_84px_72px_118px_16px] @2xl:gap-x-3';
+// below @2xl: the fund, its value and return, the chevron that says the row opens
+const ROW_COLS = 'grid-cols-[minmax(0,1fr)_auto_16px]';
 
 // Vercel's deployment list: one bordered container, a row per item, hairlines between, the row opens in place.
 const STATUS_RANK = { excellent: 4, good: 3, monitor: 2, poor: 1 };
@@ -118,18 +120,20 @@ const FundList = ({ funds, sort, onSort }) => {
   const head = { sort, onSort };
   return (
     <div className="card">
-      <div ref={colsRef} role="row" className={`pin-cols hidden @2xl:grid ${COLS} gap-4 px-5 h-10 items-center`}>
+      {/* narrow: Fund, then the current value (its return under it) under one head; wide: a head per column */}
+      <div ref={colsRef} role="row" className={`pin-cols grid ${ROW_COLS} ${COLS} gap-x-3 px-4 md:px-5 h-10 items-center`}>
         <SortHead label="Fund" k="fund" {...head} />
-        <SortHead label="Current" k="current" align="right" {...head} />
-        <SortHead label="Returns" k="returns" align="right" {...head} />
-        <SortHead label="XIRR" k="xirr" align="right" {...head} />
-        <span className="flex items-center justify-end gap-1 min-w-0">
+        <SortHead label="Current" k="current" align="right" className="@2xl:hidden" {...head} />
+        <SortHead label="Current" k="current" align="right" className="hidden @2xl:flex" {...head} />
+        <SortHead label="Returns" k="returns" align="right" className="hidden @2xl:flex" {...head} />
+        <SortHead label="XIRR" k="xirr" align="right" className="hidden @2xl:flex" {...head} />
+        <span className="hidden @2xl:flex items-center justify-end gap-1 min-w-0">
           <SortHead label="Status" k="status" align="right" {...head} />
           <InfoTip label="What each status means" wide><StatusLegend /></InfoTip>
         </span>
         <span />
       </div>
-      <ul className="divide-y divide-line overflow-clip rounded-[12px] @2xl:rounded-t-none">
+      <ul className="divide-y divide-line overflow-clip rounded-b-[12px]">
         {funds.map((fund) => {
           const open = openId === fund.id;
           const up = (fund.returns ?? 0) >= 0;
@@ -139,7 +143,7 @@ const FundList = ({ funds, sort, onSort }) => {
                 type="button"
                 onClick={() => setOpenId(open ? null : fund.id)}
                 aria-expanded={open}
-                className={`w-full text-left grid grid-cols-[minmax(0,1fr)_auto] ${COLS} gap-x-4 gap-y-1 items-center px-4 md:px-5 py-3.5 transition-colors cursor-pointer ${open ? 'bg-surface-strong/50' : 'hover:bg-surface-strong/40'}`}
+                className={`w-full text-left grid ${ROW_COLS} ${COLS} gap-x-3 gap-y-1 items-center px-4 md:px-5 py-3.5 transition-colors cursor-pointer ${open ? 'bg-surface-strong/50' : 'hover:bg-surface-strong/40'}`}
               >
                 <span className="flex items-center gap-3 min-w-0">
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: fund.color }} aria-hidden="true" />
@@ -159,7 +163,7 @@ const FundList = ({ funds, sort, onSort }) => {
                 <span className={`hidden @2xl:block text-right num text-[14px] ${up ? 'text-gain' : 'text-loss'}`}>{pct(fund.returns)}</span>
                 <span className="hidden @2xl:block text-right num text-[14px] text-ink">{(fund.xirr ?? 0).toFixed(2)}%</span>
                 <span className="hidden @2xl:block text-right"><StatusBadge status={fund.status} /></span>
-                <ChevronRight className={`hidden @2xl:block w-4 h-4 text-muted transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden="true" />
+                <ChevronRight className={`w-4 h-4 text-muted transition-transform ${open ? 'rotate-90 text-ink' : ''}`} aria-hidden="true" />
               </button>
               {open && <Details fund={fund} />}
             </li>

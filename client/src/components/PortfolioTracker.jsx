@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import { RefreshCw, WifiOff } from 'lucide-react';
 import PdfMenu from './portfolio/PdfMenu';
-import { WRAP } from './Navbar';
+import { WRAP, ROUND_BTN } from './Navbar';
 import { usePortfolioData } from '../hooks/usePortfolioData';
 import { ASSET_PATHS, MUTUAL_FUND_VIEWS, mutualFundViewPath } from '../utils/assetRoutes';
 import FundsTable, { ViewToggle } from './portfolio/FundsTable';
@@ -58,7 +59,16 @@ const PortfolioTracker = ({ activeAsset }) => {
   const navigate = useNavigate();
   const { view: viewParam } = useParams();
   const activeView = MUTUAL_FUND_VIEWS.some(v => v.id === viewParam) ? viewParam : 'dashboard';
-  const goToView = (viewId) => navigate(mutualFundViewPath(viewId));
+  // A new section starts at its top: if the page is scrolled into the content, go back to where the
+  // content begins under the pinned head (the tabs stay where the finger is; the title doesn't come back)
+  const goToView = (viewId) => {
+    navigate(mutualFundViewPath(viewId));
+    const content = headRef.current?.nextElementSibling;
+    if (!content) return;
+    const headH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--head-h')) || 0;
+    const target = Math.max(0, content.getBoundingClientRect().top + window.scrollY - headH);
+    if (window.scrollY > target) window.scrollTo(0, target);
+  };
   const goToAsset = (assetId) => navigate(ASSET_PATHS[assetId] ?? '/');
   const [fundView, setFundViewState] = useState(() => { try { return localStorage.getItem('vesta-fund-view') || 'list'; } catch { return 'list'; } });
   const setFundView = (v) => { setFundViewState(v); try { localStorage.setItem('vesta-fund-view', v); } catch {} };
@@ -233,6 +243,26 @@ const PortfolioTracker = ({ activeAsset }) => {
   // What stays pinned at the top while the page scrolls (the page head on desktop, the menu bar below
   // 1024px), published as --head-h so the filter bar and the left column can sit just under it.
   const headRef = useRef(null);
+  // a new asset opens at the top of the page, not wherever the last one was scrolled to
+  // Phones scroll the page head away (only the menu bar pins), taking Refresh and PDF with it, so once
+  // the head's buttons are under the menu bar, round copies of them show in the menu bar instead
+  const actionsRef = useRef(null);
+  const [actionsAway, setActionsAway] = useState(false);
+  useEffect(() => {
+    const el = actionsRef.current;
+    if (!el) return undefined;
+    const phone = window.matchMedia('(max-width: 767.98px)');
+    const check = () => setActionsAway(phone.matches && el.getBoundingClientRect().bottom <= 56);
+    window.addEventListener('scroll', check, { passive: true });
+    phone.addEventListener('change', check);
+    check();
+    return () => { window.removeEventListener('scroll', check); phone.removeEventListener('change', check); };
+  }, [activeAsset]);
+  const lastAsset = useRef(activeAsset);
+  useEffect(() => {
+    if (lastAsset.current !== activeAsset) window.scrollTo(0, 0);
+    lastAsset.current = activeAsset;
+  }, [activeAsset]);
   useEffect(() => {
     const el = headRef.current;
     if (!el) return undefined;
@@ -241,15 +271,29 @@ const PortfolioTracker = ({ activeAsset }) => {
     // tablets pin the page head under the 56px menu bar, so both count, plus the 31px solid band under
     // it: toolbars and section headings pin right where the band ends, leaving no strip for rows to show
     // through. Phones pin only the menu bar.
-    const height = () => (desktop.matches ? el.offsetHeight : tablet.matches ? 56 + el.offsetHeight + 31 : 56);
-    const publish = () => document.documentElement.style.setProperty('--head-h', `${height()}px`);
+    // Phones pin the menu bar, plus Mutual Funds' section tabs: the head pins with a negative top so its
+    // title and actions slide under the menu bar and only the tabs row stays in view under it.
+    const publish = () => {
+      const tabs = !tablet.matches && el.querySelector('[data-pin-phone]');
+      let height = desktop.matches ? el.offsetHeight : tablet.matches ? 56 + el.offsetHeight + 31 : 56;
+      if (tabs) {
+        const hidden = tabs.getBoundingClientRect().top - el.getBoundingClientRect().top;
+        el.style.position = 'sticky';
+        el.style.top = `${56 - hidden}px`;
+        el.style.zIndex = '30';
+        height = 56 + el.offsetHeight - hidden;
+      } else {
+        el.style.position = ''; el.style.top = ''; el.style.zIndex = '';
+      }
+      document.documentElement.style.setProperty('--head-h', `${height}px`);
+    };
     const ro = new ResizeObserver(publish);
     ro.observe(el);
     desktop.addEventListener('change', publish);
     tablet.addEventListener('change', publish);
     publish();
     return () => { ro.disconnect(); desktop.removeEventListener('change', publish); tablet.removeEventListener('change', publish); };
-  }, []);
+  }, [activeAsset]);
 
   const isFdView = activeAsset === 'fds';
   const isGoldView = activeAsset === 'gold';
@@ -293,7 +337,7 @@ const PortfolioTracker = ({ activeAsset }) => {
               <h1 className="text-[28px] md:text-[32px] leading-[1.25] text-ink">{activeAssetHeader.title}</h1>
               <p className="mt-1 text-[14px] leading-[20px] text-body">{activeAssetHeader.subtitle}</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div ref={actionsRef} className="flex items-center gap-2">
               <span className="inline-flex items-center gap-2 h-8 px-3 rounded-md bg-surface shadow-[0_0_0_1px_var(--c-line-strong)] text-[13px] font-medium text-ink" role="status">
                 {statusLoading ? (
                   <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" aria-hidden="true" />
@@ -328,7 +372,7 @@ const PortfolioTracker = ({ activeAsset }) => {
           </div>
           {/* Mutual Funds' sections, as Vercel's project tabs; they sit in the pinned head, so they stay in view */}
           {activeAsset === 'mutualFunds' && (
-            <nav aria-label="Mutual fund sections" className="mt-5 -mb-px flex gap-1 overflow-x-auto [scrollbar-width:none]">
+            <nav data-pin-phone aria-label="Mutual fund sections" className="mt-5 -mb-px flex gap-1 overflow-x-auto [scrollbar-width:none]">
               {MUTUAL_FUND_VIEWS.map(tab => (
                 <button
                   key={tab.id}
@@ -345,6 +389,18 @@ const PortfolioTracker = ({ activeAsset }) => {
           )}
         </div>
       </div>
+
+      {actionsAway && document.getElementById('bar-actions') && createPortal(
+        <>
+          {canRefresh && (
+            <button type="button" onClick={handleManualRefresh} disabled={statusLoading} className={ROUND_BTN} aria-label={`Refresh ${refreshLabel}`} title={`Refresh ${refreshLabel}`}>
+              <RefreshCw className={`w-4 h-4 ${statusLoading ? 'animate-spin' : ''}`} aria-hidden="true" />
+            </button>
+          )}
+          <PdfMenu compact buttonClass={ROUND_BTN} scope={activeAsset} owner={OWNER_NAME} label={activeAsset === 'overview' ? 'the full portfolio' : refreshLabel} disabled={statusLoading} />
+        </>,
+        document.getElementById('bar-actions'),
+      )}
 
       {/* Main Content */}
       <div className={`${WRAP} pt-8`}>

@@ -17,7 +17,8 @@ const SORT_BY = {
 import { formatCurrency, formatCurrentValue, formatCompact, heldFor } from '../../utils/formatters';
 
 // Holding, Quantity, Bought at, Invested, Current, Gain
-const HOLDING_COLS = 'grid-cols-[minmax(0,1.6fr)_minmax(0,0.7fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,0.9fr)]';
+// below 760px: Holding, then Current (the gain under it)
+const HOLDING_COLS = 'grid-cols-[minmax(0,1fr)_auto] @[760px]:grid-cols-[minmax(0,1.6fr)_minmax(0,0.7fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,0.9fr)]';
 
 export default function GoldSilverView({ metal, data, isLoading, error }) {
     const colsRef = usePinCols();
@@ -89,45 +90,50 @@ export default function GoldSilverView({ metal, data, isLoading, error }) {
                     <p className="text-sm">Add entries under <code className="text-xs bg-ink/5 px-1.5 py-0.5 rounded text-primary">"{metal}"</code> in portfolioConfig.json</p>
                 </div>
             ) : (
-                <div className="card">
-                    {/* the same grid list as the other tables (a sticky header can't stop early inside a <table>);
-                        sideways scroll only when it doesn't fit, since a scroll box would stop the header pinning */}
-                    <div role="table" aria-label={`${metalLabel} holdings`} className="overflow-x-auto rounded-[12px] @[760px]:overflow-x-visible">
-                        <div className="min-w-[760px]">
-                            <div ref={colsRef} role="row" className={`pin-cols grid ${HOLDING_COLS} items-center h-[52px]`}>
-                                <SortHead label="Holding" k="holding" className="pl-4 md:pl-6 pr-3" {...head} />
-                                <SortHead label="Quantity" k="quantity" align="right" className="px-3" {...head} />
-                                <SortHead label="Bought at" k="price" align="right" className="px-3" {...head} />
-                                <SortHead label="Invested" k="invested" align="right" className="px-3" {...head} />
-                                <SortHead label="Current" k="current" align="right" className="px-3" {...head} />
-                                <SortHead label="Gain/Loss" k="gain" align="right" className="pl-3 pr-4 md:pr-6" {...head} />
-                            </div>
-                            <ul role="rowgroup" className="divide-y divide-line overflow-clip rounded-b-[12px]">
-                                {sorted.rows.map((h) => {
-                                    const up = h.gain >= 0;
-                                    return (
-                                        <li key={h.id} role="row" className={`grid ${HOLDING_COLS} items-center py-4 hover:bg-ink/[0.02] transition-colors`}>
-                                            <div role="cell" className="pl-4 md:pl-6 pr-3 min-w-0">
-                                                <p className="text-[15px] text-ink" style={{ fontWeight: 600 }}>{h.label}</p>
-                                                <p className="text-[13px] text-slate">
-                                                    {new Date(h.purchaseDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                                    {h.holdingDays != null ? ` · ${heldFor(h.purchaseDate)} held` : ''}
-                                                </p>
-                                            </div>
-                                            <div role="cell" className="px-3 text-right text-[15px] text-ink-2 tabular-nums">{h.quantity} g</div>
-                                            <div role="cell" className="px-3 text-right text-[15px] text-ink-2 tabular-nums">{formatCurrency(h.purchasePrice)}<span className="text-slate">/g</span></div>
-                                            <div role="cell" className="px-3 text-right text-[15px] text-ink-2 tabular-nums">{formatCurrency(h.totalInvested)}</div>
-                                            <div role="cell" className="px-3 text-right text-[15px] text-ink tabular-nums">{formatCurrentValue(h.currentValue)}</div>
-                                            <div role="cell" className={`pl-3 pr-4 md:pr-6 text-right tabular-nums ${up ? 'text-gain' : 'text-loss'}`}>
-                                                <p className="text-[15px]">{up ? '+' : '−'}{formatCurrency(Math.abs(h.gain))}</p>
-                                                <p className="text-[13px]">{up ? '' : '−'}{Math.abs(h.gainPercent ?? 0).toFixed(2)}%</p>
-                                            </div>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        </div>
+                <div className="card" role="table" aria-label={`${metalLabel} holdings`}>
+                    {/* narrow: the holding with its quantity and price under it, then the current value (gain under it), under two
+                        heads; from 760px a column each. No sideways scroll: a scroll box would stop the header pinning */}
+                    <div ref={colsRef} role="row" className={`pin-cols grid ${HOLDING_COLS} items-center h-10 @[760px]:h-[52px]`}>
+                        <SortHead label="Holding" k="holding" className="pl-4 md:pl-6 pr-3" {...head} />
+                        <SortHead label="Current" k="current" align="right" className="pl-3 pr-4 @[760px]:hidden" {...head} />
+                        <SortHead label="Quantity" k="quantity" align="right" className="hidden @[760px]:flex px-3" {...head} />
+                        <SortHead label="Bought at" k="price" align="right" className="hidden @[760px]:flex px-3" {...head} />
+                        <SortHead label="Invested" k="invested" align="right" className="hidden @[760px]:flex px-3" {...head} />
+                        <SortHead label="Current" k="current" align="right" className="hidden @[760px]:flex px-3" {...head} />
+                        <SortHead label="Gain/Loss" k="gain" align="right" className="hidden @[760px]:flex pl-3 pr-4 md:pr-6" {...head} />
                     </div>
+                    <ul role="rowgroup" className="divide-y divide-line overflow-clip rounded-b-[12px]">
+                        {sorted.rows.map((h) => {
+                            const up = h.gain >= 0;
+                            const gain = `${up ? '+' : '−'}${formatCurrency(Math.abs(h.gain))}`;
+                            const gainPct = `${up ? '+' : '−'}${Math.abs(h.gainPercent ?? 0).toFixed(2)}%`;
+                            return (
+                                <li key={h.id} role="row" className={`grid ${HOLDING_COLS} items-center py-3.5 @[760px]:py-4 hover:bg-ink/[0.02] transition-colors`}>
+                                    <div role="cell" className="pl-4 md:pl-6 pr-3 min-w-0">
+                                        <p className="text-[14px] @[760px]:text-[15px] font-medium @[760px]:font-semibold text-ink">{h.label}</p>
+                                        <p className="text-[13px] text-slate">
+                                            {new Date(h.purchaseDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                            {h.holdingDays != null ? ` · ${heldFor(h.purchaseDate)} held` : ''}
+                                        </p>
+                                        <p className="@[760px]:hidden mt-0.5 font-mono text-[12px] text-muted">{h.quantity} g at {formatCurrency(h.purchasePrice)}/g · on {formatCurrency(h.totalInvested)}</p>
+                                    </div>
+                                    <div role="cell" className="@[760px]:hidden pl-3 pr-4 text-right tabular-nums">
+                                        <p className="num text-[14px] text-ink">{formatCurrentValue(h.currentValue)}</p>
+                                        <p className={`num text-[12px] ${up ? 'text-gain' : 'text-loss'}`}>{gain}</p>
+                                        <p className={`num text-[12px] ${up ? 'text-gain' : 'text-loss'}`}>{gainPct}</p>
+                                    </div>
+                                    <div role="cell" className="hidden @[760px]:block px-3 text-right text-[15px] text-ink-2 tabular-nums">{h.quantity} g</div>
+                                    <div role="cell" className="hidden @[760px]:block px-3 text-right text-[15px] text-ink-2 tabular-nums">{formatCurrency(h.purchasePrice)}<span className="text-slate">/g</span></div>
+                                    <div role="cell" className="hidden @[760px]:block px-3 text-right text-[15px] text-ink-2 tabular-nums">{formatCurrency(h.totalInvested)}</div>
+                                    <div role="cell" className="hidden @[760px]:block px-3 text-right text-[15px] text-ink tabular-nums">{formatCurrentValue(h.currentValue)}</div>
+                                    <div role="cell" className={`hidden @[760px]:block pl-3 pr-4 md:pr-6 text-right tabular-nums ${up ? 'text-gain' : 'text-loss'}`}>
+                                        <p className="text-[15px]">{gain}</p>
+                                        <p className="text-[13px]">{gainPct}</p>
+                                    </div>
+                                </li>
+                            );
+                        })}
+                    </ul>
                 </div>
             )}
             </section>

@@ -226,10 +226,10 @@ const InvestmentTimelineView = ({ timelineData, isLoading, error, onRefresh }) =
       <section aria-labelledby="monthly-h">
       <div className="pin-head flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pb-3">
         <h2 id="monthly-h" className="text-[20px] leading-[28px] text-ink">Monthly investments</h2>
-        <span className="flex items-center gap-4 font-mono text-[12px] text-muted">
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px]" style={{ background: pal.series[0] }} aria-hidden="true" />sip</span>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px]" style={{ background: pal.series[1] }} aria-hidden="true" />lump sum</span>
-          <span>{months.length} months · scroll for history</span>
+        <span className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[12px] text-muted">
+          <span className="flex items-center gap-1.5 whitespace-nowrap"><span className="w-2.5 h-2.5 rounded-[3px]" style={{ background: pal.series[0] }} aria-hidden="true" />sip</span>
+          <span className="flex items-center gap-1.5 whitespace-nowrap"><span className="w-2.5 h-2.5 rounded-[3px]" style={{ background: pal.series[1] }} aria-hidden="true" />lump sum</span>
+          <span className="whitespace-nowrap">{months.length} months · scroll for history</span>
         </span>
       </div>
       <div className="card p-4 sm:p-5">
