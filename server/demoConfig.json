@@ -155,6 +155,27 @@
           "stopDate": null
         }
       ]
+    },
+    {
+      "id": 9,
+      "name": "Nippon India Silver ETF FOF - Direct Plan - Growth Option",
+      "shortName": "Nippon Silver FoF",
+      "category": "Silver Fund",
+      "schemeId": "149760",
+      "color": "#DDE3EA",
+      "lumpsums": [
+        {
+          "amount": 10000,
+          "date": "2026-04-15"
+        }
+      ],
+      "sips": [
+        {
+          "amount": 2000,
+          "startDate": "2026-05-05",
+          "stopDate": null
+        }
+      ]
     }
   ],
   "fixedDeposits": [

@@ -439,7 +439,7 @@ function getNAVByDate(navHistory, targetDate) {
 }
 
 async function calculateFundValue(fund) {
-    const empty = { totalUnits: 0, totalInvested: 0, currentValue: 0, latestNAV: 0, latestDate: null, navStatus: fund.schemeId ? 'missing' : 'live' };
+    const empty = { flows: [], totalUnits: 0, totalInvested: 0, currentValue: 0, latestNAV: 0, latestDate: null, navStatus: fund.schemeId ? 'missing' : 'live' };
     if (!fund.schemeId) return empty;
 
     const navHistory = await fetchCompleteNAVHistory(fund.schemeId);
@@ -449,12 +449,15 @@ async function calculateFundValue(fund) {
     const latestDate = navHistory.data[0].date;
     let totalUnits = 0;
     let totalInvested = 0;
+    // every payment that was priced, kept so the same money can be replayed into the Nifty 50
+    const flows = [];
 
     for (const lumpsum of fund.lumpsums ?? []) {
         const nav = getNAVByDate(navHistory, lumpsum.date);
         if (nav) {
             totalUnits += lumpsum.amount / nav;
             totalInvested += lumpsum.amount;
+            flows.push({ date: new Date(lumpsum.date), amount: lumpsum.amount });
         }
     }
 
@@ -473,6 +476,7 @@ async function calculateFundValue(fund) {
                 if (nav) {
                     totalUnits += sip.amount / nav;
                     totalInvested += sip.amount;
+                    flows.push({ date: sipDate, amount: sip.amount });
                 }
             }
         }
@@ -480,7 +484,35 @@ async function calculateFundValue(fund) {
 
     // 'stale' when MFapi could not be reached and the last saved NAVs were used instead
     const navStatus = _navProblem.get(fund.schemeId) === 'stale' ? 'stale' : 'live';
-    return { totalUnits, totalInvested, currentValue: totalUnits * latestNAV, latestNAV, latestDate, navStatus };
+    return { totalUnits, totalInvested, currentValue: totalUnits * latestNAV, latestNAV, latestDate, navStatus, flows };
+}
+
+// ─── Nifty 50 benchmark ───────────────────────────────────────────────────────
+// MFapi has no index series, so the Nifty 50 is stood in for by a Direct-plan index fund that tracks it
+// (UTI Nifty 50 Index Fund). Each payment into a fund is replayed into it on the same day.
+const NIFTY_SCHEME = '120716';
+
+function niftyUnitsFor(niftyHistory, flows) {
+    let units = 0;
+    let invested = 0;
+    const priced = [];
+    for (const f of flows) {
+        const nav = getNAVByDate(niftyHistory, f.date);
+        if (nav) {
+            units += f.amount / nav;
+            invested += f.amount;
+            priced.push(f);
+        }
+    }
+    return { units, invested, priced };
+}
+
+function xirrOfFlows(flows, endValue, endDate) {
+    if (!flows.length || !(endValue > 0)) return null;
+    const cf = flows.map((f) => ({ date: f.date, amount: -f.amount }));
+    cf.push({ date: endDate, amount: endValue });
+    const x = calculateXIRR(cf, 0.1);
+    return Number.isFinite(x) ? x : null;
 }
 
 // ─── Shared XIRR builder ───────────────────────────────────────────────────────
@@ -592,9 +624,16 @@ async function computeMFData(config) {
     const currentDate = new Date();
     console.log(`📊 Processing ${config.funds.length} funds in parallel...`);
 
+    const niftyHistory = await fetchCompleteNAVHistory(NIFTY_SCHEME);
+    const niftyLatest = niftyHistory?.data?.length ? parseFloat(niftyHistory.data[0].nav) : 0;
+    const allFlows = [];
+    let allValue = 0;
+    let niftyAllValue = 0;
+    let niftyAllInvested = 0;
+
     const calculatedFunds = await Promise.all(
         config.funds.map(async (fund) => {
-            const { totalUnits, totalInvested, currentValue, latestNAV, latestDate, navStatus } =
+            const { totalUnits, totalInvested, currentValue, latestNAV, latestDate, navStatus, flows } =
                 await calculateFundValue(fund);
 
             let totalSIPInvested = 0;
@@ -637,8 +676,31 @@ async function computeMFData(config) {
             const xirr = Number.isFinite(rawXirr) ? rawXirr : 0;
             const returns = totalInvested > 0 ? ((currentValue - totalInvested) / totalInvested) * 100 : 0;
 
+            // the same payments, made into the Nifty 50 instead
+            let nifty = null;
+            if (niftyLatest > 0 && navStatus !== 'missing' && flows.length) {
+                const n = niftyUnitsFor(niftyHistory, flows);
+                if (n.invested > 0) {
+                    const niftyValue = n.units * niftyLatest;
+                    const niftyXirr = xirrOfFlows(n.priced, niftyValue, currentDate);
+                    allFlows.push(...n.priced);
+                    allValue += currentValue;
+                    niftyAllValue += niftyValue;
+                    niftyAllInvested += n.invested;
+                    // under 6 months, an annualised gap says nothing; the rupee gap still does
+                    const tooNew = investmentAge < 6;
+                    nifty = {
+                        niftyValue,
+                        niftyXirr: niftyXirr ?? null,
+                        vsNiftyXirr: !tooNew && niftyXirr != null ? xirr - niftyXirr : null,
+                        vsNiftyValue: currentValue - niftyValue,
+                    };
+                }
+            }
+
             return {
                 ...fund,
+                ...(nifty ?? { niftyValue: null, niftyXirr: null, vsNiftyXirr: null, vsNiftyValue: null }),
                 totalUnits,
                 totalInvested,
                 currentValue,
@@ -674,6 +736,20 @@ async function computeMFData(config) {
             ? ((totals.totalCurrentValue - totals.totalInvested) / totals.totalInvested) * 100
             : 0;
 
+    // the whole fund portfolio against the same money in the Nifty 50, on the funds that could be priced
+    const portfolioXirr = xirrOfFlows(allFlows, allValue, currentDate);
+    const niftyXirrAll = xirrOfFlows(allFlows, niftyAllValue, currentDate);
+    totals.nifty = niftyAllInvested > 0 ? {
+        value: niftyAllValue,
+        invested: niftyAllInvested,
+        xirr: niftyXirrAll,
+        portfolioXirr,
+        portfolioValue: allValue,
+        beating: calculatedFunds.filter((f) => f.vsNiftyValue != null && f.vsNiftyValue > 0).length,
+        compared: calculatedFunds.filter((f) => f.vsNiftyValue != null).length,
+        asOf: niftyHistory.data[0].date,
+    } : null;
+
     return { funds: calculatedFunds, totals };
 }
 
@@ -693,6 +769,133 @@ app.get('/api/portfolio/funds', async (req, res) => {
     } catch (err) {
         console.error('Funds portfolio error:', err);
         fail(res, 500, process.env.NODE_ENV === 'development' ? err.message : 'Failed to calculate mutual funds');
+    }
+});
+
+/**
+ * GET /api/portfolio/nav-history – the NAV of every fund and of the Nifty 50 tracker, about one point a week,
+ * oldest first, as [ISO date, NAV], for the funds-vs-Nifty chart.
+ */
+function weeklyNavPoints(history) {
+    const rows = history?.data ?? [];
+    const iso = (r) => { const [d, m, y] = r.date.split('-'); return `${y}-${m}-${d}`; };
+    const cutoff = Date.now() - 460 * 86400000;
+    const out = [];
+    // MFapi lists newest first. Older than about 15 months: one point in five (weekly), since only the shape
+    // matters. Newer: every trading day, so a fund bought a few months ago is drawn in detail.
+    let i = rows.length - 1;
+    for (; i >= 0; i--) {
+        const [d, m, y] = rows[i].date.split('-');
+        if (new Date(y, m - 1, d).getTime() >= cutoff) break;
+        if ((rows.length - 1 - i) % 5 === 0) out.push([iso(rows[i]), parseFloat(rows[i].nav)]);
+    }
+    for (; i >= 0; i--) out.push([iso(rows[i]), parseFloat(rows[i].nav)]);
+    return out;
+}
+
+// The Nifty 50's own level in index points, from Yahoo Finance (^NSEI), only to show the level beside the chart.
+// Returns are still measured with the index fund above, which counts dividends; the level does not.
+// Kept 6 hours, falls back to the last saved copy, and the chart works without it.
+let _niftyLevels = { data: null, ts: 0 };
+async function fetchNiftyLevels() {
+    if (_niftyLevels.data && Date.now() - _niftyLevels.ts < 6 * 60 * 60 * 1000) return _niftyLevels.data;
+    try {
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/%5ENSEI?period1=1356998400&period2=${Math.floor(Date.now() / 1000)}&interval=1d`;
+        const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(15000) });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const json = await r.json();
+        const result = json?.chart?.result?.[0];
+        const ts = result?.timestamp ?? [];
+        const close = result?.indicators?.quote?.[0]?.close ?? [];
+        // MFapi's shape (newest first, dd-mm-yyyy), so the same sampling applies; dates in IST
+        const data = [];
+        for (let i = ts.length - 1; i >= 0; i--) {
+            if (close[i] == null) continue;
+            const d = new Date((ts[i] + 5.5 * 3600) * 1000);
+            const dd = String(d.getUTCDate()).padStart(2, '0');
+            const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+            data.push({ date: `${dd}-${mm}-${d.getUTCFullYear()}`, nav: String(Math.round(close[i] * 100) / 100) });
+        }
+        if (!data.length) throw new Error('no data');
+        _niftyLevels = { data: { data }, ts: Date.now() };
+        writeNAVDiskCache('NSEI', { data });
+        return _niftyLevels.data;
+    } catch (err) {
+        console.warn(`Nifty 50 level fetch failed (${err.message})`);
+        const saved = _niftyLevels.data ?? (await readNAVDiskCache('NSEI'));
+        if (saved) _niftyLevels = { data: saved, ts: Date.now() - 5 * 60 * 60 * 1000 }; // retry in about an hour
+        return saved;
+    }
+}
+
+// NAV history oldest first as [UTC ms, NAV], for walking forward through time.
+function navAscending(history) {
+    return (history?.data ?? []).map((r) => {
+        const [d, m, y] = r.date.split('-');
+        return [Date.UTC(+y, m - 1, +d), parseFloat(r.nav)];
+    }).reverse();
+}
+
+// What one fund's money was worth on each chart date, what the same payments would have been worth in the
+// Nifty 50, and how much had gone in by then. Payments are bought at the same NAVs the fund list uses
+// (getNAVByDate), so the last point matches the fund's current value. Arrays begin at `from`, the first date
+// on or after the fund's first payment, and are whole rupees.
+function moneySeries(fund, flows, fundHistory, niftyHistory, dates) {
+    if (!flows.length) return null;
+    const buys = flows
+        .map((f) => {
+            const nav = getNAVByDate(fundHistory, f.date);
+            const nNav = getNAVByDate(niftyHistory, f.date);
+            return nav && nNav ? { t: new Date(f.date).getTime(), amount: f.amount, units: f.amount / nav, nUnits: f.amount / nNav } : null;
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.t - b.t);
+    if (!buys.length) return null;
+    const fundNav = navAscending(fundHistory);
+    const niftyNav = navAscending(niftyHistory);
+    const from = dates.findIndex((t) => t >= buys[0].t);
+    if (from < 0) return null;
+    const value = [];
+    const nifty = [];
+    const invested = [];
+    let b = 0, units = 0, nUnits = 0, put = 0, fi = -1, ni = -1;
+    for (let i = from; i < dates.length; i++) {
+        const t = dates[i];
+        while (b < buys.length && buys[b].t <= t + 86400000) { units += buys[b].units; nUnits += buys[b].nUnits; put += buys[b].amount; b++; }
+        while (fi + 1 < fundNav.length && fundNav[fi + 1][0] <= t) fi++;
+        while (ni + 1 < niftyNav.length && niftyNav[ni + 1][0] <= t) ni++;
+        value.push(Math.round(units * (fi >= 0 ? fundNav[fi][1] : 0)));
+        nifty.push(Math.round(nUnits * (ni >= 0 ? niftyNav[ni][1] : 0)));
+        invested.push(put);
+    }
+    return { id: fund.id, from, value, nifty, invested };
+}
+
+app.get('/api/portfolio/nav-history', async (req, res) => {
+    try {
+        const config = await loadConfig(req);
+        const [nifty, levels, ...histories] = await Promise.all([
+            fetchCompleteNAVHistory(NIFTY_SCHEME),
+            fetchNiftyLevels(),
+            ...config.funds.map((f) => (f.schemeId ? fetchCompleteNAVHistory(f.schemeId) : null)),
+        ]);
+        const niftyPoints = weeklyNavPoints(nifty);
+        const dates = niftyPoints.map(([iso]) => Date.parse(iso));
+        const valued = await Promise.all(config.funds.map((f) => calculateFundValue(f)));
+        const money = config.funds
+            .map((f, i) => (histories[i] && nifty ? moneySeries(f, valued[i].flows, histories[i], nifty, dates) : null))
+            .filter(Boolean);
+        ok(res, {
+            nifty: niftyPoints,
+            niftyLevel: weeklyNavPoints(levels),
+            money,
+            funds: config.funds
+                .map((f, i) => ({ id: f.id, points: weeklyNavPoints(histories[i]) }))
+                .filter((f) => f.points.length > 1),
+        });
+    } catch (err) {
+        console.error('NAV history error:', err);
+        fail(res, 500, process.env.NODE_ENV === 'development' ? err.message : 'Failed to load NAV history');
     }
 });
 

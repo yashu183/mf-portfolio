@@ -171,7 +171,7 @@
    The solid band reaches 8px past the column so the cards' 1px rings never show beside it. */
 .pin-head {
   position: sticky;
-  top: calc(var(--head-h, 0px) + var(--tb-h, 0px));
+  top: calc(var(--head-h, 0px) + var(--tb-h, 0px) + var(--sb-h, 0px));
   z-index: 10;
   /* solid except its last pixel: the card under a heading draws its 1px ring just above its own
      edge, on that pixel, and the heading (which sits over the content) must not paint it out */
@@ -186,7 +186,7 @@
   .pin-head { padding-top: var(--pin-pad, 12px); margin-top: calc(-1 * var(--pin-pad, 12px)); }
 }
 /* -1px: the column keeps 1px of top padding (so card rings aren't clipped); the heading covers it too */
-@media (min-width: 1024px) { .pin-head { top: -1px; } }
+@media (min-width: 1024px) { .pin-head { top: calc(var(--sb-h, 0px) - 1px); } }
 
 /* A table's column-header row pins under its section heading (.pin-head) while the table scrolls past,
    and leaves with the table. --ph-h is that heading's height (usePinCols); with no heading it is 0.
@@ -199,7 +199,7 @@
   /* at least 1px below what's above it, so its own top ring (drawn 1px above it) is never cut off; under a
      heading that pixel is the heading's see-through last pixel, with no heading it's the scroll edge */
   --pc-gap: max(1px, var(--ph-h, 0px));
-  top: calc(var(--head-h, 0px) + var(--tb-h, 0px) + var(--pc-gap));
+  top: calc(var(--head-h, 0px) + var(--tb-h, 0px) + var(--sb-h, 0px) + var(--pc-gap));
   z-index: 9;
 }
 .pin-cols::before, .pin-cols::after { content: ''; position: absolute; pointer-events: none; }
@@ -215,10 +215,12 @@
   clip-path: inset(-1px -1px 0 -1px round 13px 13px 0 0); /* the ring on top and sides, none under it */
 }
 /* from 1024px the column keeps 1px of top padding and pinned things already stop inside it, so take 1px off */
-@media (min-width: 1024px) { .pin-cols { top: calc(var(--pc-gap) - 1px); } }
+@media (min-width: 1024px) { .pin-cols { top: calc(var(--sb-h, 0px) + var(--pc-gap) - 1px); } }
 
-/* The main column's own scroll (ScrollPane): a thin quiet bar in the line colour */
-.pane-scroll { scrollbar-width: thin; scrollbar-color: var(--c-line-strong) transparent; }
+/* The main column's own scroll (ScrollPane): a thin quiet bar in the line colour. Positioned, so anything
+   absolutely placed inside (screen-reader-only headings, icons in inputs) is placed and clipped within the
+   column; otherwise one sitting below the fold makes the whole window scroll as well as the column. */
+.pane-scroll { position: relative; scrollbar-width: thin; scrollbar-color: var(--c-line-strong) transparent; }
 
 /* Ghost loading: grey blocks in the shape of the page that is coming, with a slow sheen across them.
    In the components layer, so a block's own rounded-* utility (a round plate, a pie) wins */

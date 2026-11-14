@@ -9,6 +9,12 @@ A private portfolio tracker for mutual funds, fixed deposits, gold, silver and E
 - **Five asset classes, one dashboard**: mutual funds at today's NAV, fixed deposits across their renewal cycles, gold and silver at live prices, and EPF with its contribution history.
 - **Overview**: total balance, gain and return across every asset, an allocation donut (current value, invested or returns), and invested-vs-current charts.
 - **Mutual funds**: returns, XIRR and status for each fund, grouped by performance; allocation by SIP against Claude's target; a month-by-month investment timeline with SIP revisions.
+- **Fund logos**: each fund shows its fund house's logo, or its initials when there is none.
+- **Against the Nifty 50**: every SIP instalment and lump sum is replayed into the Nifty 50 on the same day, so each fund shows how far ahead or behind the same money in the index it is: a sortable **vs Nifty** column (XIRR points), and in each fund's details the Nifty 50's XIRR, what the same money would be worth there, and the gap in rupees. The Mutual Funds dashboard sums it up for the whole portfolio.
+- **Funds vs Nifty 50 chart** (Performance), in two views that keep the same funds ticked:
+  - **Your money**: your actual payments into the ticked funds, as stacked colour bands (one per fund, so the top edge is your total), against the same payments into the Nifty 50 and a dashed line of what went in. A strip under it shows how far ahead (green) or behind (red) you were on each day. Tick one fund, several, or all of them; with none ticked it shows your money as if all of it had gone into the Nifty 50.
+  - **Fund price**: each fund's NAV growth from its first payment against the Nifty 50's from the same day (or over 1Y, 3Y, 5Y or Max), with the index level in points. Hovering lists every fund with its NAV, growth and gap to the Nifty 50, ahead above the Nifty 50's row and behind below it.
+  - **Zoom**: drag across either chart to zoom into those dates; a mini map of the whole chart then appears, whose window can be dragged, resized or clicked to move along. Reset zoom, or double-click the chart, to see it all.
 - **AI recommendations**: a revised monthly SIP plan with reasons, plus suggested funds to add (Claude Sonnet on AWS Bedrock).
 - **Gold and silver**: holdings grouped into sets, with average buy price per set against the live price, per-gram and overall profit or loss, and how long each holding has been held.
 - **Fixed deposits**: every cycle of each deposit, with its principal, rate, progress and status, interest earned and maturity value; search and filter by bank and holder.
@@ -38,6 +44,7 @@ The design follows Vercel's design system: hairline cards, mono labels, a dashbo
 - AWS Bedrock (Claude Sonnet 4) for recommendations
 - [MFapi](https://api.mfapi.in/mf) for mutual fund NAVs
 - [bullions.co.in](https://bullions.co.in/) for gold (24K) and silver (999) prices
+- The Nifty 50 is benchmarked with the UTI Nifty 50 Index Fund (Direct) from MFapi, which counts dividends; its level in points comes from Yahoo Finance (`^NSEI`), kept for 6 hours and saved to disk, and the chart works without it
 
 ## Prerequisites
 
@@ -188,6 +195,7 @@ Serve `client/dist` as a single-page app (every route falls back to `index.html`
 `/demo` runs the full app against `server/demoConfig.json`, a made-up portfolio committed with the code: invented holders, amounts and dates, but real mutual-fund schemes, so NAVs, gold and silver prices, XIRR and the timeline are all live and computed the same way as yours.
 
 - **No access code.** The client sees `/demo` in the URL and calls `/api/demo/...`; the server rewrites those to the normal routes, reads `demoConfig.json` instead of `portfolioConfig.json`, and skips the session check for them only. Your own routes still need the code.
+- **Both sides of the Nifty 50.** Most demo funds are ahead of the Nifty 50 and a silver fund bought in 2026 is behind it, so the comparison shows its red as well as its green.
 - **No Bedrock calls.** Recommendations in the demo return `sampleRecommendations` from `demoConfig.json`, so visitors cost nothing.
 - **Kept apart.** The demo's XIRR cache and the browser's saved recommendations are keyed separately, and entering or leaving the demo is a full page load, so the two portfolios never mix.
 - **Rate limited** to 300 requests per IP every 15 minutes (`DEMO_RATE_LIMIT_MAX`). The login routes are not available under `/api/demo`.
@@ -212,8 +220,8 @@ In production use HTTPS and set `ALLOWED_ORIGINS` to the frontend's origin. Serv
 | Page | What it shows |
 | --- | --- |
 | **Overview** | Total balance, gain and return; each asset's value and share; allocation donut; invested vs current per asset |
-| **Mutual Funds → Dashboard** | Every fund as a sortable list or a grid, with search and multi-select filters (category, status, SIP or lump sum); top performer, funds needing attention, category split |
-| **Mutual Funds → Performance** | Funds grouped as Excellent, Good, Monitor and Underperforming, as a list or grid; the ⓘ beside each group gives its rule |
+| **Mutual Funds → Dashboard** | Every fund as a sortable list or a grid, with its fund house's logo, search and multi-select filters (category, status, SIP or lump sum); the portfolio against the Nifty 50 (XIRR and rupees); top performer, funds needing attention, category split |
+| **Mutual Funds → Performance** | The funds-vs-Nifty 50 chart (Your money / Fund price, zoomable), then the funds grouped as Excellent, Good, Monitor and Underperforming, as a list or grid, under filters that stay pinned; the ⓘ beside each group gives its rule |
 | **Mutual Funds → Allocation** | Monthly SIP by category, current vs Claude's target |
 | **Mutual Funds → Recommendations** | Claude's revised SIP plan with reasons, and funds to add (SIP funds only) |
 | **Mutual Funds → Timeline** | Monthly SIP and lump-sum investments, SIP commitment over time, every SIP revision |
@@ -234,7 +242,8 @@ Every route except `/api/health`, `/api/auth/verify` and `/api/auth/logout` need
 | `POST` | `/api/auth/logout` | Ends the session and clears the cookie |
 | `GET` | `/api/health` | Service health |
 | `GET` | `/api/portfolio/overview` | Totals across all assets |
-| `GET` | `/api/portfolio/funds` | Mutual funds with NAV, returns and XIRR |
+| `GET` | `/api/portfolio/funds` | Mutual funds with NAV, returns, XIRR and the same money in the Nifty 50 |
+| `GET` | `/api/portfolio/nav-history` | NAV history of every fund and the Nifty 50 (weekly, daily for the last 15 months), the Nifty 50's level, and each fund's value against the same payments in the Nifty 50 over time |
 | `GET` | `/api/portfolio/complete` | Funds with full calculations |
 | `GET` | `/api/portfolio/investment-timeline` | Month-by-month investments |
 | `GET` | `/api/portfolio/fds` | Fixed deposits and their cycles |

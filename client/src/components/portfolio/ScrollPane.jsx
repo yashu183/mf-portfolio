@@ -89,4 +89,31 @@ const ScrollPane = ({ toolbar, children, className = '' }) => {
   );
 };
 
+// A toolbar that scrolls in with the content above it, then pins at the top while the sections under it
+// scroll past (the Performance page: the chart scrolls away, the filters stay over the tables).
+// Its height is published as --sb-h on the wrapper, so section headings (.pin-head) and column-header rows
+// (.pin-cols) inside pin just under it rather than under it.
+export const StickyBar = ({ bar, children }) => {
+  const rootRef = useRef(null);
+  const barRef = useRef(null);
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    const el = barRef.current;
+    if (!root || !el) return undefined;
+    const publish = () => root.style.setProperty('--sb-h', `${el.offsetHeight}px`);
+    const ro = new ResizeObserver(publish);
+    ro.observe(el);
+    publish();
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div ref={rootRef} style={{ '--pin-pad': '0px' }}>
+      {/* the same solid band as ScrollPane's toolbar; pinned under the page head below 1024px, and at the top
+          of the scrolling column from 1024px (over its 1px top padding) */}
+      <div ref={barRef} className="flow-root sticky z-20 bg-canvas -mx-2 px-2 pt-3 top-[var(--head-h,0px)] lg:top-[-1px]">{bar}</div>
+      {children}
+    </div>
+  );
+};
+
 export default ScrollPane;

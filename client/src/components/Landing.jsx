@@ -243,6 +243,86 @@ const PdfMock = () => {
   );
 };
 
+// Mirrors the Performance chart: Your money as stacked fund bands under the same money in the Nifty 50, with the
+// ahead/behind strip; Fund price as growth lines from the same day. The switch flips between them, as in the app.
+const NIFTY_N = 48;
+const wave = (i, a, b, c) => Math.sin(i / a) * b + Math.sin(i / c) * b * 0.5;
+const NiftyMock = ({ palette }) => {
+  const [view, setView] = useState('money');
+  const W = 320;
+  const H = 120;
+  const xs = Array.from({ length: NIFTY_N }, (_, i) => (i / (NIFTY_N - 1)) * W);
+  const path = (ys) => ys.map((y, i) => `${i ? 'L' : 'M'}${xs[i].toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const area = (top, bottom) => `${path(top)} ${bottom.slice().reverse().map((y, i) => `L${xs[NIFTY_N - 1 - i].toFixed(1)},${y.toFixed(1)}`).join(' ')} Z`;
+  // money: what went in climbs steadily; your funds grow a little faster than the same money in the Nifty 50
+  // (dipping just under it early on), split into three fund bands, the third started partway through
+  const put = xs.map((_, i) => 6 + i * 1.55);
+  const total = put.map((p, i) => p * (1 + i * 0.0075 + wave(i, 4, 0.02, 9) - (i < 10 ? 0.025 : 0)));
+  const nifty = put.map((p, i) => p * (1 + i * 0.0042 + wave(i, 6, 0.012, 11)));
+  const share3 = xs.map((_, i) => (i < 18 ? 0 : Math.min(0.3, (i - 18) * 0.02)));
+  const s1 = total.map((v, i) => v * (1 - share3[i]) * 0.56);
+  const s2 = total.map((v, i) => v * (1 - share3[i]));
+  const s3 = total;
+  const top = Math.max(...s3, ...nifty) * 1.08;
+  const y = (v) => H - (v / top) * H;
+  const gap = s3.map((v, i) => v - nifty[i]);
+  const gMax = Math.max(...gap.map(Math.abs)) || 1;
+  const gy = (v) => 30 - (v / gMax) * 26;
+  // price: three fund lines and the Nifty 50, each from 0%, filling the same height as the money view
+  const base = H + 30;
+  const lines = [[1.25, 5, 2], [0.8, 4, 1.4], [0.45, 3, 1.1]].map(([k, a, b]) => xs.map((_, i) => base - i * k * 2.1 - wave(i, a, b * 3, 9)));
+  const niftyP = xs.map((_, i) => base - i * 0.7 * 2.1 - wave(i, 6, 2.5, 11));
+  const c = palette.series;
+  return (
+    <div className="card p-5" aria-hidden="true">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-[14px] font-semibold text-ink whitespace-nowrap">Against the Nifty 50</span>
+        <span className="inline-flex h-8 p-0.5 rounded-md shadow-[0_0_0_1px_var(--c-line-strong)] whitespace-nowrap">
+          {[['money', 'Your money'], ['price', 'Fund price']].map(([id, label]) => (
+            <button key={id} type="button" tabIndex={-1} onClick={() => setView(id)} className={`px-2.5 rounded-[4px] text-[12px] font-medium cursor-pointer ${view === id ? 'bg-surface-strong text-ink' : 'text-muted'}`}>{label}</button>
+          ))}
+        </span>
+      </div>
+      {view === 'money' ? (
+        <>
+          <p className="mt-3 num text-[28px] leading-none text-gain">+₹1,96,707</p>
+          <p className="mt-1 text-[12px] text-muted">ahead of the same money in the Nifty 50</p>
+          <svg viewBox={`0 0 ${W} ${H}`} className="mt-3 w-full h-auto" preserveAspectRatio="none">
+            <path d={area(s1.map(y), xs.map(() => H))} fill={c[0]} fillOpacity="0.55" />
+            <path d={area(s2.map(y), s1.map(y))} fill={c[1]} fillOpacity="0.55" />
+            <path d={area(s3.map(y), s2.map(y))} fill={c[2]} fillOpacity="0.55" />
+            <path d={path(put.map(y))} fill="none" stroke={palette.tick} strokeWidth="1.2" strokeDasharray="4 4" />
+            <path d={path(nifty.map(y))} fill="none" stroke={palette.primary} strokeWidth="2" />
+          </svg>
+          <svg viewBox={`0 0 ${W} 36`} className="mt-2 w-full h-auto" preserveAspectRatio="none">
+            <defs>
+              <clipPath id="nm-up"><rect x="0" y="0" width={W} height="30" /></clipPath>
+              <clipPath id="nm-down"><rect x="0" y="30" width={W} height="6" /></clipPath>
+            </defs>
+            <line x1="0" x2={W} y1="30" y2="30" stroke={palette.grid} />
+            {[['nm-up', palette.up], ['nm-down', palette.down]].map(([id, col]) => (
+              <g key={id} clipPath={`url(#${id})`}>
+                <path d={`${path(gap.map(gy))} L${W},30 L0,30 Z`} fill={col} fillOpacity="0.3" />
+                <path d={path(gap.map(gy))} fill="none" stroke={col} strokeWidth="1.2" />
+              </g>
+            ))}
+          </svg>
+        </>
+      ) : (
+        <>
+          <p className="mt-3 num text-[28px] leading-none text-gain">+57.08%</p>
+          <p className="mt-1 text-[12px] text-muted">Nifty 50 since you started · 16,719 → 25,144 points</p>
+          <svg viewBox={`0 0 ${W} ${H + 44}`} className="mt-3 w-full h-auto" preserveAspectRatio="none">
+            <line x1="0" x2={W} y1={base} y2={base} stroke={palette.grid} />
+            {lines.map((ln, i) => <path key={i} d={path(ln)} fill="none" stroke={c[i]} strokeWidth="1.5" />)}
+            <path d={path(niftyP)} fill="none" stroke={palette.primary} strokeWidth="2.2" />
+          </svg>
+        </>
+      )}
+    </div>
+  );
+};
+
 const TotalMock = ({ palette }) => (
   <div className="card p-5" aria-hidden="true">
     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
@@ -325,10 +405,11 @@ const Landing = () => {
   }, [navigate]);
 
   const features = [
-    { id: 'funds', title: "Values every fund at today's NAV", body: 'Replays each SIP and lump sum against the daily NAV from mfapi.in for its XIRR.', mock: <NavMock palette={palette} /> },
+    { id: 'funds', title: "Values every fund at today's NAV", body: 'Replays each SIP and lump sum against the daily NAV from mfapi.in for its XIRR, and against the Nifty 50, so you see which funds beat the index.', mock: <NavMock palette={palette} /> },
     { id: 'deposits', title: "Counts down to each FD's maturity", body: 'Each renewal keeps its own rate, term and the interest it paid.', mock: <FdMock palette={palette} /> },
     { id: 'metals', title: 'Averages gold and silver cost by set', body: 'Every purchase joins a set: average price per gram by set, year or total.', mock: <MetalsMock /> },
     { id: 'total', title: 'Adds five classes into one total', body: 'Funds, deposits, metals and EPF meet on one overview, with a timeline.', mock: <TotalMock palette={palette} /> },
+    { id: 'nifty', wide: true, title: 'Measures your funds against the Nifty 50', body: 'Every SIP and lump sum is replayed into the Nifty 50 on the same day, so you see how far ahead or behind your money is, fund by fund and in total. Switch to fund price to see which funds beat the index from the day you bought them, and drag across the chart to zoom in.', mock: <NiftyMock palette={palette} /> },
     { id: 'reports', wide: true, title: 'Downloads a PDF report', body: 'The whole portfolio or one asset, with charts and insights. A masked copy hides every amount and keeps the percentages, so it is safe to share.', mock: <PdfMock /> },
   ];
 

@@ -29,6 +29,19 @@ export const getMutualFunds = async () => {
 
 export const clearMFCache = () => { _mfCache = { data: null, timestamp: null }; };
 
+// ─── NAV history, for the funds-vs-Nifty chart ────────────────────────────────
+let _navHistoryCache = { data: null, timestamp: null };
+export const getNavHistory = async () => {
+  const now = Date.now();
+  if (_navHistoryCache.data && now - _navHistoryCache.timestamp < CACHE_TTL * 6) return _navHistoryCache.data;
+  const response = await authenticatedFetch(`${API_ROOT}/portfolio/nav-history`);
+  if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  const result = await response.json();
+  if (result.status !== 'success') throw new Error(result.message ?? 'Unknown server error');
+  _navHistoryCache = { data: result.data, timestamp: now };
+  return result.data;
+};
+
 // ─── Fixed Deposits ────────────────────────────────────────────────────────────
 /** GET /api/portfolio/fds – returns { fixedDeposits } */
 export const getFixedDeposits = async () => {

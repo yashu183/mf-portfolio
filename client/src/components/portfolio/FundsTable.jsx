@@ -4,6 +4,8 @@ import { usePinCols } from './ScrollPane';
 import { SortHead, useSort } from './Sort';
 import InfoTip from './InfoTip';
 import { fundAge, monthsAsYears } from '../../utils/formatters';
+import FundIcon from './FundIcon';
+import { NiftyExplain } from './NiftyCard';
 
 // Status as Vercel shows deployment state: a small dot and a word, the colour on the dot only.
 // `rule` is how the server sorts a fund into each (deriveStatus in server.js); the info icon tips show it.
@@ -58,11 +60,14 @@ export const ViewToggle = ({ view, onChange }) => (
 
 const inr = (v, digits = 0) => `₹${(v ?? 0).toLocaleString('en-IN', { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
 const formatDate = (date) => (date ? new Date(date).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : '-');
+// the XIRR gap to the Nifty 50, in percentage points; blank when the fund is too new to say
+const pts = (v) => (v == null ? '-' : `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}`);
+const ptsTone = (v) => (v == null ? 'text-muted' : v >= 0 ? 'text-gain' : 'text-loss');
 const pct = (v) => `${(v ?? 0) >= 0 ? '+' : '−'}${Math.abs(v ?? 0).toFixed(2)}%`;
 
 // `panel` drops the top hairline and tint, for the grid's details panel, which is its own card
 const Details = ({ fund, panel = false }) => (
-  <div className={`grid grid-cols-1 @2xl:grid-cols-3 gap-6 px-4 md:px-5 py-5 text-[14px] ${panel ? '' : 'bg-surface-strong/50 border-t border-line'}`}>
+  <div className={`grid grid-cols-1 @2xl:grid-cols-2 @4xl:grid-cols-4 gap-6 px-4 md:px-5 py-5 text-[14px] ${panel ? '' : 'bg-surface-strong/50 border-t border-line'}`}>
     {fund.sips?.length > 0 && (
       <div>
         <p className="eyebrow mb-3">SIP{fund.sips.length > 1 ? 's' : ''}</p>
@@ -90,6 +95,17 @@ const Details = ({ fund, panel = false }) => (
         <p className="mt-3 pt-3 border-t border-line flex justify-between"><span className="text-body">Total</span><span className="num">{inr(fund.totalLumpsum)}</span></p>
       </div>
     )}
+    {fund.niftyValue != null && (
+      <div>
+        <p className="eyebrow mb-3">Against the Nifty 50</p>
+        <ul className="space-y-2">
+          <li className="flex justify-between gap-4"><span className="text-body">Your XIRR</span><span className="num">{(fund.xirr ?? 0).toFixed(2)}%</span></li>
+          <li className="flex justify-between gap-4"><span className="text-body">Nifty 50 XIRR</span><span className="num">{fund.niftyXirr != null ? `${fund.niftyXirr.toFixed(2)}%` : '-'}</span></li>
+          <li className="flex justify-between gap-4"><span className="text-body">Same money in Nifty 50</span><span className="num">{inr(fund.niftyValue)}</span></li>
+        </ul>
+        <p className="mt-3 pt-3 border-t border-line flex justify-between"><span className="text-body">{fund.vsNiftyValue >= 0 ? 'Ahead by' : 'Behind by'}</span><span className={`num ${fund.vsNiftyValue >= 0 ? 'text-gain' : 'text-loss'}`}>{inr(Math.abs(fund.vsNiftyValue))}</span></p>
+      </div>
+    )}
     {fund.latestNAV > 0 && (
       <div>
         <p className="eyebrow mb-3">NAV</p>
@@ -100,7 +116,7 @@ const Details = ({ fund, panel = false }) => (
   </div>
 );
 
-const COLS = '@2xl:grid-cols-[minmax(0,1fr)_120px_84px_72px_118px_16px] @2xl:gap-x-3';
+const COLS = '@2xl:grid-cols-[minmax(0,1fr)_120px_84px_72px_84px_118px_16px] @2xl:gap-x-3';
 // below @2xl: the fund, its value and return, the chevron that says the row opens
 const ROW_COLS = 'grid-cols-[minmax(0,1fr)_auto_16px]';
 
@@ -111,6 +127,7 @@ const SORT_BY = {
   current: (f) => f.currentValue,
   returns: (f) => f.returns,
   xirr: (f) => f.xirr,
+  nifty: (f) => f.vsNiftyXirr ?? -Infinity,
   status: (f) => STATUS_RANK[f.status] ?? 0,
 };
 
@@ -127,6 +144,10 @@ const FundList = ({ funds, sort, onSort }) => {
         <SortHead label="Current" k="current" align="right" className="hidden @2xl:flex" {...head} />
         <SortHead label="Returns" k="returns" align="right" className="hidden @2xl:flex" {...head} />
         <SortHead label="XIRR" k="xirr" align="right" className="hidden @2xl:flex" {...head} />
+        <span className="hidden @2xl:flex items-center justify-end gap-1 min-w-0">
+          <SortHead label="vs Nifty" k="nifty" align="right" {...head} />
+          <InfoTip label="What vs Nifty means" wide><span className="block">XIRR points a year above (+) or below (−) the same money in the Nifty 50. <NiftyExplain /></span></InfoTip>
+        </span>
         <span className="hidden @2xl:flex items-center justify-end gap-1 min-w-0">
           <SortHead label="Status" k="status" align="right" {...head} />
           <InfoTip label="What each status means" wide><StatusLegend /></InfoTip>
@@ -146,7 +167,7 @@ const FundList = ({ funds, sort, onSort }) => {
                 className={`w-full text-left grid ${ROW_COLS} ${COLS} gap-x-3 gap-y-1 items-center px-4 md:px-5 py-3.5 transition-colors cursor-pointer ${open ? 'bg-surface-strong/50' : 'hover:bg-surface-strong/40'}`}
               >
                 <span className="flex items-center gap-3 min-w-0">
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: fund.color }} aria-hidden="true" />
+                  <FundIcon fund={fund} size={32} />
                   <span className="min-w-0">
                     <span className="block text-[14px] font-medium text-ink truncate">{fund.shortName}</span>
                     <span className="block font-mono text-[12px] text-muted truncate">{fund.category.toLowerCase()} · {fundAge(fund)}{fund.navStatus === 'stale' && <span className="text-warn"> · NAV from {fund.latestDate}</span>}{fund.navStatus === 'missing' && <span className="text-warn"> · no price yet</span>}</span>
@@ -162,6 +183,7 @@ const FundList = ({ funds, sort, onSort }) => {
                 </span>
                 <span className={`hidden @2xl:block text-right num text-[14px] ${up ? 'text-gain' : 'text-loss'}`}>{pct(fund.returns)}</span>
                 <span className="hidden @2xl:block text-right num text-[14px] text-ink">{(fund.xirr ?? 0).toFixed(2)}%</span>
+                <span className={`hidden @2xl:block text-right num text-[14px] ${ptsTone(fund.vsNiftyXirr)}`}>{pts(fund.vsNiftyXirr)}</span>
                 <span className="hidden @2xl:block text-right"><StatusBadge status={fund.status} /></span>
                 <ChevronRight className={`w-4 h-4 text-muted transition-transform ${open ? 'rotate-90 text-ink' : ''}`} aria-hidden="true" />
               </button>
@@ -174,11 +196,6 @@ const FundList = ({ funds, sort, onSort }) => {
   );
 };
 
-const Monogram = ({ fund }) => (
-  <span className="w-8 h-8 rounded-full grid place-items-center shrink-0 text-[11px] font-semibold text-ink shadow-[inset_0_0_0_1px_var(--c-line-strong)]" style={{ background: `color-mix(in oklab, ${fund.color} 35%, var(--c-surface))` }} aria-hidden="true">
-    {(fund.shortName || '?').split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase()}
-  </span>
-);
 const FundMeta = ({ fund }) => (
   <span className="block font-mono text-[12px] text-muted">{fund.category.toLowerCase()} · {fundAge(fund)}{fund.navStatus === 'stale' && <span className="text-warn"> · NAV from {fund.latestDate}</span>}{fund.navStatus === 'missing' && <span className="text-warn"> · no price yet</span>}</span>
 );
@@ -218,7 +235,7 @@ const FundGrid = ({ funds }) => {
             <article data-fund-id={fund.id} className={`card overflow-hidden flex flex-col transition-shadow ${open ? 'shadow-[0_0_0_1px_var(--c-ink),var(--c-shadow-float)]' : 'hover:shadow-[0_0_0_1px_var(--c-line-strong),var(--c-shadow-float)]'}`}>
               <button type="button" onClick={() => setOpenId(open ? null : fund.id)} aria-expanded={open} aria-controls={open ? `fund-details-${fund.id}` : undefined} className="flex-1 w-full text-left p-5 flex flex-col gap-4 cursor-pointer">
                 <span className="flex items-start gap-3 w-full">
-                  <Monogram fund={fund} />
+                  <FundIcon fund={fund} size={32} />
                   <span className="min-w-0 flex-1">
                     <span className="block text-[14px] font-medium text-ink">{fund.shortName}</span>
                     <FundMeta fund={fund} />
@@ -231,7 +248,7 @@ const FundGrid = ({ funds }) => {
                 </span>
                 <span className="mt-auto w-full pt-4 border-t border-line flex items-center justify-between">
                   <StatusBadge status={fund.status} />
-                  <span className="font-mono text-[12px] text-muted">XIRR <span className="text-ink">{(fund.xirr ?? 0).toFixed(2)}%</span></span>
+                  <span className="font-mono text-[12px] text-muted">XIRR <span className="text-ink">{(fund.xirr ?? 0).toFixed(2)}%</span>{fund.vsNiftyXirr != null && <span className={ptsTone(fund.vsNiftyXirr)}> · {pts(fund.vsNiftyXirr)} vs Nifty</span>}</span>
                 </span>
               </button>
             </article>

@@ -13,6 +13,8 @@ import { formatCurrentValue } from '../utils/formatters';
 import CategoryBreakdown from './portfolio/CategoryBreakdown';
 import AllocationView from './portfolio/AllocationView';
 import PerformanceView from './portfolio/PerformanceView';
+import NiftyCard from './portfolio/NiftyCard';
+import VsNiftyChart from './portfolio/VsNiftyChart';
 import RecommendationsView from './portfolio/RecommendationsView';
 import InvestmentTimelineView from './portfolio/InvestmentTimelineView';
 import FilterBar from './portfolio/FilterBar';
@@ -20,7 +22,7 @@ import FixedDepositsView from './portfolio/FixedDepositsView';
 import GoldSilverView from './portfolio/GoldSilverView';
 import EPFView from './portfolio/EPFView';
 import OverviewView from './portfolio/OverviewView';
-import ScrollPane from './portfolio/ScrollPane';
+import ScrollPane, { StickyBar } from './portfolio/ScrollPane';
 import { IS_DEMO } from '../utils/demo';
 import { PageGhost, SummaryGhost, NoteGhost, HeadingGhost, ListGhost, ChartGhost } from './portfolio/Ghost';
 
@@ -449,6 +451,7 @@ const PortfolioTracker = ({ activeAsset }) => {
                           { label: 'Active SIPs', value: `${portfolioData.filter(f => f.currentMonthlySIP > 0).length} funds` },
                         ]}
                       />
+                      <NiftyCard nifty={totals.nifty} />
                       <div className="hidden lg:block space-y-4">
                         <CategoryBreakdown
                           categoryBreakdown={unfilteredCategoryBreakdown}
@@ -499,19 +502,24 @@ const PortfolioTracker = ({ activeAsset }) => {
                 )}
 
                 {activeView === 'performance' && (
-                  <ScrollPane
-                    toolbar={
-                      <FilterBar
-                        filters={filters}
-                        onFilterChange={handleFilterChange}
-                        onClearFilters={handleClearFilters}
-                        fundCategories={fundCategories}
-                        right={<ViewToggle view={fundView} onChange={setFundView} />}
-                        summary={`${filteredPortfolioData.length}${filteredPortfolioData.length !== portfolioData.length ? ` of ${portfolioData.length}` : ''} funds`}
-                      />
-                    }
-                  >
-                    <PerformanceView performanceGroups={filteredPerformanceGroups} view={fundView} />
+                  // the chart scrolls away; the filters then pin over the fund tables, with each table's
+                  // heading and column row pinning under them
+                  <ScrollPane>
+                    {portfolioData.length > 0 && <div className="mb-8"><VsNiftyChart funds={portfolioData} /></div>}
+                    <StickyBar
+                      bar={
+                        <FilterBar
+                          filters={filters}
+                          onFilterChange={handleFilterChange}
+                          onClearFilters={handleClearFilters}
+                          fundCategories={fundCategories}
+                          right={<ViewToggle view={fundView} onChange={setFundView} />}
+                          summary={`${filteredPortfolioData.length}${filteredPortfolioData.length !== portfolioData.length ? ` of ${portfolioData.length}` : ''} funds`}
+                        />
+                      }
+                    >
+                      <PerformanceView performanceGroups={filteredPerformanceGroups} view={fundView} />
+                    </StickyBar>
                   </ScrollPane>
                 )}
 
