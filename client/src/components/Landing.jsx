@@ -3,7 +3,7 @@ import { markAppWelcomed } from '../utils/installedApp';
 import { Link, useNavigate } from 'react-router-dom';
 import BigAmount from './portfolio/BigAmount';
 import { hasActiveSession } from '../services/authService';
-import { ArrowRight, Menu, X, LineChart, Landmark, Coins, Gem, PiggyBank, LayoutGrid, Check, Sparkles, EyeOff, Sun } from 'lucide-react';
+import { ArrowRight, Menu, X, LineChart, Landmark, Coins, Gem, PiggyBank, LayoutGrid, CalendarDays, Check, Sparkles, EyeOff, Sun } from 'lucide-react';
 import { VestaMark, ThemeToggle, WRAP } from './Navbar';
 import { useTheme, chartPalette } from '../hooks/useTheme';
 
@@ -17,6 +17,7 @@ const NAV = [
   { href: '#assets', label: 'Assets' },
   { href: '#nifty', label: 'Nifty 50' },
   { href: '#calendar', label: 'Calendar' },
+  { href: '#reports', label: 'PDF' },
   { href: '#advice', label: 'Advice' },
   { href: '#access', label: 'Access' },
 ];
@@ -56,7 +57,7 @@ const OverviewMock = ({ palette }) => (
           <span className="ml-1 h-4 px-1.5 inline-flex items-center rounded-full bg-surface-strong font-mono text-[9px] text-muted">Private</span>
         </div>
         <div className="flex-1 p-2 space-y-0.5">
-          {[['Overview', LayoutGrid, null], ['Mutual Funds', LineChart, 0], ['Gold', Coins, 3], ['Silver', Gem, 4], ['FDs', Landmark, 1], ['EPF', PiggyBank, 2]].map(([t, Icon, slot], i) => (
+          {[['Overview', LayoutGrid, null], ['Calendar', CalendarDays, 7], ['Mutual Funds', LineChart, 0], ['Gold', Coins, 3], ['Silver', Gem, 4], ['FDs', Landmark, 1], ['EPF', PiggyBank, 2]].map(([t, Icon, slot], i) => (
             <span key={t} className={`flex items-center gap-2 h-7 px-2 rounded-[5px] ${i === 0 ? 'bg-surface-strong text-ink font-medium' : 'text-body'}`}>
               <Icon className="w-3.5 h-3.5 text-ink" style={slot != null ? { color: palette.series[slot] } : undefined} strokeWidth={1.75} />{t}
             </span>
@@ -364,7 +365,7 @@ const CAL_DAYS = {
 const CAL_ICONS = [LineChart, Landmark, PiggyBank, Coins, Gem];
 const CalendarMock = ({ palette }) => {
   const lead = 6; // November 2026 starts on a Sunday
-  const cells = Array.from({ length: 35 }, (_, i) => i - lead + 1);
+  const cells = Array.from({ length: 42 }, (_, i) => i - lead + 1); // six weeks: the 30th falls on a Monday
   return (
     <div className="card overflow-hidden" aria-hidden="true">
       <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-line">
@@ -486,9 +487,9 @@ const Landing = () => {
   const features = [
     { id: 'funds', title: "Values every fund at today's NAV", body: 'Replays each SIP and lump sum against the daily NAV from mfapi.in for its XIRR, and against the Nifty 50, so you see which funds beat the index.', mock: <NavMock palette={palette} /> },
     { id: 'deposits', title: "Counts down to each FD's maturity", body: 'Each renewal keeps its own rate, term and the interest it paid.', mock: <FdMock palette={palette} /> },
-    { id: 'metals', title: 'Averages gold and silver cost by set', body: 'Every purchase joins a set: average price per gram by set, year or total.', mock: <MetalsMock /> },
+    { id: 'metals', title: 'Averages gold and silver cost by set', body: 'Every purchase joins a set, and each set shows its average price per gram against the live price.', mock: <MetalsMock /> },
     { id: 'total', title: 'Adds five classes into one total', body: 'Funds, deposits, metals and EPF meet on one overview, with a timeline and a calendar of every payment you made.', mock: <TotalMock palette={palette} /> },
-    { id: 'nifty', wide: true, title: 'Measures your funds against the Nifty 50', body: 'Every SIP and lump sum is replayed into the Nifty 50 on the same day, so you see how far ahead or behind your money is, fund by fund and in total. Switch to fund price to see which funds beat the index from the day you bought them, and drag across the chart to zoom in.', mock: <NiftyMock palette={palette} /> },
+    { id: 'nifty', wide: true, title: 'Measures your funds against the Nifty 50', body: 'Every SIP and lump sum is replayed into the Nifty 50 on the same day, so you see how far ahead or behind your money is, fund by fund and in total. Switch to fund price to see which funds beat the index from the day you bought them, and drag across the chart to zoom in. On a phone, tap the chart to read a day, or hold and drag to move along it.', mock: <NiftyMock palette={palette} /> },
     { id: 'calendar', wide: true, title: 'Puts every payment on a calendar', body: 'Each SIP, lump sum, FD, gold and silver purchase and EPF contribution on the day it went in, with the SIPs and FD maturities still to come. Pick a day for the NAV each payment bought at and what it is worth today.', mock: <CalendarMock palette={palette} /> },
     { id: 'reports', wide: true, title: 'Downloads a PDF report', body: 'The whole portfolio or one asset, with charts and insights. A masked copy hides every amount and keeps the percentages, so it is safe to share.', mock: <PdfMock /> },
   ];
@@ -532,7 +533,7 @@ const Landing = () => {
           <div className={`${WRAP} relative text-center`}>
             <h1 className="mt-6 mx-auto max-w-[15ch] text-[40px] sm:text-[52px] md:text-[64px] leading-[1.05] tracking-[-0.05em] text-ink">Vesta, a private portfolio tracker.</h1>
             <p className="mx-auto mt-6 max-w-[56ch] text-[17px] md:text-[18px] leading-[28px] text-body">
-              Mutual funds at today's NAV, fixed deposits, gold, silver and EPF - 5 asset classes on one dashboard, with XIRR and a year-by-year timeline.
+              Mutual funds at today's NAV, fixed deposits, gold, silver and EPF - 5 asset classes on one dashboard, with XIRR and a month-by-month timeline.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
               <Link to={UNLOCK} className="pill pill-round pill-primary">Open your portfolio <ArrowRight className="w-4 h-4" aria-hidden="true" /></Link>

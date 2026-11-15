@@ -9,12 +9,13 @@ A private portfolio tracker for mutual funds, fixed deposits, gold, silver and E
 - **Five asset classes, one dashboard**: mutual funds at today's NAV, fixed deposits across their renewal cycles, gold and silver at live prices, and EPF with its contribution history.
 - **Overview**: total balance, gain and return across every asset, an allocation donut (current value, invested or returns), and invested-vs-current charts.
 - **Mutual funds**: returns, XIRR and status for each fund, grouped by performance; allocation by SIP against Claude's target; a month-by-month investment timeline with SIP revisions.
-- **Investment calendar**: a month grid of every SIP instalment and lump sum, FD opened, renewed or maturing, gold and silver purchase, and EPF contribution, each as a chip in its asset's colour, with the month's total put in by asset and the SIPs and FD maturities still to come. Click a day for each entry in full: the NAV a payment bought at, the units, what it's worth today and its gain; an FD's rate, interest and next cycle; a metal's price per gram then and now; EPF's employee and employer shares. On phones a day opens as a sheet from the bottom.
+- **Investment calendar**: a month grid of every SIP instalment and lump sum, FD opened, renewed or maturing, gold and silver purchase, and EPF contribution, each as a chip in its asset's colour, with the month's total put in by asset, a legend, and the SIPs and FD maturities still to come. Jump to any month or year from the month picker. Click a day for each entry in full: the NAV a payment bought at, the units, what it's worth today and its gain; an FD's rate, interest and next cycle; a metal's price per gram then and now; EPF's employee and employer shares. On tablets a day opens in a drawer from the right. On phones the month shows each day's asset icons, a day opens as a sheet from the bottom, and a Week view lists the picked day's entries under a pinned week strip.
 - **Fund logos**: each fund shows its fund house's logo, or its initials when there is none.
 - **Against the Nifty 50**: every SIP instalment and lump sum is replayed into the Nifty 50 on the same day, so each fund shows how far ahead or behind the same money in the index it is: a sortable **vs Nifty** column (XIRR points), and in each fund's details the Nifty 50's XIRR, what the same money would be worth there, and the gap in rupees. The Mutual Funds dashboard sums it up for the whole portfolio.
 - **Funds vs Nifty 50 chart** (Performance), in two views that keep the same funds ticked:
   - **Your money**: your actual payments into the ticked funds, as stacked colour bands (one per fund, so the top edge is your total), against the same payments into the Nifty 50 and a dashed line of what went in. A strip under it shows how far ahead (green) or behind (red) you were on each day. Tick one fund, several, or all of them; with none ticked it shows your money as if all of it had gone into the Nifty 50.
   - **Fund price**: each fund's NAV growth from its first payment against the Nifty 50's from the same day (or over 1Y, 3Y, 5Y or Max), with the index level in points. Hovering lists every fund with its NAV, growth and gap to the Nifty 50, ahead above the Nifty 50's row and behind below it.
+  - **On phones**: a bar above the chart sums up the day; tap the chart to read a day in a panel under it, or hold and drag to move along it. Scrolling past the chart never opens the panel.
   - **Zoom**: drag across either chart to zoom into those dates; a mini map of the whole chart then appears, whose window can be dragged, resized or clicked to move along. Reset zoom, or double-click the chart, to see it all.
 - **AI recommendations**: a revised monthly SIP plan with reasons, plus suggested funds to add (Claude Sonnet on AWS Bedrock).
 - **Gold and silver**: holdings grouped into sets, with average buy price per set against the live price, per-gram and overall profit or loss, and how long each holding has been held.
@@ -148,12 +149,9 @@ The file has one list per asset, plus the AI settings:
     }
   ],
   "llmConfig": {
-    "enabled": true,
     "model": "us.anthropic.claude-sonnet-4-20250514-v1:0",
     "max_tokens": 4000,
-    "cacheValidityHours": 24,
-    "temperature": 0.3,
-    "apiKeyRequired": true
+    "temperature": 0.3
   }
 }
 ```
@@ -175,10 +173,9 @@ The file has one list per asset, plus the AI settings:
 - `contributionHistory`: each change to the monthly contribution, from the month (YYYY-MM) it applies.
 
 **AI** (`llmConfig`)
-- `enabled`: turns recommendations on or off.
 - `model`: the Bedrock model ID.
 - `max_tokens`, `temperature`: response length and variability.
-- `cacheValidityHours`: how long a set of recommendations is reused.
+- The browser reuses a set of recommendations for an hour; **Refresh analysis** on the Recommendations page asks again.
 
 ### 3. AWS Bedrock (optional)
 
@@ -232,8 +229,8 @@ In production use HTTPS and set `ALLOWED_ORIGINS` to the frontend's origin. Serv
 
 | Page | What it shows |
 | --- | --- |
-| **Calendar** | Every investment on the day it went in, month by month; click a day for the details of each |
 | **Overview** | Total balance, gain and return; each asset's value and share; allocation donut; invested vs current per asset |
+| **Calendar** | Every investment on the day it went in, month by month (or week by week on phones); click a day for the details of each |
 | **Mutual Funds → Dashboard** | Every fund as a sortable list or a grid, with its fund house's logo, search and multi-select filters (category, status, SIP or lump sum); the portfolio against the Nifty 50 (XIRR and rupees); top performer, funds needing attention, category split |
 | **Mutual Funds → Performance** | The funds-vs-Nifty 50 chart (Your money / Fund price, zoomable), then the funds grouped as Excellent, Good, Monitor and Underperforming, as a list or grid, under filters that stay pinned; the ⓘ beside each group gives its rule |
 | **Mutual Funds → Allocation** | Monthly SIP by category, current vs Claude's target |
@@ -259,7 +256,7 @@ Every route except `/api/health`, `/api/auth/verify` and `/api/auth/logout` need
 | `GET` | `/api/portfolio/funds` | Mutual funds with NAV, returns, XIRR and the same money in the Nifty 50 |
 | `GET` | `/api/portfolio/calendar` | Every dated SIP, lump sum, FD opening, renewal and maturity, metal purchase and EPF contribution, with each one's details and today's value |
 | `GET` | `/api/portfolio/nav-history` | NAV history of every fund and the Nifty 50 (weekly, daily for the last 15 months), the Nifty 50's level, and each fund's value against the same payments in the Nifty 50 over time |
-| `GET` | `/api/portfolio/complete` | Funds with full calculations |
+| `GET` | `/api/portfolio/complete` | Funds, their totals and fixed deposits in one response (kept for older clients) |
 | `GET` | `/api/portfolio/investment-timeline` | Month-by-month investments |
 | `GET` | `/api/portfolio/fds` | Fixed deposits and their cycles |
 | `GET` | `/api/portfolio/gold` | Gold holdings at the live price |

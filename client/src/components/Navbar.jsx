@@ -56,7 +56,8 @@ export const ThemeToggle = ({ className = '' }) => {
 // Each asset's icon, the same set the landing page draws, in the asset's chart colour
 // (the slot it holds on Overview's cards and charts); Overview itself stays ink.
 const ASSET_ICONS = { overview: LayoutGrid, calendar: CalendarDays, mutualFunds: LineChart, gold: Coins, silver: Gem, fds: Landmark, epf: PiggyBank };
-const ASSET_SLOT = { mutualFunds: 0, fds: 1, epf: 2, gold: 3, silver: 4 };
+// each sidebar icon in its asset's chart colour; Calendar takes an unused slot (purple), Overview stays in ink
+const ASSET_SLOT = { mutualFunds: 0, fds: 1, epf: 2, gold: 3, silver: 4, calendar: 7 };
 
 // Marks every screen of the demo, beside the mark (and in the phone bar).
 const DemoChip = ({ fallback = null }) => (IS_DEMO
