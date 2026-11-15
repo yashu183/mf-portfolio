@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { ArrowDownRight, ArrowUpRight, Lock, ZoomIn, ZoomOut } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Lock, X, ZoomIn, ZoomOut } from 'lucide-react';
 import ChartTooltip from './ChartTooltip';
 import { niceTicks } from './PinnedYAxis';
 import FundIcon from './FundIcon';
@@ -179,6 +179,68 @@ const MiniMap = ({ rows, zoom, onZoom, pal, showValue }) => {
 // One Nifty 50 line from the chart's first day, and a line per selected fund from the day it starts.
 // A fund that starts later begins ON the Nifty 50 line that day, so from there on the gap between the two
 // is how the fund did against the same money in the Nifty 50: above it is ahead, below it is behind.
+const HOLD_MS = 250;
+const ScrubArea = ({ rows, plotLeft, plotRight, enabled, onPick, className = '', children, ...rest }) => {
+  const ref = useRef(null);
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  const pickRef = useRef(onPick);
+  pickRef.current = onPick;
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !enabled) return undefined;
+    let timer = null;
+    let start = null;
+    let scrubbing = false;
+    // the row nearest the finger, along the chart's time axis (its plot runs from plotLeft to plotRight in)
+    const pickAt = (clientX) => {
+      const rs = rowsRef.current;
+      if (!rs.length) return;
+      const r = el.getBoundingClientRect();
+      const x0 = r.left + plotLeft;
+      const x1 = r.right - plotRight;
+      const f = Math.min(1, Math.max(0, (clientX - x0) / (x1 - x0 || 1)));
+      const t = rs[0].t + f * (rs[rs.length - 1].t - rs[0].t);
+      let lo = 0;
+      let hi = rs.length - 1;
+      while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (rs[mid].t < t) lo = mid; else hi = mid; }
+      pickRef.current((t - rs[lo].t) < (rs[hi].t - t) ? rs[lo].t : rs[hi].t);
+    };
+    const down = (e) => {
+      const p = e.touches[0];
+      start = { x: p.clientX, y: p.clientY };
+      scrubbing = false;
+      clearTimeout(timer);
+      timer = setTimeout(() => { scrubbing = true; pickAt(start.x); navigator.vibrate?.(8); }, HOLD_MS);
+    };
+    const move = (e) => {
+      const p = e.touches[0];
+      if (scrubbing) { e.preventDefault(); pickAt(p.clientX); return; }
+      // moved before the hold: it's a scroll, not a pick
+      if (start && (Math.abs(p.clientX - start.x) > 8 || Math.abs(p.clientY - start.y) > 8)) { clearTimeout(timer); start = null; }
+    };
+    const up = () => {
+      clearTimeout(timer);
+      if (start && !scrubbing) pickAt(start.x); // a tap
+      start = null;
+      scrubbing = false;
+    };
+    const cancel = () => { clearTimeout(timer); start = null; scrubbing = false; };
+    el.addEventListener('touchstart', down, { passive: true });
+    el.addEventListener('touchmove', move, { passive: false });
+    el.addEventListener('touchend', up);
+    el.addEventListener('touchcancel', cancel);
+    return () => {
+      clearTimeout(timer);
+      el.removeEventListener('touchstart', down);
+      el.removeEventListener('touchmove', move);
+      el.removeEventListener('touchend', up);
+      el.removeEventListener('touchcancel', cancel);
+    };
+  }, [enabled, plotLeft, plotRight]);
+  return <div ref={ref} className={`${className} [-webkit-touch-callout:none]`} {...rest}>{children}</div>;
+};
+
 const VsNiftyChart = ({ funds }) => {
   const { theme } = useTheme();
   const pal = chartPalette(theme);
@@ -195,7 +257,7 @@ const VsNiftyChart = ({ funds }) => {
   const [zoom, setZoom] = useState(null);
   const [drag, setDrag] = useState(null);
   const pickRange = (l) => { setRange(l); setZoom(null); };
-  const pickView = (v) => { setView(v); setZoom(null); };
+  const pickView = (v) => { setView(v); setZoom(null); setReadT(null); };
   // on a phone the hover box is about as wide as the chart, so it sits pinned to the chart's left edge
   // instead of following the finger off the side of the screen
   const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches);
@@ -207,20 +269,17 @@ const VsNiftyChart = ({ funds }) => {
   }, []);
   // z-index 1: over the chart, but under the pinned heading (.pin-head, z 10) and the pinned filter bar, so the
   // box slides behind them when the chart scrolls up under them
-  // On a phone a touch that is only scrolling the page must not open the hover box (it covers the chart and
-  // gets in the way of the scroll), so there it opens on a tap, and closes on any scroll or a tap elsewhere.
-  const [tipOpen, setTipOpen] = useState(false);
+  // Phones: a box over the chart would cover it (it's as wide as the chart), so a tap marks the date with the
+  // dashed line and its figures show in a panel under the chart instead. Scrolling never opens it; another tap
+  // moves it; its × or a tap outside the chart and panel closes it.
+  const [readT, setReadT] = useState(null);
   useEffect(() => {
     if (!narrow) return undefined;
-    const close = () => setTipOpen(false);
-    const outside = (e) => { if (!e.target.closest?.('.recharts-wrapper')) setTipOpen(false); };
-    window.addEventListener('scroll', close, { capture: true, passive: true });
+    const outside = (e) => { if (!e.target.closest?.('.recharts-wrapper, [data-chart-readout]')) setReadT(null); };
     document.addEventListener('pointerdown', outside);
-    return () => { window.removeEventListener('scroll', close, { capture: true }); document.removeEventListener('pointerdown', outside); };
+    return () => document.removeEventListener('pointerdown', outside);
   }, [narrow]);
-  const tipPlace = narrow
-    ? { trigger: 'click', active: tipOpen, position: { x: 4, y: 0 }, wrapperStyle: { zIndex: 1, width: 'calc(100% - 8px)' } }
-    : { wrapperStyle: { zIndex: 1 } };
+  const tipPlace = { wrapperStyle: { zIndex: 1 } };
 
   useEffect(() => {
     let live = true;
@@ -354,7 +413,6 @@ const VsNiftyChart = ({ funds }) => {
       setDrag(null);
     },
     onMouseLeave: () => setDrag(null),
-    onClick: () => { if (narrow) setTipOpen(true); },
     // Recharts sets its own cursor on the chart, so it is set here (mouse only)
     // an arrow while hovering; a plain + (crosshair, as in the mini map) once the button is down and a span is being picked
     style: narrow ? undefined : { cursor: drag ? 'crosshair' : 'default' },
@@ -445,6 +503,41 @@ const VsNiftyChart = ({ funds }) => {
     );
   };
   const isMoney = view === 'money' && money;
+  const cursorLine = narrow && readT != null ? <ReferenceLine x={readT} stroke={pal.tick} strokeDasharray="3 3" ifOverflow="hidden" /> : null;
+  const summaryBar = (rows, kind) => {
+    if (!narrow || readT == null) return null;
+    const r = rows.find((x) => x.t === readT);
+    if (!r) return null;
+    const when = new Date(r.t).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' });
+    let body;
+    if (kind === 'money') {
+      const gap = r.value - r.nifty;
+      body = money.niftyOnly
+        ? <>Nifty <span className="num text-ink">{compact(r.nifty)}</span> · put in <span className="num text-ink">{compact(r.invested)}</span></>
+        : <>You <span className="num text-ink">{compact(r.value)}</span> · Nifty <span className="num text-ink">{compact(r.nifty)}</span> · <span className={`num ${gap >= 0 ? 'text-gain' : 'text-loss'}`}>{gap >= 0 ? '+' : '−'}{compact(Math.abs(gap))}</span></>;
+    } else {
+      const gaps = shown.map((x) => r[`g${x.key}`]).filter((v) => v != null);
+      const up = gaps.filter((v) => v > 0.05).length;
+      body = <>Nifty <span className={`num ${r.nifty >= 0 ? 'text-gain' : 'text-loss'}`}>{pct(r.nifty)}</span>{gaps.length > 0 && <> · <span className="num text-ink">{up}</span> of <span className="num text-ink">{gaps.length}</span> ahead</>}</>;
+    }
+    return (
+      <div className="absolute inset-x-2 top-0 z-[1] flex items-center gap-2 h-7 px-2.5 rounded-md bg-surface/90 backdrop-blur text-[12px] text-body shadow-[0_0_0_1px_var(--c-line-strong)] pointer-events-none">
+        <span className="font-mono text-[11px] uppercase text-muted shrink-0">{when}</span>
+        <span className="min-w-0 truncate">{body}</span>
+      </div>
+    );
+  };
+  const readout = (rows, render) => {
+    if (!narrow || readT == null) return null;
+    const row = rows.find((r) => r.t === readT);
+    if (!row) return null;
+    return (
+      <div data-chart-readout className="relative px-3 pt-2 [&>div]:max-w-none [&>div]:w-full [&>div]:max-h-[min(260px,45vh)] [&>div]:overflow-y-auto [&>div]:overscroll-contain [&>div]:[scrollbar-width:thin]">
+        {render({ active: true, payload: [{ payload: row }] })}
+        <button type="button" onClick={() => setReadT(null)} aria-label="Close" className="absolute top-3.5 right-5 z-[2] grid place-items-center w-7 h-7 rounded-full text-muted hover:text-ink hover:bg-surface-strong cursor-pointer"><X className="w-4 h-4" aria-hidden="true" /></button>
+      </div>
+    );
+  };
   const moneyRows = money && !money.empty ? clip(money.rows) : [];
   const moneyTicks = niceTicks(Math.max(1, ...moneyRows.map((r) => Math.max(money?.niftyOnly ? 0 : r.value, r.nifty, r.invested))));
   const gapsShown = moneyRows.map((r) => r.gap);
@@ -475,14 +568,14 @@ const VsNiftyChart = ({ funds }) => {
     // a section heading like the fund groups below it, with the view switch at its side; the chart in the card under it
     <section aria-labelledby="vs-nifty-h">
       {/* pins at the top while the chart scrolls under it, and leaves with the chart's section */}
-      <div className="pin-head flex flex-wrap items-end justify-between gap-3 pb-4">
-        <div className="min-w-0">
+      <div className="pin-head flex items-center justify-between gap-3 pb-4">
+        <div className="min-w-0 flex-1">
           <h3 id="vs-nifty-h" className="text-[16px] leading-[1.5] font-semibold text-ink">Against the Nifty 50</h3>
           <p className="text-[15px] text-ink-2">{view === 'money' ? 'Your payments, and the same payments into the Nifty 50' : "Each fund's price, and the Nifty 50's, from the same day"}</p>
         </div>
-        <div className="inline-flex h-9 p-1 rounded-md bg-surface shadow-[0_0_0_1px_var(--c-line-strong)]" role="group" aria-label="What to compare">
+        <div className="shrink-0 inline-flex h-8 sm:h-9 p-1 rounded-md bg-surface shadow-[0_0_0_1px_var(--c-line-strong)]" role="group" aria-label="What to compare">
           {VIEWS.map(([id, label]) => (
-            <button key={id} type="button" aria-pressed={view === id} onClick={() => pickView(id)} className={`px-3 whitespace-nowrap rounded-[4px] text-[13px] font-medium transition-colors cursor-pointer ${view === id ? 'bg-surface-strong text-ink' : 'text-muted hover:text-ink'}`}>{label}</button>
+            <button key={id} type="button" aria-pressed={view === id} onClick={() => pickView(id)} className={`px-2 sm:px-3 whitespace-nowrap rounded-[4px] text-[12px] sm:text-[13px] font-medium transition-colors cursor-pointer ${view === id ? 'bg-surface-strong text-ink' : 'text-muted hover:text-ink'}`}>{label}</button>
           ))}
         </div>
       </div>
@@ -546,13 +639,15 @@ const VsNiftyChart = ({ funds }) => {
 
       {zoomBar}
       {isMoney && !money.empty && (
-        <div className="h-[320px] px-1 select-none" onDoubleClick={() => setZoom(null)} role="img" aria-label={`Your money in ${shown.length} funds against the same money in the Nifty 50, from ${fullDate(money.from)}`}>
+        <ScrubArea rows={moneyRows} plotLeft={4 + 60} plotRight={4 + 28} enabled={narrow} onPick={setReadT} className="relative h-[320px] px-1 select-none" onDoubleClick={() => setZoom(null)} role="img" aria-label={`Your money in ${shown.length} funds against the same money in the Nifty 50, from ${fullDate(money.from)}`}>
+          {summaryBar(moneyRows, 'money')}
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={moneyRows} syncId="vs-nifty-money" margin={{ top: 8, right: 28, bottom: 0, left: 0 }} {...dragProps}>
+            <ComposedChart data={moneyRows} syncId="vs-nifty-money" margin={{ top: narrow ? 36 : 8, right: 28, bottom: 0, left: 0 }} {...dragProps}>
               <CartesianGrid vertical={false} stroke={pal.grid} />
               <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} tickCount={6} tickFormatter={tickFor(daysOf(moneyRows))} tick={{ fill: pal.tick, fontSize: 12 }} axisLine={false} tickLine={false} minTickGap={32} />
               <YAxis domain={[0, moneyTicks[moneyTicks.length - 1]]} ticks={moneyTicks} tickFormatter={compact} tick={{ fill: pal.tick, fontSize: 12 }} axisLine={false} tickLine={false} width={60} />
-              <Tooltip content={moneyTip} {...tipPlace} cursor={{ stroke: pal.tick, strokeDasharray: '3 3' }} isAnimationActive={false} />
+              {!narrow && <Tooltip content={moneyTip} {...tipPlace} cursor={{ stroke: pal.tick, strokeDasharray: '3 3' }} isAnimationActive={false} />}
+              {cursorLine}
               {money.bands.map((bd) => (
                 <Area
                   key={bd.key}
@@ -574,8 +669,9 @@ const VsNiftyChart = ({ funds }) => {
               {dragBox}
             </ComposedChart>
           </ResponsiveContainer>
-        </div>
+        </ScrubArea>
       )}
+      {isMoney && !money.empty && readout(moneyRows, moneyTip)}
 
       {/* Ahead or behind over time: the gap between the top of your funds and the Nifty 50 line, drawn on its
           own scale so a ₹2,000 gap on a ₹1 lakh portfolio is plain to see. Green above zero, red below. */}
@@ -606,7 +702,8 @@ const VsNiftyChart = ({ funds }) => {
                   <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} hide />
                   <YAxis domain={gapAxis.domain} ticks={gapAxis.ticks} interval={0} tickFormatter={signed} tick={{ fill: pal.tick, fontSize: 11 }} axisLine={false} tickLine={false} width={60} />
                   <ReferenceLine y={0} stroke={pal.tick} strokeOpacity={0.6} />
-                  <Tooltip content={() => null} cursor={{ stroke: pal.tick, strokeDasharray: '3 3' }} isAnimationActive={false} />
+                  {!narrow && <Tooltip content={() => null} cursor={{ stroke: pal.tick, strokeDasharray: '3 3' }} isAnimationActive={false} />}
+                  {cursorLine}
                   <Area dataKey="gap" type="monotone" baseValue={0} stroke="url(#gapStroke)" strokeWidth={1.5} fill="url(#gapFill)" dot={false} activeDot={false} isAnimationActive={false} />
                   {dragBox}
                 </ComposedChart>
@@ -616,9 +713,10 @@ const VsNiftyChart = ({ funds }) => {
         );
       })()}
 
-      {!isMoney && <div className="h-[320px] px-1 select-none" onDoubleClick={() => setZoom(null)} role="img" aria-label={`The Nifty 50 and ${shown.length} funds from ${fullDate(model.from)}`}>
+      {!isMoney && <ScrubArea rows={priceRows} plotLeft={4 + 52} plotRight={4 + 28} enabled={narrow} onPick={setReadT} className="relative h-[320px] px-1 select-none" onDoubleClick={() => setZoom(null)} role="img" aria-label={`The Nifty 50 and ${shown.length} funds from ${fullDate(model.from)}`}>
+        {summaryBar(priceRows, 'price')}
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={priceRows} margin={{ top: 8, right: 28, bottom: 0, left: 0 }} {...dragProps}>
+          <ComposedChart data={priceRows} margin={{ top: narrow ? 36 : 8, right: 28, bottom: 0, left: 0 }} {...dragProps}>
             <defs>
               <linearGradient id="niftyFill" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={pal.primary} stopOpacity={0.14} />
@@ -629,7 +727,8 @@ const VsNiftyChart = ({ funds }) => {
             <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} tickCount={6} tickFormatter={tickFor(daysOf(priceRows))} tick={{ fill: pal.tick, fontSize: 12 }} axisLine={false} tickLine={false} minTickGap={32} />
             <YAxis domain={priceTicks.domain} ticks={priceTicks.ticks} interval={0} tickFormatter={(v) => `${v}%`} tick={{ fill: pal.tick, fontSize: 12 }} axisLine={false} tickLine={false} width={52} />
             <ReferenceLine y={0} stroke={pal.tick} strokeOpacity={0.5} />
-            <Tooltip content={tip} {...tipPlace} cursor={{ stroke: pal.tick, strokeDasharray: '3 3' }} isAnimationActive={false} />
+            {!narrow && <Tooltip content={tip} {...tipPlace} cursor={{ stroke: pal.tick, strokeDasharray: '3 3' }} isAnimationActive={false} />}
+            {cursorLine}
             <Area dataKey="nifty" type="monotone" stroke={pal.primary} strokeWidth={2.5} strokeOpacity={hover ? 0.6 : 1} fill="url(#niftyFill)" dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
             {shown.map((s) => (
               <Line
@@ -650,7 +749,8 @@ const VsNiftyChart = ({ funds }) => {
             {dragBox}
           </ComposedChart>
         </ResponsiveContainer>
-      </div>}
+      </ScrubArea>}
+      {!isMoney && readout(priceRows, tip)}
 
       <div className="border-t border-line p-5">
         <div className="flex items-center justify-between gap-3 mb-3">

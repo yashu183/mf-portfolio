@@ -44,14 +44,17 @@ const Chip = ({ e, color }) => {
   const moving = e.type === 'fd-renewal' || e.type === 'fd-maturity';
   return (
     <span
-      className={`flex items-center gap-1.5 min-w-0 h-5 px-1.5 rounded-[5px] text-[11px] leading-none ${e.upcoming ? 'text-muted' : 'text-ink'}`}
+      className={`flex items-center gap-1 @[88px]:gap-1.5 w-full min-w-0 overflow-hidden h-5 px-1 @[88px]:px-1.5 rounded-[5px] text-[11px] leading-none ${e.upcoming ? 'text-muted' : 'text-ink'}`}
       style={e.upcoming
         ? { boxShadow: `inset 0 0 0 1px color-mix(in oklab, ${color} 55%, transparent)`, backgroundImage: 'none' }
         : { background: `color-mix(in oklab, ${color} 16%, transparent)` }}
     >
-      {e.kind === 'mf' ? <FundIcon fund={{ name: e.fullName, shortName: e.name, color: e.color }} size={12} /> : moving ? <RotateCw className="w-3 h-3 shrink-0" style={{ color }} aria-hidden="true" /> : <Kind className="w-3 h-3 shrink-0" style={{ color }} aria-hidden="true" />}
-      <span className="truncate flex-1">{e.name}</span>
-      <span className="num shrink-0">{compact(e.amount)}</span>
+      {/* the mark drops out in the narrowest cells, where the chip's colour says the asset and the amount needs the room */}
+      <span className="hidden @[64px]:contents">
+        {e.kind === 'mf' ? <FundIcon fund={{ name: e.fullName, shortName: e.name, color: e.color }} size={12} /> : moving ? <RotateCw className="w-3 h-3 shrink-0" style={{ color }} aria-hidden="true" /> : <Kind className="w-3 h-3 shrink-0" style={{ color }} aria-hidden="true" />}
+      </span>
+      <span className="hidden @[88px]:block truncate flex-1 min-w-0">{e.name}</span>
+      <span className="num truncate ml-auto @[88px]:ml-0">{compact(e.amount)}</span>
     </span>
   );
 };
@@ -271,6 +274,13 @@ const CalendarView = () => {
   const [month, setMonth] = useState(() => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), 1); });
   const [picked, setPicked] = useState(null);
   const [narrow, setNarrow] = useState(() => window.matchMedia('(max-width: 1023.98px)').matches);
+  const [phone, setPhone] = useState(() => window.matchMedia('(max-width: 639.98px)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639.98px)');
+    const on = () => setPhone(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
   // phones: the month grid, or Outlook's week strip with the picked day's entries under it
   const [phoneView, setPhoneView] = useState('month');
 
@@ -285,13 +295,23 @@ const CalendarView = () => {
     mq.addEventListener('change', on);
     return () => mq.removeEventListener('change', on);
   }, []);
-  // the sheet on phones closes with Escape too
+  // While the sheet is open on a phone the page behind it doesn't scroll: the body is pinned where it was (the
+  // only lock iOS Safari respects) and put back, at the same scroll position, when it closes. Escape closes it too.
+  const sheetOpen = !!picked && narrow && phoneView !== 'week';
   useEffect(() => {
-    if (!picked || !narrow || phoneView === 'week') return undefined;
+    if (!sheetOpen) return undefined;
     const key = (e) => { if (e.key === 'Escape') setPicked(null); };
     window.addEventListener('keydown', key);
-    return () => window.removeEventListener('keydown', key);
-  }, [picked, narrow, phoneView]);
+    const y = window.scrollY;
+    const b = document.body.style;
+    const before = { position: b.position, top: b.top, left: b.left, right: b.right, overflow: b.overflow };
+    Object.assign(b, { position: 'fixed', top: `-${y}px`, left: '0', right: '0', overflow: 'hidden' });
+    return () => {
+      window.removeEventListener('keydown', key);
+      Object.assign(b, before);
+      window.scrollTo(0, y);
+    };
+  }, [sheetOpen]);
 
   const byDay = useMemo(() => {
     const map = new Map();
@@ -354,8 +374,8 @@ const CalendarView = () => {
   const dayPutIn = dayEvents.filter((e) => e.newMoney).reduce((s, e) => s + e.amount, 0);
 
   const panel = picked && (
-    <div className="flex flex-col min-h-0">
-      <div className="flex items-start justify-between gap-3 mb-3">
+    <div className="flex flex-col flex-1 min-h-0">
+      <div className="shrink-0 flex items-start justify-between gap-3 pb-3 border-b border-line">
         <div>
           <p className="eyebrow">{picked === today ? 'Today' : picked > today ? 'Coming up' : 'On this day'}</p>
           <h3 className="mt-1 text-[16px] font-semibold text-ink">{longDate(picked)}</h3>
@@ -363,20 +383,28 @@ const CalendarView = () => {
         </div>
         <button type="button" onClick={() => setPicked(null)} aria-label="Close" className="grid place-items-center w-8 h-8 rounded-full text-muted hover:text-ink hover:bg-surface-strong cursor-pointer"><X className="w-4 h-4" aria-hidden="true" /></button>
       </div>
-      {dayEvents.length ? (
-        <ul className="space-y-3">{dayEvents.map((e, i) => <Detail key={i} e={e} color={colorOf(e.kind)} />)}</ul>
-      ) : (
-        <p className="text-[14px] text-body">Nothing went in or came due this day.</p>
-      )}
+      <div className="mt-3 flex-1 min-h-0 overflow-y-auto overscroll-contain [scrollbar-width:thin] -mx-1 px-1 pt-px pb-1">
+        {dayEvents.length ? (
+          <ul className="space-y-3">{dayEvents.map((e, i) => <Detail key={i} e={e} color={colorOf(e.kind)} />)}</ul>
+        ) : (
+          <p className="text-[14px] text-body">Nothing went in or came due this day.</p>
+        )}
+      </div>
     </div>
   );
 
   return (
-    <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
+    <div className="grid lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
+      {/* Under the phone menu bar, whatever pins keeps a 32px band of page colour above it, so nothing shows
+          between the two. Month view: the header block pins while the days scroll. Week view: the whole card
+          stays put (its wrapper paints the page colour behind it, 8px wider and 1px taller than the card, so
+          entries' rings don't show past its rounded corners or through its own translucent ring) and the day's entries scroll under it. */}
+      <div className={week ? 'sticky z-[9] min-w-0 -mt-8 pt-8 -mx-2 px-2 -mb-px pb-px bg-canvas' : 'min-w-0'} style={week ? { top: 'var(--head-h, 0px)' } : undefined}>
       <section className="card min-w-0" aria-label="Investment calendar">
         {/* the month, its totals, the legend and the weekday row stay pinned while the days scroll under them
             (.pin-cols: the same pinned header as the fund tables, with the card's rounded top and ring) */}
-        <div className="pin-cols">
+        <div className={week ? '' : 'pin-cols max-lg:[--ph-h:32px]'}>
+        {!week && <span className="lg:hidden absolute -top-[33px] -inset-x-2 h-8 bg-canvas pointer-events-none" aria-hidden="true" />}
         {/* the month, its arrows and Today; then what went in this month, by asset */}
         <div className="p-4 md:p-5 border-b border-line">
           {narrow ? (
@@ -457,7 +485,7 @@ const CalendarView = () => {
 
         {/* the grid */}
         {!week && <div className="grid grid-cols-7 border-b border-line bg-surface-strong/40">
-          {WEEKDAYS.map((d) => <span key={d} className="py-2 text-center font-mono text-[11px] uppercase tracking-[0.04em] text-muted">{narrow ? d[0] : d}</span>)}
+          {WEEKDAYS.map((d) => <span key={d} className="py-2 text-center font-mono text-[11px] uppercase tracking-[0.04em] text-muted">{phone ? d[0] : d}</span>)}
         </div>}
         </div>
         {!week && <div className="grid grid-cols-7 overflow-hidden rounded-b-[12px]" role="grid" aria-label={monthTitle(month)}>
@@ -476,20 +504,20 @@ const CalendarView = () => {
                 aria-selected={isPicked}
                 aria-label={`${longDate(key)}${list.length ? `, ${list.length} ${list.length === 1 ? 'entry' : 'entries'}${sum ? `, ${inr(sum)} put in` : ''}` : ''}`}
                 onClick={() => setPicked(isPicked ? null : key)}
-                className={`relative text-left flex flex-col gap-1 p-1.5 md:p-2 min-h-[64px] md:min-h-[112px] border-r border-b border-line [&:nth-child(7n)]:border-r-0 transition-colors cursor-pointer
+                className={`@container relative min-w-0 text-left flex flex-col gap-1 p-1.5 md:p-2 min-h-[64px] md:min-h-[112px] overflow-hidden border-r border-b border-line [&:nth-child(7n)]:border-r-0 transition-colors cursor-pointer
                   ${inMonth ? '' : 'bg-surface-strong/25'} ${isPicked ? 'bg-surface-strong/70 shadow-[inset_0_0_0_1.5px_var(--c-ink)]' : 'hover:bg-surface-strong/40'}`}
               >
-                <span className="flex items-center justify-between gap-1">
-                  <span className={`grid place-items-center w-6 h-6 rounded-full text-[12px] num ${isToday ? 'bg-ink text-canvas font-semibold' : inMonth ? 'text-ink' : 'text-muted/60'}`}>{d.getDate()}</span>
-                  {!narrow && sum > 0 && <span className="num text-[11px] text-muted">{compact(sum)}</span>}
+                <span className="flex items-center justify-between gap-1 min-w-0">
+                  <span className={`shrink-0 grid place-items-center w-6 h-6 rounded-full text-[12px] num ${isToday ? 'bg-ink text-canvas font-semibold' : inMonth ? 'text-ink' : 'text-muted/60'}`}>{d.getDate()}</span>
+                  {!phone && sum > 0 && <span className="hidden @[80px]:block min-w-0 truncate num text-[11px] text-muted">{compact(sum)}</span>}
                 </span>
-                {narrow ? (
+                {phone ? (
                   // phones: an icon per kind of entry; the day opens for the rest
                   list.length > 0 && <span className={`px-0.5 ${inMonth ? '' : 'opacity-50'}`}><KindIcons list={list} colorOf={colorOf} /></span>
                 ) : (
-                  <span className={`flex flex-col gap-0.5 min-w-0 ${inMonth ? '' : 'opacity-50'}`}>
+                  <span className={`flex flex-col gap-0.5 w-full min-w-0 ${inMonth ? '' : 'opacity-50'}`}>
                     {list.slice(0, CHIPS_PER_DAY).map((e, i) => <Chip key={i} e={e} color={colorOf(e.kind)} />)}
-                    {list.length > CHIPS_PER_DAY && <span className="px-1.5 text-[11px] text-muted">+{list.length - CHIPS_PER_DAY} more</span>}
+                    {list.length > CHIPS_PER_DAY && <span className="px-1.5 text-[11px] text-muted whitespace-nowrap truncate">+{list.length - CHIPS_PER_DAY}<span className="hidden @[80px]:inline"> more</span></span>}
                   </span>
                 )}
               </button>
@@ -498,10 +526,11 @@ const CalendarView = () => {
         </div>}
 
       </section>
+      </div>
 
       {/* desktop: the day's entries beside the grid; with no day picked, how to use it */}
       {!narrow && (
-        <aside className="lg:sticky lg:top-[calc(var(--sb-h,0px)+1px)] lg:max-h-[calc(100vh-var(--head-h,0px)-96px)] lg:overflow-y-auto [scrollbar-width:thin] lg:p-px lg:-m-px">
+        <aside className="lg:sticky lg:top-[calc(var(--sb-h,0px)+1px)] lg:max-h-[calc(100vh-var(--head-h,0px)-96px)] lg:flex lg:flex-col lg:overflow-hidden lg:p-px lg:-m-px">
           {panel || (
             <div className="card p-5">
               <p className="eyebrow">This month</p>
@@ -535,10 +564,11 @@ const CalendarView = () => {
 
       {/* phones and tablets, month view: the day opens as a sheet from the bottom */}
       {narrow && !week && picked && createPortal(
-        <div className="fixed inset-0 z-50 flex flex-col justify-end" role="dialog" aria-modal="true" aria-label={longDate(picked)}>
+        <div className="fixed inset-0 z-50 flex flex-col justify-end sm:flex-row" role="dialog" aria-modal="true" aria-label={longDate(picked)}>
           <button type="button" className="absolute inset-0 bg-black/40 cursor-default" aria-label="Close" onClick={() => setPicked(null)} />
-          <div className="relative max-h-[80vh] overflow-y-auto rounded-t-2xl bg-canvas p-4 pb-8 shadow-[0_-1px_0_var(--c-line-strong)]">
-            <span className="block mx-auto mb-3 w-10 h-1 rounded-full bg-line-strong" aria-hidden="true" />
+          <div className="relative flex flex-col max-h-[80vh] overflow-hidden rounded-t-2xl bg-canvas px-4 pt-4 pb-6 shadow-[0_-1px_0_var(--c-line-strong)]
+            sm:max-h-none sm:h-full sm:w-[min(420px,85vw)] sm:rounded-none sm:px-5 sm:pt-6 sm:shadow-[-1px_0_0_var(--c-line-strong),var(--c-shadow-float)]">
+            <span className="sm:hidden shrink-0 block mx-auto mb-3 w-10 h-1 rounded-full bg-line-strong" aria-hidden="true" />
             {panel}
           </div>
         </div>,

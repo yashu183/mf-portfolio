@@ -15,6 +15,8 @@ const UNLOCK = '/unlock';
 const DEMO = '/demo';
 const NAV = [
   { href: '#assets', label: 'Assets' },
+  { href: '#nifty', label: 'Nifty 50' },
+  { href: '#calendar', label: 'Calendar' },
   { href: '#advice', label: 'Advice' },
   { href: '#access', label: 'Access' },
 ];
@@ -301,11 +303,11 @@ const NiftyMock = ({ palette }) => {
   const c = palette.series;
   return (
     <div className="card p-5" aria-hidden="true">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-[14px] font-semibold text-ink whitespace-nowrap">Against the Nifty 50</span>
-        <span className="inline-flex h-8 p-0.5 rounded-md shadow-[0_0_0_1px_var(--c-line-strong)] whitespace-nowrap">
+      <div className="flex items-center justify-between gap-2">
+        <span className="min-w-0 truncate text-[13px] sm:text-[14px] font-semibold text-ink"><span className="sm:hidden">vs Nifty 50</span><span className="hidden sm:inline">Against the Nifty 50</span></span>
+        <span className="shrink-0 inline-flex h-7 sm:h-8 p-0.5 rounded-md shadow-[0_0_0_1px_var(--c-line-strong)] whitespace-nowrap">
           {[['money', 'Your money'], ['price', 'Fund price']].map(([id, label]) => (
-            <button key={id} type="button" tabIndex={-1} onClick={() => setView(id)} className={`px-2.5 rounded-[4px] text-[12px] font-medium cursor-pointer ${view === id ? 'bg-surface-strong text-ink' : 'text-muted'}`}>{label}</button>
+            <button key={id} type="button" tabIndex={-1} onClick={() => setView(id)} className={`px-2 sm:px-2.5 rounded-[4px] text-[11px] sm:text-[12px] font-medium cursor-pointer ${view === id ? 'bg-surface-strong text-ink' : 'text-muted'}`}>{label}</button>
           ))}
         </span>
       </div>
@@ -345,6 +347,57 @@ const NiftyMock = ({ palette }) => {
           </svg>
         </>
       )}
+    </div>
+  );
+};
+
+// Mirrors the Calendar page: a month with each day's entries as chips in their asset's colour, the picked day
+// outlined; SIPs still to come dashed. Phones show the asset icons alone, as the app does.
+const CAL_DAYS = {
+  1: [{ k: 2, n: 'EPF', a: '₹7.2K' }],
+  5: [{ k: 0, n: 'Parag Flexi', a: '₹7.5K' }, { k: 0, n: 'HDFC Mid', a: '₹4K' }, { k: 0, more: 5 }],
+  12: [{ k: 3, n: 'Gold coin', a: '₹1.47L' }],
+  15: [{ k: 1, n: 'SBI renewed', a: '₹2.29L' }],
+  21: [{ k: 4, n: 'Silver bar', a: '₹45K' }],
+  28: [{ k: 0, n: 'Axis Small', a: '₹25K' }],
+};
+const CAL_ICONS = [LineChart, Landmark, PiggyBank, Coins, Gem];
+const CalendarMock = ({ palette }) => {
+  const lead = 6; // November 2026 starts on a Sunday
+  const cells = Array.from({ length: 35 }, (_, i) => i - lead + 1);
+  return (
+    <div className="card overflow-hidden" aria-hidden="true">
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-line">
+        <span className="text-[14px] font-semibold text-ink">November 2026</span>
+        <span className="text-[12px] text-muted">Put in <span className="num text-[13px] font-semibold text-ink">₹2,79,200</span></span>
+      </div>
+      <div className="grid grid-cols-7 border-b border-line bg-surface-strong/40">
+        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => <span key={i} className="py-1.5 text-center font-mono text-[10px] text-muted">{d}</span>)}
+      </div>
+      <div className="grid grid-cols-7">
+        {cells.map((d, i) => {
+          const list = CAL_DAYS[d] ?? [];
+          const inMonth = d >= 1 && d <= 30;
+          return (
+            <div key={i} className={`min-h-[44px] sm:min-h-[62px] p-1 border-r border-b border-line [&:nth-child(7n)]:border-r-0 ${inMonth ? '' : 'bg-surface-strong/25'} ${d === 5 ? 'shadow-[inset_0_0_0_1.5px_var(--c-ink)]' : ''}`}>
+              <span className={`grid place-items-center w-5 h-5 rounded-full text-[10px] num ${d === 15 ? 'bg-ink text-canvas font-semibold' : inMonth ? 'text-ink' : 'text-muted/50'}`}>{inMonth ? d : ''}</span>
+              {/* phones: the asset icons; wider: chips */}
+              <span className="sm:hidden flex justify-center gap-0.5 mt-0.5">
+                {[...new Set(list.filter((e) => !e.more).map((e) => e.k))].map((k) => { const Icon = CAL_ICONS[k]; return <Icon key={k} className="w-2.5 h-2.5" style={{ color: palette.series[k] }} strokeWidth={2.25} />; })}
+              </span>
+              <span className="hidden sm:flex flex-col gap-0.5 mt-0.5">
+                {list.map((e, j) => (e.more
+                  ? <span key={j} className="px-1 text-[9px] text-muted">+{e.more} more</span>
+                  : (
+                    <span key={j} className="flex items-center gap-1 h-4 px-1 rounded-[4px] text-[9px] text-ink min-w-0" style={{ background: `color-mix(in oklab, ${palette.series[e.k]} 16%, transparent)` }}>
+                      <span className="truncate flex-1">{e.n}</span><span className="num shrink-0">{e.a}</span>
+                    </span>
+                  )))}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -436,6 +489,7 @@ const Landing = () => {
     { id: 'metals', title: 'Averages gold and silver cost by set', body: 'Every purchase joins a set: average price per gram by set, year or total.', mock: <MetalsMock /> },
     { id: 'total', title: 'Adds five classes into one total', body: 'Funds, deposits, metals and EPF meet on one overview, with a timeline and a calendar of every payment you made.', mock: <TotalMock palette={palette} /> },
     { id: 'nifty', wide: true, title: 'Measures your funds against the Nifty 50', body: 'Every SIP and lump sum is replayed into the Nifty 50 on the same day, so you see how far ahead or behind your money is, fund by fund and in total. Switch to fund price to see which funds beat the index from the day you bought them, and drag across the chart to zoom in.', mock: <NiftyMock palette={palette} /> },
+    { id: 'calendar', wide: true, title: 'Puts every payment on a calendar', body: 'Each SIP, lump sum, FD, gold and silver purchase and EPF contribution on the day it went in, with the SIPs and FD maturities still to come. Pick a day for the NAV each payment bought at and what it is worth today.', mock: <CalendarMock palette={palette} /> },
     { id: 'reports', wide: true, title: 'Downloads a PDF report', body: 'The whole portfolio or one asset, with charts and insights. A masked copy hides every amount and keeps the percentages, so it is safe to share.', mock: <PdfMock /> },
   ];
 

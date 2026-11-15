@@ -116,7 +116,7 @@ const Details = ({ fund, panel = false }) => (
   </div>
 );
 
-const COLS = '@2xl:grid-cols-[minmax(0,1fr)_120px_84px_72px_84px_118px_16px] @2xl:gap-x-3';
+const COLS = '@2xl:grid-cols-[minmax(0,1fr)_120px_84px_72px_108px_112px_16px] @2xl:gap-x-3';
 // below @2xl: the fund, its value and return, the chevron that says the row opens
 const ROW_COLS = 'grid-cols-[minmax(0,1fr)_auto_16px]';
 
@@ -144,10 +144,14 @@ const FundList = ({ funds, sort, onSort }) => {
         <SortHead label="Current" k="current" align="right" className="hidden @2xl:flex" {...head} />
         <SortHead label="Returns" k="returns" align="right" className="hidden @2xl:flex" {...head} />
         <SortHead label="XIRR" k="xirr" align="right" className="hidden @2xl:flex" {...head} />
-        <span className="hidden @2xl:flex items-center justify-end gap-1 min-w-0">
-          <SortHead label="vs Nifty" k="nifty" align="right" {...head} />
-          <InfoTip label="What vs Nifty means" wide><span className="block">XIRR points a year above (+) or below (−) the same money in the Nifty 50. <NiftyExplain /></span></InfoTip>
-        </span>
+        <SortHead
+          label="vs Nifty"
+          k="nifty"
+          align="center"
+          className="hidden @2xl:flex"
+          between={<InfoTip label="What vs Nifty means" wide><span className="block">XIRR points a year above (+) or below (−) the same money in the Nifty 50. <NiftyExplain /></span></InfoTip>}
+          {...head}
+        />
         <span className="hidden @2xl:flex items-center justify-end gap-1 min-w-0">
           <SortHead label="Status" k="status" align="right" {...head} />
           <InfoTip label="What each status means" wide><StatusLegend /></InfoTip>
@@ -183,7 +187,7 @@ const FundList = ({ funds, sort, onSort }) => {
                 </span>
                 <span className={`hidden @2xl:block text-right num text-[14px] ${up ? 'text-gain' : 'text-loss'}`}>{pct(fund.returns)}</span>
                 <span className="hidden @2xl:block text-right num text-[14px] text-ink">{(fund.xirr ?? 0).toFixed(2)}%</span>
-                <span className={`hidden @2xl:block text-right num text-[14px] ${ptsTone(fund.vsNiftyXirr)}`}>{pts(fund.vsNiftyXirr)}</span>
+                <span className={`hidden @2xl:block text-center num text-[14px] ${ptsTone(fund.vsNiftyXirr)}`}>{pts(fund.vsNiftyXirr)}</span>
                 <span className="hidden @2xl:block text-right"><StatusBadge status={fund.status} /></span>
                 <ChevronRight className={`w-4 h-4 text-muted transition-transform ${open ? 'rotate-90 text-ink' : ''}`} aria-hidden="true" />
               </button>

@@ -33,10 +33,34 @@ export const useSort = (rows, accessors, initial = null) => {
 
 // A column head that sorts: the eyebrow caption with a small arrow. Right-aligned heads put the
 // arrow on the left so their caption stays flush with the figures under it.
-export const SortHead = ({ label, k, sort, onSort, align = 'left', className = '' }) => {
+// `between`: something to sit between the caption and the arrow (an info icon), so the head reads
+// "CAPTION ⓘ ↓". It can't go inside the sort button (a button in a button), so the arrow becomes its own
+// small button after it, sorting too, and showing whenever the head is hovered.
+export const SortHead = ({ label, k, sort, onSort, align = 'left', className = '', between = null }) => {
   const active = sort?.key === k;
   const Icon = !active ? ChevronsUpDown : sort.dir === 'asc' ? ArrowUp : ArrowDown;
   const right = align === 'right';
+  const arrowClass = `w-3 h-3 shrink-0 transition-opacity ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-70 group-focus-within:opacity-70'}`;
+  if (between) {
+    return (
+      <span role="columnheader" aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'} className={`group flex items-center gap-1 min-w-0 ${right ? 'justify-end' : align === 'center' ? 'justify-center' : ''} ${className}`}>
+        <button
+          type="button"
+          onClick={() => onSort(k)}
+          className={`eyebrow inline-flex items-center -mx-1 px-1 h-6 rounded cursor-pointer transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-strong ${active ? 'text-ink' : ''}`}
+        >
+          <span className="truncate">{label}</span>
+        </button>
+        {/* the arrow hangs just after the info icon without taking space, so caption and icon stay centred */}
+        <span className="relative inline-flex items-center">
+          {between}
+          <button type="button" tabIndex={-1} aria-hidden="true" onClick={() => onSort(k)} className={`absolute left-full ml-1 grid place-items-center h-6 cursor-pointer ${active ? 'text-ink' : 'text-muted hover:text-ink'}`}>
+            <Icon className={arrowClass} />
+          </button>
+        </span>
+      </span>
+    );
+  }
   return (
     <span role="columnheader" aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'} className={`flex min-w-0 ${right ? 'justify-end' : align === 'center' ? 'justify-center' : ''} ${className}`}>
       <button

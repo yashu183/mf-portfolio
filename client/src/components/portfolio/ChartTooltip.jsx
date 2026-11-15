@@ -6,11 +6,16 @@ const toneClass = (tone) => (tone === 'gain' ? 'text-gain' : tone === 'loss' ? '
 // a row per series (swatch, label, right-aligned figure), and optional totals (one row or a list) split off by a hairline.
 const ChartTooltip = ({ title, subtitle, rows = [], footer }) => (
   <div className="min-w-[200px] max-w-[calc(100vw-48px)] rounded-lg bg-surface p-3 text-[13px] shadow-[0_0_0_1px_var(--c-ring),0_1px_1px_rgb(0_0_0/0.02),0_8px_16px_-4px_rgb(0_0_0/0.08),0_24px_32px_-8px_rgb(0_0_0/0.10)]">
-    {title && <p className="font-mono text-[11px] uppercase tracking-[0.02em] text-muted">{title}</p>}
-    {subtitle && <p className="mt-0.5 text-[12px] text-body">{subtitle}</p>}
+    {/* the date (and its note) stays at the top when a tall list scrolls inside the box (phones cap its height) */}
+    {(title || subtitle) && (
+      <div className="sticky -top-3 z-[1] -mx-3 -mt-3 px-3 pt-3 pb-1 bg-surface rounded-t-lg">
+        {title && <p className="font-mono text-[11px] uppercase tracking-[0.02em] text-muted">{title}</p>}
+        {subtitle && <p className="mt-0.5 text-[12px] text-body">{subtitle}</p>}
+      </div>
+    )}
     {rows.length > 0 && (
       // a long list flows into two columns on wider screens, so it fits beside the chart instead of running off it
-      <ul className={`${title || subtitle ? 'mt-2' : ''} ${rows.length > 8 ? 'lg:columns-2 lg:gap-x-8' : ''}`}>
+      <ul className={`${title || subtitle ? 'mt-1' : ''} ${rows.length > 8 ? 'lg:columns-2 lg:gap-x-8' : ''}`}>
         {rows.map((row) => (
           <li key={row.label} className="break-inside-avoid pb-1.5">
             {/* a highlighted row (the benchmark a list is read against) gets a tinted band */}
