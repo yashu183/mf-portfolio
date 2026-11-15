@@ -451,9 +451,18 @@ const PortfolioTracker = ({ activeAsset }) => {
                           { label: 'Active SIPs', value: `${portfolioData.filter(f => f.currentMonthlySIP > 0).length} funds` },
                         ]}
                       />
-                      <NiftyCard nifty={totals.nifty} />
+                      {/* the category split right under the balance; the Nifty 50 card and the other insights after it */}
+                      <CategoryBreakdown
+                        part="split"
+                        categoryBreakdown={unfilteredCategoryBreakdown}
+                        funds={portfolioData}
+                        totals={totals}
+                        performanceGroups={unfilteredPerformanceGroups}
+                      />
                       <div className="hidden lg:block space-y-4">
+                        <NiftyCard nifty={totals.nifty} />
                         <CategoryBreakdown
+                          part="rest"
                           categoryBreakdown={unfilteredCategoryBreakdown}
                           funds={portfolioData}
                           totals={totals}
@@ -491,9 +500,11 @@ const PortfolioTracker = ({ activeAsset }) => {
 
                     {/* Phone and tablet: the insights follow the list instead of pushing it down */}
                     <div className="lg:hidden space-y-4">
+                      <NiftyCard nifty={totals.nifty} />
                       <CategoryBreakdown
+                        part="rest"
                         categoryBreakdown={unfilteredCategoryBreakdown}
-                          funds={portfolioData}
+                        funds={portfolioData}
                         totals={totals}
                         performanceGroups={unfilteredPerformanceGroups}
                       />

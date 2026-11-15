@@ -207,7 +207,20 @@ const VsNiftyChart = ({ funds }) => {
   }, []);
   // z-index 1: over the chart, but under the pinned heading (.pin-head, z 10) and the pinned filter bar, so the
   // box slides behind them when the chart scrolls up under them
-  const tipPlace = narrow ? { position: { x: 4, y: 0 }, wrapperStyle: { zIndex: 1, width: 'calc(100% - 8px)' } } : { wrapperStyle: { zIndex: 1 } };
+  // On a phone a touch that is only scrolling the page must not open the hover box (it covers the chart and
+  // gets in the way of the scroll), so there it opens on a tap, and closes on any scroll or a tap elsewhere.
+  const [tipOpen, setTipOpen] = useState(false);
+  useEffect(() => {
+    if (!narrow) return undefined;
+    const close = () => setTipOpen(false);
+    const outside = (e) => { if (!e.target.closest?.('.recharts-wrapper')) setTipOpen(false); };
+    window.addEventListener('scroll', close, { capture: true, passive: true });
+    document.addEventListener('pointerdown', outside);
+    return () => { window.removeEventListener('scroll', close, { capture: true }); document.removeEventListener('pointerdown', outside); };
+  }, [narrow]);
+  const tipPlace = narrow
+    ? { trigger: 'click', active: tipOpen, position: { x: 4, y: 0 }, wrapperStyle: { zIndex: 1, width: 'calc(100% - 8px)' } }
+    : { wrapperStyle: { zIndex: 1 } };
 
   useEffect(() => {
     let live = true;
@@ -341,9 +354,10 @@ const VsNiftyChart = ({ funds }) => {
       setDrag(null);
     },
     onMouseLeave: () => setDrag(null),
+    onClick: () => { if (narrow) setTipOpen(true); },
     // Recharts sets its own cursor on the chart, so it is set here (mouse only)
-    // an arrow while hovering; the zoom-in (+) cursor once the button is down and a span is being picked
-    style: narrow ? undefined : { cursor: drag ? 'zoom-in' : 'default' },
+    // an arrow while hovering; a plain + (crosshair, as in the mini map) once the button is down and a span is being picked
+    style: narrow ? undefined : { cursor: drag ? 'crosshair' : 'default' },
   };
   const dragBox = drag && drag.a !== drag.b
     ? <ReferenceArea x1={drag.a} x2={drag.b} fill={pal.tick} fillOpacity={0.18} stroke={pal.tick} strokeOpacity={0.4} ifOverflow="hidden" />

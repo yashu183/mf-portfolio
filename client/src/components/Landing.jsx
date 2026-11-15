@@ -245,21 +245,45 @@ const PdfMock = () => {
 
 // Mirrors the Performance chart: Your money as stacked fund bands under the same money in the Nifty 50, with the
 // ahead/behind strip; Fund price as growth lines from the same day. The switch flips between them, as in the app.
-const NIFTY_N = 48;
-const wave = (i, a, b, c) => Math.sin(i / a) * b + Math.sin(i / c) * b * 0.5;
+// Hand-shaped points (124 a line), drawn as smooth curves as the app draws its lines: clear rises and dips rather
+// than day-to-day noise. Growth in %, from the first point.
+const NIFTY_G = [0, 0.7, 2.3, 1.4, 1.9, 2.5, 4.5, 5, 4.5, 2.9, 2.8, 4.1, 4.5, 5.4, 5.6, 3.8, 3.5, 4.1, 5.5, 4.8, 4.6, 6.7, 7.6, 9.5, 10, 11.7, 12.2, 10.7, 9.5, 9.3, 10.5, 10.7, 9.4, 9.1, 8.9, 11.3, 12.7, 12.8, 12.4, 13.9, 16.6, 16.9, 15.8, 16.7, 16.1, 14.6, 14.1, 15.2, 16.4, 17.4, 18, 19.5, 19.6, 18.4, 16.9, 16.3, 16, 15.4, 14.6, 14.9, 16, 17.8, 19.4, 20, 19.6, 20.8, 22.9, 23, 24.1, 22.1, 20.7, 21, 22.2, 20.4, 19.7, 21, 21.9, 23.3, 23.7, 23.6, 24.7, 24, 22, 23, 23.5, 25.5, 26.1, 24.2, 23.7, 24.6, 24.6, 22.3, 21.2, 20.7, 20.5, 22, 23.7, 23.7, 23.7, 23.7, 23.7, 24.7, 26.9, 26.5, 25, 25.3, 25.8, 26.1, 25.8, 28.2, 30.2, 28.8, 27.9, 27.5, 27.7, 29.5, 29.8, 30.6, 31.3, 31.4, 31.5, 31.9, 33.2, 33.8];
+const FUNDS_G = [
+  // a fund that runs away: a slow climb, then a sharp run-up, a spike and a pullback
+  [0, 0.1, 1.8, 5.8, 8.8, 5, 3.5, 1.8, 3.3, 1.9, 3.6, 2.7, 3.2, 5.5, 9.2, 6.4, 3.4, 4, 5.8, 10, 12.8, 12.8, 12.2, 11, 12.6, 15.1, 15.9, 11.6, 10.1, 11.7, 13.6, 12.1, 8.9, 10.4, 12.8, 13.5, 11.7, 15.3, 19.4, 21.5, 23.9, 22.7, 24.3, 22.8, 22.3, 21.7, 23.2, 23.6, 21.2, 24.2, 28.2, 28.6, 28.3, 28, 30, 32.1, 30.9, 29, 27.6, 31.8, 32.8, 32.9, 35.8, 37, 36.4, 40, 47, 47.4, 45.7, 46.2, 45.3, 46.2, 45.2, 47, 50.2, 51.2, 51.6, 56.4, 63.2, 64.9, 63.2, 59.4, 56.8, 61.9, 70.3, 75, 81, 86.3, 92.2, 97.4, 103, 98.6, 96.7, 91.7, 84.8, 91.1, 94.8, 94.1, 94.6, 95.1, 94.7, 91.1, 89.2, 87.2, 82, 81.4, 79, 80.4, 82.7, 87.1, 92.4, 90.1, 85.6, 84.6, 86.2, 85.1, 84.9, 80.6, 77.4, 81.2, 85.9, 84.1, 85.1, 84.7],
+  // one that keeps a step ahead of the index
+  [0, 1, 2.9, 4.9, 5.1, 5.5, 4.5, 2.5, 1.7, 2.6, 2.8, 4.7, 7.3, 6.3, 7.1, 5.3, 4.5, 4.9, 5.7, 8.1, 9, 9.4, 10.2, 11.2, 11, 12.6, 13.6, 15, 15, 12.8, 11.1, 11.8, 12, 12.4, 11, 12.4, 12.3, 14.1, 15.5, 15.6, 17.5, 19.2, 19.6, 17.8, 15.5, 16.2, 15.5, 16.5, 18.7, 20, 20.2, 20.8, 21.9, 21.1, 20.1, 19.8, 21, 19, 16.5, 19.1, 22, 21.5, 21.3, 23.7, 26.5, 27.2, 26.6, 24.7, 23.7, 23.6, 24.2, 24.4, 24.8, 24.6, 23.6, 25.6, 26.3, 27.7, 28, 28.3, 28.3, 26.8, 26.2, 28.4, 30.4, 30.4, 30.3, 31.8, 32.8, 31.8, 29.5, 27.2, 26.2, 25, 24.3, 25.4, 25.3, 26.9, 28.4, 29.2, 31.7, 31.3, 32.7, 32.3, 32.3, 32.6, 31.2, 31.9, 32.7, 34.8, 36.7, 37, 37.4, 36.8, 34.5, 34.2, 33.5, 36.2, 38.6, 40, 39.9, 40.5, 40.4, 40.9],
+  // and one that lags it
+  [0, 0.4, 1.4, 0.9, 1.3, 1.2, 1.8, 1.3, 1.4, -0.5, -1.2, 0.4, 1.2, 2, 1.7, 0.2, 0.1, 0.4, 1.1, 0.9, 2, 2.2, 2.9, 2.7, 3.4, 4.6, 5.5, 6.5, 6.6, 5.7, 3.9, 3.4, 2.7, 2.6, 3.1, 4.4, 4.3, 4.9, 6.3, 6.6, 6.1, 6.4, 7.5, 8.2, 8.2, 6.7, 6, 5.5, 5.5, 6.8, 9.3, 7.9, 7.2, 8.1, 8.2, 6.9, 5.4, 5, 5.2, 5.7, 5.8, 7.2, 8.2, 9.6, 10.5, 11.3, 11.2, 11, 11, 9.3, 8.8, 7.7, 7.2, 7.3, 7.6, 8.1, 8.5, 9.7, 10.5, 11.1, 10.7, 10, 8.7, 8.6, 8.9, 10.5, 11.7, 11.6, 10.9, 10.1, 10.6, 10, 10.4, 8, 6.5, 7, 7.9, 8.4, 10, 10.9, 11.1, 12.1, 13.3, 12.6, 13, 11.5, 11.3, 11.3, 12.6, 12.8, 14.1, 13.9, 14.3, 13.5, 11.5, 12.3, 12.4, 13.2, 14.9, 14.4, 14.6, 16.4, 16.8, 18.2],
+];
+const NIFTY_N = NIFTY_G.length;
 const NiftyMock = ({ palette }) => {
   const [view, setView] = useState('money');
   const W = 320;
   const H = 120;
   const xs = Array.from({ length: NIFTY_N }, (_, i) => (i / (NIFTY_N - 1)) * W);
-  const path = (ys) => ys.map((y, i) => `${i ? 'L' : 'M'}${xs[i].toFixed(1)},${y.toFixed(1)}`).join(' ');
-  const area = (top, bottom) => `${path(top)} ${bottom.slice().reverse().map((y, i) => `L${xs[NIFTY_N - 1 - i].toFixed(1)},${y.toFixed(1)}`).join(' ')} Z`;
-  // money: what went in climbs steadily; your funds grow a little faster than the same money in the Nifty 50
-  // (dipping just under it early on), split into three fund bands, the third started partway through
-  const put = xs.map((_, i) => 6 + i * 1.55);
-  const total = put.map((p, i) => p * (1 + i * 0.0075 + wave(i, 4, 0.02, 9) - (i < 10 ? 0.025 : 0)));
-  const nifty = put.map((p, i) => p * (1 + i * 0.0042 + wave(i, 6, 0.012, 11)));
-  const share3 = xs.map((_, i) => (i < 18 ? 0 : Math.min(0.3, (i - 18) * 0.02)));
+  const pt = (x, v) => `${x.toFixed(1)},${v.toFixed(1)}`;
+  // a smooth curve through the points (Catmull-Rom as cubic Béziers); `from` starts it as a line-to, for areas
+  const smooth = (ys, xsx = xs, from = 'M') => ys.map((v, i) => {
+    if (i === 0) return `${from}${pt(xsx[0], v)}`;
+    const p0 = [xsx[Math.max(i - 2, 0)], ys[Math.max(i - 2, 0)]];
+    const p1 = [xsx[i - 1], ys[i - 1]];
+    const p2 = [xsx[i], v];
+    const p3 = [xsx[Math.min(i + 1, ys.length - 1)], ys[Math.min(i + 1, ys.length - 1)]];
+    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+    const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+    return `C${pt(...c1)} ${pt(...c2)} ${pt(...p2)}`;
+  }).join(' ');
+  const rev = xs.slice().reverse();
+  const area = (top, bottom) => `${smooth(top)} ${smooth(bottom.slice().reverse(), rev, 'L')} Z`;
+  const line = (ys) => ys.map((v, i) => `${i ? 'L' : 'M'}${pt(xs[i], v)}`).join(' ');
+  // money: what went in climbs each month; the Nifty 50 grows it by the index's moves, your funds by a little
+  // more (and a little less in the first months), split into three fund bands, the third started partway through
+  const put = xs.map((_, i) => 8 + i * 1.6);
+  // the index's moves are doubled here so its rises and dips show over the steady climb of what goes in
+  const nifty = put.map((p, i) => p * (1 + (NIFTY_G[i] * 2) / 100));
+  const total = put.map((p, i) => p * (1 + (NIFTY_G[i] * 2.5 + (i < 14 ? -4 : (i - 14) * 0.25)) / 100));
+  const share3 = xs.map((_, i) => (i < 24 ? 0 : Math.min(0.3, (i - 24) * 0.015)));
   const s1 = total.map((v, i) => v * (1 - share3[i]) * 0.56);
   const s2 = total.map((v, i) => v * (1 - share3[i]));
   const s3 = total;
@@ -268,10 +292,12 @@ const NiftyMock = ({ palette }) => {
   const gap = s3.map((v, i) => v - nifty[i]);
   const gMax = Math.max(...gap.map(Math.abs)) || 1;
   const gy = (v) => 30 - (v / gMax) * 26;
-  // price: three fund lines and the Nifty 50, each from 0%, filling the same height as the money view
+  // price: the three funds and the Nifty 50 from 0%, scaled so the highest point sits just under the top
   const base = H + 30;
-  const lines = [[1.25, 5, 2], [0.8, 4, 1.4], [0.45, 3, 1.1]].map(([k, a, b]) => xs.map((_, i) => base - i * k * 2.1 - wave(i, a, b * 3, 9)));
-  const niftyP = xs.map((_, i) => base - i * 0.7 * 2.1 - wave(i, 6, 2.5, 11));
+  const peak = Math.max(...FUNDS_G.flat(), ...NIFTY_G);
+  const scale = (base - 14) / peak;
+  const lines = FUNDS_G.map((g) => g.map((v) => base - v * scale));
+  const niftyP = NIFTY_G.map((v) => base - v * scale);
   const c = palette.series;
   return (
     <div className="card p-5" aria-hidden="true">
@@ -291,8 +317,8 @@ const NiftyMock = ({ palette }) => {
             <path d={area(s1.map(y), xs.map(() => H))} fill={c[0]} fillOpacity="0.55" />
             <path d={area(s2.map(y), s1.map(y))} fill={c[1]} fillOpacity="0.55" />
             <path d={area(s3.map(y), s2.map(y))} fill={c[2]} fillOpacity="0.55" />
-            <path d={path(put.map(y))} fill="none" stroke={palette.tick} strokeWidth="1.2" strokeDasharray="4 4" />
-            <path d={path(nifty.map(y))} fill="none" stroke={palette.primary} strokeWidth="2" />
+            <path d={line(put.map(y))} fill="none" stroke={palette.tick} strokeWidth="1.2" strokeDasharray="4 4" />
+            <path d={smooth(nifty.map(y))} fill="none" stroke={palette.primary} strokeWidth="2" />
           </svg>
           <svg viewBox={`0 0 ${W} 36`} className="mt-2 w-full h-auto" preserveAspectRatio="none">
             <defs>
@@ -302,8 +328,8 @@ const NiftyMock = ({ palette }) => {
             <line x1="0" x2={W} y1="30" y2="30" stroke={palette.grid} />
             {[['nm-up', palette.up], ['nm-down', palette.down]].map(([id, col]) => (
               <g key={id} clipPath={`url(#${id})`}>
-                <path d={`${path(gap.map(gy))} L${W},30 L0,30 Z`} fill={col} fillOpacity="0.3" />
-                <path d={path(gap.map(gy))} fill="none" stroke={col} strokeWidth="1.2" />
+                <path d={`${smooth(gap.map(gy))} L${W},30 L0,30 Z`} fill={col} fillOpacity="0.3" />
+                <path d={smooth(gap.map(gy))} fill="none" stroke={col} strokeWidth="1.4" />
               </g>
             ))}
           </svg>
@@ -314,8 +340,8 @@ const NiftyMock = ({ palette }) => {
           <p className="mt-1 text-[12px] text-muted">Nifty 50 since you started · 16,719 → 25,144 points</p>
           <svg viewBox={`0 0 ${W} ${H + 44}`} className="mt-3 w-full h-auto" preserveAspectRatio="none">
             <line x1="0" x2={W} y1={base} y2={base} stroke={palette.grid} />
-            {lines.map((ln, i) => <path key={i} d={path(ln)} fill="none" stroke={c[i]} strokeWidth="1.5" />)}
-            <path d={path(niftyP)} fill="none" stroke={palette.primary} strokeWidth="2.2" />
+            {lines.map((ln, i) => <path key={i} d={smooth(ln)} fill="none" stroke={[c[7], c[1], c[2]][i]} strokeWidth="1.8" />)}
+            <path d={smooth(niftyP)} fill="none" stroke={palette.primary} strokeWidth="2.2" />
           </svg>
         </>
       )}

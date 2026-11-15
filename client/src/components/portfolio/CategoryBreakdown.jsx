@@ -8,7 +8,8 @@ import { useTheme, chartPalette } from '../../hooks/useTheme';
 import { formatCompact } from '../../utils/formatters';
 
 // Insights for the left column, as stacked Vercel cards: a mono label, then the facts.
-const CategoryBreakdown = ({ categoryBreakdown, totals, performanceGroups, funds = [] }) => {
+// `part` renders a piece of them: 'split' the categories card alone, 'rest' every card after it; both when unset.
+const CategoryBreakdown = ({ categoryBreakdown, totals, performanceGroups, funds = [], part }) => {
   const topFund = performanceGroups.excellent.filter((f) => Number.isFinite(f.xirr)).sort((a, b) => b.xirr - a.xirr)[0];
   const categories = Object.entries(categoryBreakdown)
     .map(([category, data]) => ({ category, ...data, pct: totals.totalCurrentValue > 0 ? (data.current / totals.totalCurrentValue) * 100 : 0 }))
@@ -27,9 +28,11 @@ const CategoryBreakdown = ({ categoryBreakdown, totals, performanceGroups, funds
   const share = (v) => (sliceTotal > 0 ? ((v / sliceTotal) * 100).toFixed(2) : '0');
   const insights = useMemo(() => fundInsights(funds), [funds]);
 
+  const showSplit = part !== 'rest';
+  const showRest = part !== 'split';
   return (
     <>
-      <section className="card overflow-hidden" aria-labelledby="split-h">
+      {showSplit && <section className="card overflow-hidden" aria-labelledby="split-h">
         <div className="flex items-center justify-between gap-3 px-5 pt-5">
           <p id="split-h" className="eyebrow">Categories</p>
           <StyleSwitch value={chartStyle} onChange={setChartStyle} />
@@ -59,8 +62,9 @@ const CategoryBreakdown = ({ categoryBreakdown, totals, performanceGroups, funds
             </li>
           ))}
         </ul>
-      </section>
+      </section>}
 
+      {showRest && <>
       <section className="card p-5" aria-labelledby="top-h">
         <p id="top-h" className="eyebrow">Top performer</p>
         {topFund ? (
@@ -96,6 +100,7 @@ const CategoryBreakdown = ({ categoryBreakdown, totals, performanceGroups, funds
       </section>
 
       <Insights items={insights} standalone />
+      </>}
     </>
   );
 };
