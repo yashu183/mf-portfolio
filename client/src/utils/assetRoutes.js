@@ -3,6 +3,7 @@ import { PieChart, BarChart3, Target, TrendingUp, CalendarDays } from 'lucide-re
 // Single source of truth for the top-level asset tabs and their URLs.
 export const ASSET_TABS = [
   { id: 'overview', label: 'Overview', path: '/' },
+  { id: 'calendar', label: 'Calendar', path: '/calendar' },
   { id: 'mutualFunds', label: 'Mutual Funds', path: '/mutual-funds' },
   { id: 'gold', label: 'Gold', path: '/gold' },
   { id: 'silver', label: 'Silver', path: '/silver' },

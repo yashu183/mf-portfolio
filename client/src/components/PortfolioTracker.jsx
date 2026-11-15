@@ -23,6 +23,7 @@ import GoldSilverView from './portfolio/GoldSilverView';
 import EPFView from './portfolio/EPFView';
 import OverviewView from './portfolio/OverviewView';
 import ScrollPane, { StickyBar } from './portfolio/ScrollPane';
+import CalendarView from './portfolio/CalendarView';
 import { IS_DEMO } from '../utils/demo';
 import { PageGhost, SummaryGhost, NoteGhost, HeadingGhost, ListGhost, ChartGhost } from './portfolio/Ghost';
 
@@ -30,6 +31,10 @@ const ASSET_HEADER_CONTENT = {
   overview: {
     title: IS_DEMO ? 'Welcome to the demo' : 'Welcome, Yashwanth',
     subtitle: IS_DEMO ? 'A made-up portfolio, valued at today\'s prices - every asset, one view' : 'Your complete portfolio at a glance - all assets, one view',
+  },
+  calendar: {
+    title: 'Calendar',
+    subtitle: 'Every SIP, lump sum, FD, metal purchase and EPF contribution on the day it went in',
   },
   mutualFunds: {
     title: 'Mutual Funds',
@@ -339,7 +344,7 @@ const PortfolioTracker = ({ activeAsset }) => {
               <h1 className="text-[28px] md:text-[32px] leading-[1.25] text-ink">{activeAssetHeader.title}</h1>
               <p className="mt-1 text-[14px] leading-[20px] text-body">{activeAssetHeader.subtitle}</p>
             </div>
-            <div ref={actionsRef} className="flex items-center gap-2">
+            {activeAsset !== 'calendar' && <div ref={actionsRef} className="flex items-center gap-2">
               <span className="inline-flex items-center gap-2 h-8 px-3 rounded-md bg-surface shadow-[0_0_0_1px_var(--c-line-strong)] text-[13px] font-medium text-ink" role="status">
                 {statusLoading ? (
                   <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" aria-hidden="true" />
@@ -370,7 +375,7 @@ const PortfolioTracker = ({ activeAsset }) => {
                 label={activeAsset === 'overview' ? 'the full portfolio' : refreshLabel}
                 disabled={statusLoading}
               />
-            </div>
+            </div>}
           </div>
           {/* Mutual Funds' sections, as Vercel's project tabs; they sit in the pinned head, so they stay in view */}
           {activeAsset === 'mutualFunds' && (
@@ -392,7 +397,7 @@ const PortfolioTracker = ({ activeAsset }) => {
         </div>
       </div>
 
-      {actionsAway && document.getElementById('bar-actions') && createPortal(
+      {actionsAway && activeAsset !== 'calendar' && document.getElementById('bar-actions') && createPortal(
         <>
           {canRefresh && (
             <button type="button" onClick={handleManualRefresh} disabled={statusLoading} className={ROUND_BTN} aria-label={`Refresh ${refreshLabel}`} title={`Refresh ${refreshLabel}`}>
@@ -592,6 +597,11 @@ const PortfolioTracker = ({ activeAsset }) => {
             onNavigate={goToAsset}
           />
         )}
+        {activeAsset === 'calendar' && (
+          <ScrollPane>
+            <CalendarView />
+          </ScrollPane>
+        )}
         {activeAsset === 'fds' && (
           <FixedDepositsView deposits={fixedDeposits} isLoading={isLoadingFDs} error={fdError} />
         )}
@@ -620,6 +630,8 @@ const PortfolioTracker = ({ activeAsset }) => {
                 ? `${activeAsset === 'gold' ? 'Gold (24K)' : 'Silver (999)'} prices from bullions.co.in, per gram in INR`
                 : activeAsset === 'epf'
                   ? 'Interest compounded monthly at EPFO declared rates'
+                  : activeAsset === 'calendar'
+                    ? 'Mutual fund payments at the NAV of their day · EPF shown on the 1st of the month it is credited'
                   : 'Each asset fills in as you add holdings'}
         </span>
         <span>© 2026 Vesta · Yashwanth C</span>

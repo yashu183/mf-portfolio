@@ -14,6 +14,7 @@ const AppRoutes = () => (
     <Navbar />
     <Routes>
       <Route path="/" element={<PortfolioTracker activeAsset="overview" />} />
+      <Route path="/calendar" element={<PortfolioTracker activeAsset="calendar" />} />
       <Route path="/mutual-funds" element={<PortfolioTracker activeAsset="mutualFunds" />} />
       <Route path="/mutual-funds/:view" element={<PortfolioTracker activeAsset="mutualFunds" />} />
       <Route path="/gold" element={<PortfolioTracker activeAsset="gold" />} />

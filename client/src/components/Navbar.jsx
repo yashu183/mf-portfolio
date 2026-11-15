@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { Sun, Moon, Eye, EyeOff, Lock, LogOut, Menu, ArrowLeftToLine, LayoutGrid, LineChart, Coins, Gem, Landmark, PiggyBank } from 'lucide-react';
+import { Sun, Moon, Eye, EyeOff, Lock, LogOut, Menu, ArrowLeftToLine, LayoutGrid, LineChart, Coins, Gem, Landmark, PiggyBank, CalendarDays } from 'lucide-react';
 import { ASSET_TABS, MUTUAL_FUND_VIEWS } from '../utils/assetRoutes';
 import { useTheme, chartPalette } from '../hooks/useTheme';
 import { usePrivacy } from '../hooks/usePrivacy';
@@ -55,7 +55,7 @@ export const ThemeToggle = ({ className = '' }) => {
 
 // Each asset's icon, the same set the landing page draws, in the asset's chart colour
 // (the slot it holds on Overview's cards and charts); Overview itself stays ink.
-const ASSET_ICONS = { overview: LayoutGrid, mutualFunds: LineChart, gold: Coins, silver: Gem, fds: Landmark, epf: PiggyBank };
+const ASSET_ICONS = { overview: LayoutGrid, calendar: CalendarDays, mutualFunds: LineChart, gold: Coins, silver: Gem, fds: Landmark, epf: PiggyBank };
 const ASSET_SLOT = { mutualFunds: 0, fds: 1, epf: 2, gold: 3, silver: 4 };
 
 // Marks every screen of the demo, beside the mark (and in the phone bar).

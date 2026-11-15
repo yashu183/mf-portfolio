@@ -434,7 +434,7 @@ const Landing = () => {
     { id: 'funds', title: "Values every fund at today's NAV", body: 'Replays each SIP and lump sum against the daily NAV from mfapi.in for its XIRR, and against the Nifty 50, so you see which funds beat the index.', mock: <NavMock palette={palette} /> },
     { id: 'deposits', title: "Counts down to each FD's maturity", body: 'Each renewal keeps its own rate, term and the interest it paid.', mock: <FdMock palette={palette} /> },
     { id: 'metals', title: 'Averages gold and silver cost by set', body: 'Every purchase joins a set: average price per gram by set, year or total.', mock: <MetalsMock /> },
-    { id: 'total', title: 'Adds five classes into one total', body: 'Funds, deposits, metals and EPF meet on one overview, with a timeline.', mock: <TotalMock palette={palette} /> },
+    { id: 'total', title: 'Adds five classes into one total', body: 'Funds, deposits, metals and EPF meet on one overview, with a timeline and a calendar of every payment you made.', mock: <TotalMock palette={palette} /> },
     { id: 'nifty', wide: true, title: 'Measures your funds against the Nifty 50', body: 'Every SIP and lump sum is replayed into the Nifty 50 on the same day, so you see how far ahead or behind your money is, fund by fund and in total. Switch to fund price to see which funds beat the index from the day you bought them, and drag across the chart to zoom in.', mock: <NiftyMock palette={palette} /> },
     { id: 'reports', wide: true, title: 'Downloads a PDF report', body: 'The whole portfolio or one asset, with charts and insights. A masked copy hides every amount and keeps the percentages, so it is safe to share.', mock: <PdfMock /> },
   ];

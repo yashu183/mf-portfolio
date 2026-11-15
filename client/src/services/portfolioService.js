@@ -42,6 +42,20 @@ export const getNavHistory = async () => {
   return result.data;
 };
 
+// ─── Investment calendar ───────────────────────────────────────────────────────
+let _calendarCache = { data: null, timestamp: null };
+/** GET /api/portfolio/calendar – every dated investment, renewal and maturity */
+export const getCalendar = async () => {
+  const now = Date.now();
+  if (_calendarCache.data && now - _calendarCache.timestamp < CACHE_TTL) return _calendarCache.data;
+  const response = await authenticatedFetch(`${API_ROOT}/portfolio/calendar`);
+  if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  const result = await response.json();
+  if (result.status !== 'success') throw new Error(result.message ?? 'Unknown server error');
+  _calendarCache = { data: result.data, timestamp: now };
+  return result.data;
+};
+
 // ─── Fixed Deposits ────────────────────────────────────────────────────────────
 /** GET /api/portfolio/fds – returns { fixedDeposits } */
 export const getFixedDeposits = async () => {
