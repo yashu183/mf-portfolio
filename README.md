@@ -47,6 +47,18 @@ The design follows Vercel's design system: hairline cards, mono labels, a dashbo
 - [bullions.co.in](https://bullions.co.in/) for gold (24K) and silver (999) prices
 - The Nifty 50 is benchmarked with the UTI Nifty 50 Index Fund (Direct) from MFapi, which counts dividends; its level in points comes from Yahoo Finance (`^NSEI`), kept for 6 hours and saved to disk, and the chart works without it
 
+The server is laid out by job:
+
+```
+server/
+  server.js        wires the app: CORS, the demo, sign-in, then the routes
+  routes/          auth.js (sign-in, the demo, the session check), portfolio.js, recommendations.js
+  services/        the maths for each part of the app: funds, navHistory, fds, metals, epf,
+                   timeline, calendar, overview, and recommendations (Bedrock)
+  lib/             config loading, dates, XIRR, responses
+  lib/sources/     the outside data: mfapi.js (NAVs, with the disk cache), yahoo.js, bullions.js
+```
+
 ## Prerequisites
 
 - Node.js 18 or higher, and npm
