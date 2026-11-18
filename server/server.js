@@ -1,8 +1,9 @@
 // MF Portfolio API. The app is wired here; the work lives in:
-//   routes/    auth (sign-in, demo, session check), portfolio (one route per page), recommendations
+//   routes/    auth (sign-in, demo, session check), portfolio (one route per page), recommendations,
+//              entries (adding SIPs, lumpsums, gold, silver and FDs from the app)
 //   services/  the maths for each asset: funds, navHistory, fds, metals, epf, timeline, calendar, overview,
 //              and the AI recommendations
-//   lib/       config loading, dates, XIRR, responses, and the outside data sources (lib/sources: MFapi
+//   lib/       config loading and saving (configStore), dates, XIRR, responses, and the outside data sources (lib/sources: MFapi
 //              NAVs, Yahoo's Nifty 50 level, bullions.co.in metal prices)
 const path = require('path');
 // first, so every module below sees the settings when it loads
@@ -13,6 +14,7 @@ const cors = require('cors');
 const { demoRewrite, authRoutes, requireSession } = require('./routes/auth');
 const portfolioRoutes = require('./routes/portfolio');
 const recommendationRoutes = require('./routes/recommendations');
+const entryRoutes = require('./routes/entries');
 
 const app = express();
 
@@ -33,6 +35,7 @@ app.use(demoRewrite);
 app.use(authRoutes);
 app.use('/api', requireSession);
 app.use('/api/recommendations', recommendationRoutes);
+app.use('/api/entries', entryRoutes);
 app.use('/api', portfolioRoutes);
 
 const PORT = process.env.PORT ?? 3002;

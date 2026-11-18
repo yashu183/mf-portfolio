@@ -1,4 +1,4 @@
-// XIRR by Newton's method, with optional key-based caching (results are stable per fund + NAV date)
+// XIRR by Newton's method, with optional key-based caching (the caller keys it by the cash flows themselves)
 const _xirrCache = {};
 function calculateXIRR(cashFlows, guess = 0.1, cacheKey = null) {
     if (cacheKey && _xirrCache[cacheKey] !== undefined) {

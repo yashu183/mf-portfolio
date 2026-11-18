@@ -283,8 +283,11 @@ const VsNiftyChart = ({ funds }) => {
 
   useEffect(() => {
     let live = true;
-    getNavHistory().then((h) => live && setHistory(h)).catch(() => live && setFailed(true));
-    return () => { live = false; };
+    const load = () => getNavHistory().then((h) => live && setHistory(h)).catch(() => live && setFailed(true));
+    load();
+    // an entry added from the Add sheet changes each fund's money against the Nifty
+    window.addEventListener('portfolio:changed', load);
+    return () => { live = false; window.removeEventListener('portfolio:changed', load); };
   }, []);
 
   const model = useMemo(() => {

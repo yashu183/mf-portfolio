@@ -303,6 +303,24 @@ export function usePortfolioData(activeAsset = 'mutualFunds') {
         return () => clearInterval(interval);
     }, [fetchPortfolio, fetchTimeline, checkHealth]);
 
+    // ── An entry was added from the Add sheet: the caches are already empty, so every page loads afresh
+    // the next time it shows, and the one on screen (plus the funds, which several pages read) loads now.
+    useEffect(() => {
+        const changed = () => {
+            fdFetchedRef.current = goldFetchedRef.current = silverFetchedRef.current = false;
+            epfFetchedRef.current = overviewFetchedRef.current = false;
+            fetchPortfolio();
+            fetchTimeline();
+            if (activeAsset === 'fds') fetchFDs();
+            else if (activeAsset === 'gold') fetchGold();
+            else if (activeAsset === 'silver') fetchSilver();
+            else if (activeAsset === 'epf') fetchEPF();
+            else if (activeAsset === 'overview') fetchOverview();
+        };
+        window.addEventListener('portfolio:changed', changed);
+        return () => window.removeEventListener('portfolio:changed', changed);
+    }, [activeAsset, fetchPortfolio, fetchTimeline, fetchFDs, fetchGold, fetchSilver, fetchEPF, fetchOverview]);
+
     // ── Lazy FD fetch: trigger once when user first switches to FDs ───────────────
     useEffect(() => {
         if (activeAsset === 'fds' && !fdFetchedRef.current) fetchFDs();

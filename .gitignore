@@ -3,6 +3,8 @@
 .env
 .claude/**
 **/portfolioConfig.json
+**/portfolioConfig.json.*.tmp
+**/.config-backups/
 **/.nav-cache/
 # Playwright CLI output (may contain credentials)
 .playwright-cli/

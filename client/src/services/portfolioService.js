@@ -187,6 +187,8 @@ export const getOverview = async () => {
 export const clearOverviewCache = () => { _overviewCache = { data: null, timestamp: null }; };
 
 export const clearAllPortfolioCaches = () => {
+  _navHistoryCache = { data: null, timestamp: null };
+  _calendarCache = { data: null, timestamp: null };
   clearMFCache();
   clearFDCache();
   clearPortfolioCache();
@@ -197,3 +199,29 @@ export const clearAllPortfolioCaches = () => {
   clearOverviewCache();
 };
 
+
+// ─── Adding entries (the Add sheet) ────────────────────────────────────────────
+/** GET /api/entries/options – the funds, running SIPs, metal sets and FDs the Add sheet picks from */
+export const getEntryOptions = async () => {
+  const response = await authenticatedFetch(`${API_ROOT}/entries/options`);
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || result.status !== 'success') throw new Error(result.message ?? `HTTP ${response.status}`);
+  return result.data;
+};
+
+/**
+ * POST /api/entries/<kind> – saves one entry to the portfolio. Every cached page is dropped and
+ * 'portfolio:changed' tells the open pages to load again, so the entry shows up at once.
+ */
+export const addEntry = async (kind, body) => {
+  const response = await authenticatedFetch(`${API_ROOT}/entries/${kind}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || result.status !== 'success') throw new Error(result.message ?? `HTTP ${response.status}`);
+  clearAllPortfolioCaches();
+  window.dispatchEvent(new Event('portfolio:changed'));
+  return result.data;
+};

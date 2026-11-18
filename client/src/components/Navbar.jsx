@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { Sun, Moon, Eye, EyeOff, Lock, LogOut, Menu, ArrowLeftToLine, LayoutGrid, LineChart, Coins, Gem, Landmark, PiggyBank, CalendarDays } from 'lucide-react';
+import { Sun, Moon, Eye, EyeOff, Lock, LogOut, Menu, ArrowLeftToLine, LayoutGrid, LineChart, Coins, Gem, Landmark, PiggyBank, CalendarDays, Plus } from 'lucide-react';
 import { ASSET_TABS, MUTUAL_FUND_VIEWS } from '../utils/assetRoutes';
 import { useTheme, chartPalette } from '../hooks/useTheme';
 import { usePrivacy } from '../hooks/usePrivacy';
 import { logout } from '../services/authService';
 import { IS_DEMO } from '../utils/demo';
+import AddEntrySheet from './AddEntrySheet';
 
 // Vesta's mark: four dots, the last one squared, in the ink colour (it flips with the theme).
 export const VestaMark = ({ size = 22, color = 'var(--c-ink)' }) => (
@@ -115,7 +116,7 @@ const itemClass = (active) =>
 
 // The sidebar's contents, shared by the fixed sidebar (desktop) and the drawer (phones, tablets):
 // the mark, every asset, the switches at the foot. (Mutual Funds' sections are tabs in its page head.)
-const SidebarContent = ({ onNavigate, closeButton }) => {
+const SidebarContent = ({ onNavigate, closeButton, onAdd }) => {
   const { theme } = useTheme();
   const palette = chartPalette(theme);
   return (
@@ -128,6 +129,10 @@ const SidebarContent = ({ onNavigate, closeButton }) => {
         {closeButton}
       </div>
       <nav aria-label="Portfolio" className="flex-1 overflow-y-auto px-3 py-4">
+        {/* the Add sheet: a SIP, a lumpsum, gold, silver or an FD, straight into the portfolio */}
+        <button type="button" onClick={onAdd} className="pill pill-secondary w-full mb-5 h-9">
+          <Plus className="w-4 h-4" strokeWidth={2} aria-hidden="true" /> Add entry
+        </button>
         <p className="eyebrow px-2.5 mb-2">Portfolio</p>
         <ul className="space-y-0.5">
           {ASSET_TABS.map((tab) => {
@@ -166,6 +171,7 @@ const usePageLabel = () => {
 // and the same sidebar slides in as a drawer from the hamburger.
 const Navbar = () => {
   const [open, setOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
   const { pathname } = useLocation();
   const label = usePageLabel();
   const drawerRef = useRef(null);
@@ -202,7 +208,7 @@ const Navbar = () => {
   return (
     <>
       <aside className="hidden lg:block fixed inset-y-0 left-0 z-40 w-[240px] bg-surface border-r border-line">
-        <SidebarContent />
+        <SidebarContent onAdd={() => setAdding(true)} />
       </aside>
 
       <header className="lg:hidden sticky top-0 z-40 h-14 flex items-center gap-2 px-3 sm:px-4 bg-surface border-b border-line">
@@ -221,7 +227,11 @@ const Navbar = () => {
         <span className="min-w-0 truncate text-[14px] font-medium text-ink">{label}</span>
         <DemoChip />
         {/* the page's Refresh and PDF land here (PortfolioTracker) once its own buttons scroll away */}
-        <div className="ml-auto flex items-center gap-2"><span id="bar-actions" className="contents" /><HideAmountsToggle /><ThemeToggle /></div>
+        <div className="ml-auto flex items-center gap-2">
+          <span id="bar-actions" className="contents" />
+          <button type="button" onClick={() => setAdding(true)} className={ROUND_BTN} aria-label="Add an entry" title="Add an entry"><Plus className="w-4 h-4" aria-hidden="true" /></button>
+          <HideAmountsToggle /><ThemeToggle />
+        </div>
       </header>
 
       {open && (
@@ -230,6 +240,7 @@ const Navbar = () => {
           <div id="nav-drawer" ref={drawerRef} tabIndex={-1} className="outline-none absolute inset-y-0 left-0 w-[280px] max-w-[85vw] bg-surface shadow-[0_0_0_1px_var(--c-line),0_24px_48px_rgb(0_0_0/0.25)] animate-[drawer-in_200ms_cubic-bezier(0.2,0.8,0.2,1)]">
             <SidebarContent
               onNavigate={() => setOpen(false)}
+              onAdd={() => { setOpen(false); setAdding(true); }}
               closeButton={
                 <button type="button" onClick={() => setOpen(false)} aria-label="Close menu" className="ml-auto grid place-items-center w-9 h-9 rounded-full bg-surface-strong text-body hover:text-ink transition-colors cursor-pointer">
                   <ArrowLeftToLine className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
@@ -239,6 +250,8 @@ const Navbar = () => {
           </div>
         </div>
       )}
+
+      {adding && <AddEntrySheet onClose={() => setAdding(false)} />}
     </>
   );
 };

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, LineChart, Landmark, Coins, Gem, PiggyBank, X, RotateCw, CalendarClock, Calendar } from 'lucide-react';
 import FundIcon from './FundIcon';
+import Sheet from './Sheet';
 import { Bone } from './Ghost';
 import { useTheme, chartPalette } from '../../hooks/useTheme';
 import { getCalendar } from '../../services/portfolioService';
@@ -286,8 +286,11 @@ const CalendarView = () => {
 
   useEffect(() => {
     let live = true;
-    getCalendar().then((d) => live && setData(d)).catch((e) => live && setError(e.message));
-    return () => { live = false; };
+    const load = () => getCalendar().then((d) => live && setData(d)).catch((e) => live && setError(e.message));
+    load();
+    // an entry added from the Add sheet: load the month again
+    window.addEventListener('portfolio:changed', load);
+    return () => { live = false; window.removeEventListener('portfolio:changed', load); };
   }, []);
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 1023.98px)');
@@ -295,85 +298,6 @@ const CalendarView = () => {
     mq.addEventListener('change', on);
     return () => mq.removeEventListener('change', on);
   }, []);
-  // While the sheet is open on a phone the page behind it doesn't scroll: the body is pinned where it was (the
-  // only lock iOS Safari respects) and put back, at the same scroll position, when it closes. Escape closes it too.
-  const sheetOpen = !!picked && narrow && phoneView !== 'week';
-  useEffect(() => {
-    if (!sheetOpen) return undefined;
-    const key = (e) => { if (e.key === 'Escape') setPicked(null); };
-    window.addEventListener('keydown', key);
-    const y = window.scrollY;
-    const b = document.body.style;
-    const before = { position: b.position, top: b.top, left: b.left, right: b.right, overflow: b.overflow };
-    Object.assign(b, { position: 'fixed', top: `-${y}px`, left: '0', right: '0', overflow: 'hidden' });
-    return () => {
-      window.removeEventListener('keydown', key);
-      Object.assign(b, before);
-      window.scrollTo(0, y);
-    };
-  }, [sheetOpen]);
-
-  // Phones: drag the sheet down to close it. The drag starts anywhere on the sheet, except inside the day's list
-  // while that list is scrolled down (there a downward swipe scrolls it back up first). Let go past a third of the
-  // sheet's height, or with a quick flick, and it slides away; otherwise it springs back.
-  const sheetRef = useRef(null);
-  const scrimRef = useRef(null);
-  useEffect(() => {
-    const el = sheetRef.current;
-    if (!sheetOpen || !el) return undefined;
-    const phone = window.matchMedia('(max-width: 639.98px)');
-    const still = window.matchMedia('(prefers-reduced-motion: reduce)');
-    let armed = false; let drag = false; let y0 = 0; let dy = 0; let lastY = 0; let lastT = 0; let v = 0; let timer;
-    const place = (d, animate) => {
-      const t = animate ? 'transform 220ms cubic-bezier(.2,.8,.2,1), opacity 220ms ease' : 'none';
-      el.style.transition = t;
-      el.style.transform = d ? `translateY(${d}px)` : '';
-      if (scrimRef.current) {
-        scrimRef.current.style.transition = t;
-        scrimRef.current.style.opacity = d ? String(Math.max(0, 1 - d / el.offsetHeight)) : '';
-      }
-    };
-    const down = (e) => {
-      armed = false; drag = false;
-      if (!phone.matches || e.touches.length !== 1) return;
-      const list = el.querySelector('[data-sheet-scroll]');
-      if (list && list.contains(e.target) && list.scrollTop > 0) return;
-      armed = true; y0 = lastY = e.touches[0].clientY; lastT = e.timeStamp; dy = 0; v = 0;
-    };
-    const move = (e) => {
-      if (!armed) return;
-      const y = e.touches[0].clientY;
-      if (!drag) {
-        if (y < y0) { armed = false; return; } // an upward swipe scrolls the list as usual
-        if (y === y0) return;
-        drag = true;
-      }
-      if (e.cancelable) e.preventDefault();
-      dy = Math.max(0, y - y0);
-      v = (y - lastY) / Math.max(1, e.timeStamp - lastT); lastY = y; lastT = e.timeStamp;
-      place(dy, false);
-    };
-    const up = () => {
-      if (!drag) { armed = false; return; }
-      armed = drag = false;
-      if (dy > el.offsetHeight / 3 || (v > 0.5 && dy > 24)) {
-        if (still.matches) { setPicked(null); return; }
-        place(el.offsetHeight, true);
-        timer = setTimeout(() => setPicked(null), 200);
-      } else place(0, true);
-    };
-    el.addEventListener('touchstart', down, { passive: true });
-    el.addEventListener('touchmove', move, { passive: false });
-    el.addEventListener('touchend', up);
-    el.addEventListener('touchcancel', up);
-    return () => {
-      clearTimeout(timer);
-      el.removeEventListener('touchstart', down);
-      el.removeEventListener('touchmove', move);
-      el.removeEventListener('touchend', up);
-      el.removeEventListener('touchcancel', up);
-    };
-  }, [sheetOpen]);
 
   const byDay = useMemo(() => {
     const map = new Map();
@@ -625,16 +549,8 @@ const CalendarView = () => {
       )}
 
       {/* phones and tablets, month view: the day opens as a sheet from the bottom */}
-      {narrow && !week && picked && createPortal(
-        <div className="fixed inset-0 z-50 flex flex-col justify-end sm:flex-row" role="dialog" aria-modal="true" aria-label={longDate(picked)}>
-          <button ref={scrimRef} type="button" className="absolute inset-0 bg-black/40 cursor-default" aria-label="Close" onClick={() => setPicked(null)} />
-          <div ref={sheetRef} className="relative flex flex-col max-h-[80vh] overflow-hidden rounded-t-2xl bg-canvas px-4 pt-4 pb-6 shadow-[0_-1px_0_var(--c-line-strong)]
-            sm:max-h-none sm:h-full sm:w-[min(420px,85vw)] sm:rounded-none sm:px-5 sm:pt-6 sm:shadow-[-1px_0_0_var(--c-line-strong),var(--c-shadow-float)]">
-            <span className="sm:hidden shrink-0 block mx-auto mb-3 w-10 h-1 rounded-full bg-line-strong" aria-hidden="true" />
-            {panel}
-          </div>
-        </div>,
-        document.body,
+      {narrow && !week && picked && (
+        <Sheet label={longDate(picked)} onClose={() => setPicked(null)}>{panel}</Sheet>
       )}
     </div>
   );

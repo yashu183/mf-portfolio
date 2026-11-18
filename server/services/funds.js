@@ -156,7 +156,10 @@ async function computeMFData(config) {
             const cashFlows = buildCashFlows(fund, currentDate);
             cashFlows.push({ date: currentDate, amount: currentValue });
 
-            const cacheKey = latestDate ? `${config.__demo ? 'demo_' : ''}${fund.id}_${latestDate}_xirr` : null;
+            // keyed by the cash flows themselves, so an entry added from the app changes the key at once
+            const cacheKey = latestDate
+                ? `${config.__demo ? 'demo_' : ''}${fund.id}_${cashFlows.map((f) => `${f.date.getTime()}:${f.amount}`).join(',')}`
+                : null;
             // no NAV means no value to measure against, and a diverged solve is not a return either
             const rawXirr = navStatus !== 'missing' && cashFlows.length > 1 ? calculateXIRR(cashFlows, 0.1, cacheKey) : 0;
             const xirr = Number.isFinite(rawXirr) ? rawXirr : 0;

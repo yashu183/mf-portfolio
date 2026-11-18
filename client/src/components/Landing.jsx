@@ -3,7 +3,7 @@ import { markAppWelcomed } from '../utils/installedApp';
 import { Link, useNavigate } from 'react-router-dom';
 import BigAmount from './portfolio/BigAmount';
 import { hasActiveSession } from '../services/authService';
-import { ArrowRight, Menu, X, LineChart, Landmark, Coins, Gem, PiggyBank, LayoutGrid, CalendarDays, Check, Sparkles, EyeOff, Sun } from 'lucide-react';
+import { ArrowRight, Menu, X, LineChart, Landmark, Coins, Gem, PiggyBank, LayoutGrid, CalendarDays, Check, Sparkles, EyeOff, Sun, Plus, ChevronDown } from 'lucide-react';
 import { VestaMark, ThemeToggle, WRAP } from './Navbar';
 import { useTheme, chartPalette } from '../hooks/useTheme';
 
@@ -57,6 +57,7 @@ const OverviewMock = ({ palette }) => (
           <span className="ml-1 h-4 px-1.5 inline-flex items-center rounded-full bg-surface-strong font-mono text-[9px] text-muted">Private</span>
         </div>
         <div className="flex-1 p-2 space-y-0.5">
+          <span className="mb-2 flex items-center justify-center gap-1.5 h-7 rounded-[5px] bg-surface text-ink font-medium shadow-[0_0_0_1px_var(--c-line-strong)]"><Plus className="w-3.5 h-3.5" strokeWidth={2} />Add entry</span>
           {[['Overview', LayoutGrid, null], ['Calendar', CalendarDays, 7], ['Mutual Funds', LineChart, 0], ['Gold', Coins, 3], ['Silver', Gem, 4], ['FDs', Landmark, 1], ['EPF', PiggyBank, 2]].map(([t, Icon, slot], i) => (
             <span key={t} className={`flex items-center gap-2 h-7 px-2 rounded-[5px] ${i === 0 ? 'bg-surface-strong text-ink font-medium' : 'text-body'}`}>
               <Icon className="w-3.5 h-3.5 text-ink" style={slot != null ? { color: palette.series[slot] } : undefined} strokeWidth={1.75} />{t}
@@ -403,6 +404,38 @@ const CalendarMock = ({ palette }) => {
   );
 };
 
+// Mirrors the Add sheet: what to add, by asset, then that kind's form and the sentence over Save
+const AddMock = ({ palette }) => {
+  const field = 'h-9 flex items-center justify-between rounded-md bg-surface px-3 text-[13px] text-ink shadow-[0_0_0_1px_var(--c-line-strong)]';
+  return (
+    <div role="img" aria-label="Vesta's Add sheet: a lumpsum of ₹10,000 into Nippon Small Cap today, ready to save">
+      <div aria-hidden="true" className="rounded-lg bg-canvas text-left">
+        <p className="eyebrow">Portfolio</p>
+        <p className="mt-1 text-[15px] font-semibold text-ink">Add an entry</p>
+        <div className="mt-3 pt-3 border-t border-line space-y-2">
+          {[['Funds', LineChart, 0, ['Lumpsum', 'New SIP', 'Stop SIP']], ['Metals', Coins, 3, ['Gold', 'Silver']], ['FDs', Landmark, 1, ['New FD', 'Renew FD']]].map(([g, Icon, slot, kinds]) => (
+            <div key={g} className="flex items-center gap-2">
+              <span className="w-[60px] shrink-0 flex items-center gap-1.5 text-[11px] text-muted"><Icon className="w-3 h-3" style={{ color: palette.series[slot] }} strokeWidth={1.75} />{g}</span>
+              <div className="flex flex-wrap gap-1">
+                {kinds.map((k) => <span key={k} className={`h-6 px-2.5 inline-flex items-center rounded-full text-[11px] ${k === 'Lumpsum' ? 'bg-primary text-on-primary font-medium' : 'bg-surface text-body shadow-[inset_0_0_0_1px_var(--c-line-strong)]'}`}>{k}</span>)}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 pt-3 border-t border-line space-y-2.5">
+          <div><p className="mb-1 text-[12px] font-medium text-ink">Fund</p><div className={field}>Nippon Small Cap<ChevronDown className="w-3.5 h-3.5 text-muted" /></div></div>
+          <div className="grid grid-cols-2 gap-2">
+            <div><p className="mb-1 text-[12px] font-medium text-ink">Amount</p><div className={field}><span><span className="text-muted">₹ </span><span className="num">10000</span></span></div></div>
+            <div><p className="mb-1 text-[12px] font-medium text-ink">Date</p><div className={field}><span className="num">18/11/2026</span></div></div>
+          </div>
+        </div>
+        <p className="mt-3 text-[12px] text-body">Adds <span className="num text-ink">₹10,000</span> to Nippon Small Cap on 18 Nov 2026.</p>
+        <span className="mt-2 pill pill-sm pill-primary w-full">Save</span>
+      </div>
+    </div>
+  );
+};
+
 const TotalMock = ({ palette }) => (
   <div className="card p-5" aria-hidden="true">
     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
@@ -491,6 +524,7 @@ const Landing = () => {
     { id: 'total', title: 'Adds five classes into one total', body: 'Funds, deposits, metals and EPF meet on one overview, with a timeline and a calendar of every payment you made.', mock: <TotalMock palette={palette} /> },
     { id: 'nifty', wide: true, title: 'Measures your funds against the Nifty 50', body: 'Every SIP and lump sum is replayed into the Nifty 50 on the same day, so you see how far ahead or behind your money is, fund by fund and in total. Switch to fund price to see which funds beat the index from the day you bought them, and drag across the chart to zoom in. On a phone, tap the chart to read a day, or hold and drag to move along it.', mock: <NiftyMock palette={palette} /> },
     { id: 'calendar', wide: true, title: 'Puts every payment on a calendar', body: 'Each SIP, lump sum, FD, gold and silver purchase and EPF contribution on the day it went in, with the SIPs and FD maturities still to come. Pick a day for the NAV each payment bought at and what it is worth today.', mock: <CalendarMock palette={palette} /> },
+    { id: 'add', wide: true, title: 'Adds a SIP or a purchase from your phone', body: 'A lumpsum, a new SIP or its stop, a gold or silver bar, a new FD or its renewal: pick it from the Add sheet and every page counts it at once. Funds, sets and FDs come from what you already hold; an FD works out its maturity date and suggests the interest. Each save keeps a copy of the portfolio as it was.', mock: <AddMock palette={palette} /> },
     { id: 'reports', wide: true, title: 'Downloads a PDF report', body: 'The whole portfolio or one asset, with charts and insights. A masked copy hides every amount and keeps the percentages, so it is safe to share.', mock: <PdfMock /> },
   ];
 

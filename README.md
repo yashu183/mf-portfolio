@@ -10,6 +10,7 @@ A private portfolio tracker for mutual funds, fixed deposits, gold, silver and E
 - **Overview**: total balance, gain and return across every asset, an allocation donut (current value, invested or returns), and invested-vs-current charts.
 - **Mutual funds**: returns, XIRR and status for each fund, grouped by performance; allocation by SIP against Claude's target; a month-by-month investment timeline with SIP revisions.
 - **Investment calendar**: a month grid of every SIP instalment and lump sum, FD opened, renewed or maturing, gold and silver purchase, and EPF contribution, each as a chip in its asset's colour, with the month's total put in by asset, a legend, and the SIPs and FD maturities still to come. Jump to any month or year from the month picker. Click a day for each entry in full: the NAV a payment bought at, the units, what it's worth today and its gain; an FD's rate, interest and next cycle; a metal's price per gram then and now; EPF's employee and employer shares. On tablets a day opens in a drawer from the right. On phones the month shows each day's asset icons, a day opens as a sheet from the bottom, and a Week view lists the picked day's entries under a pinned week strip.
+- **Add entries from the app**: the **Add entry** button (sidebar, or **+** in the phone bar) opens a sheet for a lumpsum, a new SIP or a SIP's stop, a gold or silver purchase, a new FD or an FD's renewal. Funds, sets and FDs are picked from what you already hold; a new FD works out its maturity date from the term and suggests the interest (to check against the bank's figure), and a renewal starts from the last maturity with all of it. Saving writes `portfolioConfig.json` on the server (no restart needed) and every page counts the entry at once. The demo shows the sheet but can't save.
 - **Fund logos**: each fund shows its fund house's logo, or its initials when there is none.
 - **Against the Nifty 50**: every SIP instalment and lump sum is replayed into the Nifty 50 on the same day, so each fund shows how far ahead or behind the same money in the index it is: a sortable **vs Nifty** column (XIRR points), and in each fund's details the Nifty 50's XIRR, what the same money would be worth there, and the gap in rupees. The Mutual Funds dashboard sums it up for the whole portfolio.
 - **Funds vs Nifty 50 chart** (Performance), in two views that keep the same funds ticked:
@@ -53,10 +54,11 @@ The server is laid out by job:
 ```
 server/
   server.js        wires the app: CORS, the demo, sign-in, then the routes
-  routes/          auth.js (sign-in, the demo, the session check), portfolio.js, recommendations.js
+  routes/          auth.js (sign-in, the demo, the session check), portfolio.js, recommendations.js,
+                   entries.js (the Add sheet's saves)
   services/        the maths for each part of the app: funds, navHistory, fds, metals, epf,
                    timeline, calendar, overview, and recommendations (Bedrock)
-  lib/             config loading, dates, XIRR, responses
+  lib/             config loading and saving (configStore.js), dates, XIRR, responses
   lib/sources/     the outside data: mfapi.js (NAVs, with the disk cache), yahoo.js, bullions.js
 ```
 
@@ -156,6 +158,8 @@ The file has one list per asset, plus the AI settings:
 }
 ```
 
+You can keep editing this file by hand, or add most entries from the app with **Add entry** (see [Adding entries](#adding-entries)). New funds and EPF changes still go in by hand for now.
+
 **Mutual funds**
 - `schemeId`: the scheme code from [MFapi](https://api.mfapi.in/mf). Search for your fund there and copy its code, e.g. HDFC ELSS Tax Saver Growth is `101979`.
 - `sips`: `amount`, `startDate` and `stopDate` (YYYY-MM-DD; `null` while active). Add a new entry when the SIP amount changes; each one shows as a revision on the timeline.
@@ -240,6 +244,21 @@ In production use HTTPS and set `ALLOWED_ORIGINS` to the frontend's origin. Serv
 | **FDs** | Principal and interest; each deposit's principal, rate and term, progress to maturity and value; open one for its cycles; search and filter by bank and holder |
 | **EPF** | Contributed and interest; each account's balance, contributed vs interest, and its contribution history |
 
+### Adding entries
+
+**Add entry** at the top of the sidebar (or **+** in the phone bar) opens a sheet from any page:
+
+| Entry | What it writes |
+| --- | --- |
+| **Lumpsum** | `{ amount, date }` into the fund's `lumpsums`, kept in date order |
+| **New SIP** | `{ amount, startDate, stopDate: null }` into the fund's `sips`; it runs alongside any SIP already running |
+| **Stop SIP** | the running SIP's `stopDate` (that month's instalment counts if the date is on or after the 5th) |
+| **Gold / Silver** | a holding with the next label and id, in an existing set or a new one |
+| **New FD** | a deposit with its first cycle; `maturityDate` is the start date plus the term |
+| **Renew FD** | a new cycle starting at the last maturity; `maturityDate` is that date plus the term |
+
+Each save checks the entry (real dates, amounts above zero, no purchases dated in the future, no duplicate labels), then writes the file in one step (a temp file renamed over it, one save at a time) in the same layout as the hand-written file. The file as it was is kept in `server/.config-backups/` (the newest 50, git-ignored); copy one back over `portfolioConfig.json` to undo a save. The server reads the file on every request, so nothing needs a restart.
+
 The foot of the sidebar (or the phone menu) holds the theme switch, **Hide amounts** and **Lock** (**Exit demo** in the demo).
 
 ## API
@@ -263,11 +282,20 @@ Every route except `/api/health`, `/api/auth/verify` and `/api/auth/logout` need
 | `GET` | `/api/portfolio/silver` | Silver holdings at the live price |
 | `GET` | `/api/portfolio/epf` | EPF accounts |
 | `POST` | `/api/recommendations` | Claude's SIP recommendations |
+| `GET` | `/api/entries/options` | What the Add sheet picks from: funds and their running SIPs, metal sets and labels, FDs and their last maturity |
+| `POST` | `/api/entries/lumpsum` | Adds `{ fundId, amount, date }` |
+| `POST` | `/api/entries/sip` | Adds `{ fundId, amount, startDate }` |
+| `POST` | `/api/entries/sip-stop` | Stops `{ fundId, sipIndex, stopDate }` |
+| `POST` | `/api/entries/metal` | Adds `{ metal: 'gold' \| 'silver', label, set, purchaseDate, quantity, purchasePrice }` |
+| `POST` | `/api/entries/fd` | Adds `{ name, bank, label, principal, startDate, termDays, rate, interestBank }` |
+| `POST` | `/api/entries/fd-renewal` | Renews `{ fdId, termDays, rate, interestBank }` |
+
+The `/api/entries` saves answer `400` with a message when the entry doesn't check out, and `403` under `/api/demo`.
 
 ## Tests
 
 ```bash
-npm --prefix server test        # authentication regression tests
+npm --prefix server test        # authentication and entry-saving tests (the entry tests use a temporary copy of the example config)
 npm --prefix client run build   # frontend build check
 ```
 
